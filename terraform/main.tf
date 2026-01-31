@@ -29,26 +29,47 @@ module "networking" {
   public_subnets = var.public_subnets
 }
 
-# EC2 Compute Resources
-module "compute" {
-  source = "./modules/compute"
+# ACM Certificate for SSL/TLS
+module "acm" {
+  source = "./modules/acm"
   
-  environment         = var.environment
-  vpc_id              = module.networking.vpc_id
-  public_subnet_ids   = module.networking.public_subnet_ids
-  instance_type       = var.instance_type
-  key_name            = var.key_name
-  backend_port        = var.backend_port
-  frontend_port       = var.frontend_port
+  domain_name = var.domain_name
+  environment = var.environment
 }
 
-# RDS Database (Optional - using H2 in memory for demo)
-# module "database" {
-#   source = "./modules/database"
-#   
-#   environment        = var.environment
-#   vpc_id             = module.networking.vpc_id
-#   private_subnet_ids = module.networking.private_subnet_ids
-#   db_username        = var.db_username
-#   db_password        = var.db_password
-# }
+# Application Load Balancer
+module "alb" {
+  source = "./modules/alb"
+  
+  environment        = var.environment
+  vpc_id             = module.networking.vpc_id
+  public_subnet_ids  = module.networking.public_subnet_ids
+  certificate_arn    = module.acm.certificate_arn
+}
+
+# ECS Fargate Cluster and Services
+module "ecs" {
+  source = "./modules/ecs"
+  
+  environment           = var.environment
+  vpc_id                = module.networking.vpc_id
+  public_subnet_ids     = module.networking.public_subnet_ids
+  backend_port          = var.backend_port
+  frontend_port         = var.frontend_port
+  backend_cpu           = var.backend_cpu
+  backend_memory        = var.backend_memory
+  frontend_cpu          = var.frontend_cpu
+  frontend_memory       = var.frontend_memory
+  alb_target_group_backend_arn  = module.alb.backend_target_group_arn
+  alb_target_group_frontend_arn = module.alb.frontend_target_group_arn
+  alb_security_group_id = module.alb.alb_security_group_id
+}
+
+# Route53 DNS
+module "route53" {
+  source = "./modules/route53"
+  
+  domain_name    = var.domain_name
+  alb_dns_name   = module.alb.alb_dns_name
+  alb_zone_id    = module.alb.alb_zone_id
+}
