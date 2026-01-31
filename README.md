@@ -163,6 +163,29 @@ terraform destroy
 - XSS protection
 - CSRF protection
 
+### Production Security Considerations
+
+**Important**: Before deploying to production:
+
+1. **JWT Secret**: Set the `JWT_SECRET` environment variable with a strong, unique secret:
+   ```bash
+   export JWT_SECRET="your-production-secret-here"
+   ```
+
+2. **SSH Access**: Restrict SSH access in Terraform to specific IP ranges or use AWS Systems Manager Session Manager:
+   ```hcl
+   cidr_blocks = ["your.ip.address/32"]  # Replace 0.0.0.0/0
+   ```
+
+3. **Database Password**: Always provide a secure database password when applying Terraform:
+   ```bash
+   terraform apply -var="db_password=SecurePassword123!"
+   ```
+
+4. **HTTPS**: Configure SSL/TLS certificates for production deployment
+5. **Environment Variables**: Never commit secrets to version control
+6. **Regular Updates**: Keep dependencies updated to patch security vulnerabilities
+
 ## 📊 CI/CD Pipeline
 
 The project includes a comprehensive GitHub Actions workflow that:
