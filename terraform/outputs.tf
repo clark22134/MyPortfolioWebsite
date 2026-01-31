@@ -8,17 +8,38 @@ output "public_subnet_ids" {
   value       = module.networking.public_subnet_ids
 }
 
-output "backend_instance_public_ip" {
-  description = "Backend EC2 instance public IP"
-  value       = module.compute.backend_instance_public_ip
+output "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  value       = module.alb.alb_dns_name
 }
 
-output "frontend_instance_public_ip" {
-  description = "Frontend EC2 instance public IP"
-  value       = module.compute.frontend_instance_public_ip
+output "domain_name" {
+  description = "Domain name"
+  value       = var.domain_name
 }
 
-output "load_balancer_dns" {
-  description = "Load balancer DNS name"
-  value       = module.compute.load_balancer_dns
+output "certificate_arn" {
+  description = "ARN of the SSL certificate"
+  value       = module.acm.certificate_arn
+}
+
+output "certificate_validation_records" {
+  description = "DNS validation records for the SSL certificate"
+  value       = module.acm.certificate_validation_records
+  sensitive   = false
+}
+
+output "ecs_cluster_name" {
+  description = "Name of the ECS cluster"
+  value       = module.ecs.ecs_cluster_name
+}
+
+output "nameservers" {
+  description = "Name servers for Route53 hosted zone"
+  value       = module.route53.nameservers
+}
+
+output "website_url" {
+  description = "URL of the deployed website"
+  value       = "https://${var.domain_name}"
 }

@@ -18,8 +18,78 @@
 /frontend/package-lock.json
 /yarn.lock
 
-# Environment files
-/.env
+# Environment files - CRITICAL SECURITY
+.env
+.env.*
+.env.local
+.env.development
+.env.test
+.env.production
+*.env
+!.env.example
+
+# AWS Credentials - NEVER COMMIT
+.aws/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+credentials
+config
+~/.aws/
+
+# Secrets and API Keys
+secrets/
+*.secret
+*.secrets
+.secrets
+secret.yaml
+secret.yml
+secrets.json
+*-secret.yaml
+*-secret.yml
+
+# Terraform sensitive files
+*.tfvars
+!example.tfvars
+terraform.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.auto.tfvars
+.terraformrc
+terraform.rc
+
+# Docker sensitive files
+docker-compose.override.yml
+.dockerignore.local
+
+# Database dumps and backups
+*.sql
+*.dump
+*.backup
+*.bak
+*.db
+*.sqlite
+*.sqlite3
+
+# Certificate files
+*.cer
+*.der
+*.p7b
+*.p7c
+*.spc
+
+# Private keys
+*_rsa
+*_rsa.pub
+*_ed25519
+*_ed25519.pub
+id_rsa*
+id_dsa*
+id_ecdsa*
 
 # Angular CLI and build artefacts
 /.angular-cli.json
@@ -43,7 +113,51 @@ yarn-error.log*
 .terraform/
 .terraform.lock.hcl
 
-# IDE
+# IDE and OS files
 .vscode/
 .idea/
 *.iml
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Logs and temporary files
+*.log
+logs/
+*.tmp
+*.temp
+.cache/
+.npm/
+.eslintcache
+
+# CI/CD sensitive data
+.github/secrets/
+ci-secrets.yml
+
+# Backup files
+*-backup
+*.orig
+
+# Coverage reports (may contain sensitive paths)
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Local development files
+local_settings.py
+*.local
+.local/

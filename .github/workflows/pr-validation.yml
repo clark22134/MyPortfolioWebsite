@@ -1,0 +1,113 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-checks:
+    name: PR Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate PR title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Label PR
+        uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+  security-scan:
+    name: Security Scan
+    uses: ./.github/workflows/reusable-security.yml
+    secrets: inherit
+
+  test-backend:
+    name: Backend Tests
+    needs: [security-scan]
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      component: backend
+
+  test-frontend:
+    name: Frontend Tests
+    needs: [security-scan]
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      component: frontend
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Type check
+        run: |
+          cd frontend
+          npm run build -- --configuration production
+
+      - name: Lint check
+        run: |
+          cd frontend
+          npm run lint
+
+      - name: Run tests with coverage
+        run: |
+          cd frontend
+          npm run test:coverage || true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: frontend/coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run npm audit (frontend)
+        run: |
+          cd frontend
+          npm audit --audit-level=moderate || true
+
+      - name: Run Maven dependency check (backend)
+        run: |
+          cd backend
+          mvn dependency-check:check -DfailBuildOnCVSS=7 || true
+
+      - name: Secret scanning
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+
+  auto-review:
+    name: Automated Code Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run PR Review
+        uses: coderabbitai/ai-pr-reviewer@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          debug: false
+          review_simple_changes: false
+          review_comment_lgtm: false

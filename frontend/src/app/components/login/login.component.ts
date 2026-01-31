@@ -45,11 +45,6 @@ import { LoginRequest } from '../../models/user.model';
             {{ loading ? 'Logging in...' : 'Login' }}
           </button>
         </form>
-        <div class="demo-info">
-          <p><strong>Demo Credentials:</strong></p>
-          <p>Username: demo</p>
-          <p>Password: demo123</p>
-        </div>
       </div>
     </div>
   `,
@@ -135,23 +130,6 @@ import { LoginRequest } from '../../models/user.model';
       opacity: 0.6;
       cursor: not-allowed;
     }
-
-    .demo-info {
-      margin-top: 2rem;
-      padding: 1rem;
-      background: #f5f5f5;
-      border-radius: 8px;
-      text-align: center;
-    }
-
-    .demo-info p {
-      margin: 0.5rem 0;
-      color: #666;
-    }
-
-    .demo-info strong {
-      color: #333;
-    }
   `]
 })
 export class LoginComponent {
@@ -171,7 +149,7 @@ export class LoginComponent {
     this.authService.login(this.credentials).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigate(['/projects']);
+        this.router.navigate(['/admin/interactive-projects']);
       },
       error: (error) => {
         this.loading = false;
