@@ -66,7 +66,8 @@ resource "aws_security_group" "backend" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]  # TODO: Restrict to specific IP ranges in production
+    description = "SSH access - SECURITY: Restrict to bastion host or VPN in production"
   }
 
   egress {
@@ -106,7 +107,8 @@ resource "aws_security_group" "frontend" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]  # TODO: Restrict to specific IP ranges in production
+    description = "SSH access - SECURITY: Restrict to bastion host or VPN in production"
   }
 
   egress {
@@ -194,7 +196,7 @@ resource "aws_lb_target_group" "backend" {
   health_check {
     path                = "/api/projects"
     healthy_threshold   = 2
-    unhealthy_threshold = 10
+    unhealthy_threshold = 3
   }
 
   tags = {
