@@ -22,6 +22,9 @@ env:
 jobs:
   security-and-quality:
     name: Security & Quality Checks
+    permissions:
+      security-events: write
+      contents: read
     uses: ./.github/workflows/reusable-security.yml
     secrets: inherit
 
