@@ -26,13 +26,13 @@ public class DataInitializer implements CommandLineRunner {
     
     @Override
     public void run(String... args) throws Exception {
-        // Create default user
-        if (!userRepository.existsByUsername("demo")) {
+        // Create admin user
+        if (!userRepository.existsByUsername("clark")) {
             User user = new User();
-            user.setUsername("demo");
-            user.setPassword(passwordEncoder.encode("demo123"));
-            user.setEmail("demo@portfolio.com");
-            user.setFullName("Demo User");
+            user.setUsername("clark");
+            user.setPassword(passwordEncoder.encode("Hereredblackdoor1!"));
+            user.setEmail("admin@clarkfoster.com");
+            user.setFullName("Clark Foster");
             userRepository.save(user);
         }
         

@@ -13,7 +13,7 @@ import { Project } from '../../models/project.model';
       <section class="hero">
         <div class="hero-content">
           <h1 class="hero-title">Welcome to My Portfolio</h1>
-          <p class="hero-subtitle">Full Stack Developer | Angular & Spring Boot Enthusiast</p>
+          <p class="hero-subtitle">Full Stack Developer</p>
           <div class="hero-buttons">
             <a routerLink="/projects" class="btn btn-primary">View Projects</a>
             <a routerLink="/login" class="btn btn-secondary">Login</a>
@@ -51,15 +51,22 @@ import { Project } from '../../models/project.model';
       <section class="about">
         <h2>About This Portfolio</h2>
         <p>
-          This portfolio demonstrates mastery of modern full-stack development using:
+          This portfolio website was built using the following technologies:
         </p>
         <ul>
           <li>Angular 19 with TypeScript</li>
-          <li>Spring Boot 3.x with Java 17</li>
+          <li>Spring Boot 3.2.1 with Java 21 (LTS)</li>
           <li>RESTful API architecture</li>
-          <li>JWT Authentication</li>
-          <li>AWS Cloud Infrastructure with Terraform</li>
-          <li>DevSecOps with GitHub Actions</li>
+          <li>JWT Authentication & Spring Security</li>
+          <li>AWS ECS Fargate (Serverless Containers)</li>
+          <li>AWS Application Load Balancer (ALB)</li>
+          <li>AWS Route 53 (DNS Management)</li>
+          <li>AWS Certificate Manager (ACM) with SSL/TLS</li>
+          <li>AWS ECR (Container Registry)</li>
+          <li>AWS CloudWatch (Logging & Monitoring)</li>
+          <li>Terraform Infrastructure as Code</li>
+          <li>Docker Multi-Stage Builds</li>
+          <li>DevSecOps with GitHub Actions CI/CD</li>
         </ul>
       </section>
     </div>
@@ -264,8 +271,8 @@ export class HomeComponent implements OnInit {
 
   ngOnInit(): void {
     this.projectService.getFeaturedProjects().subscribe({
-      next: (projects) => this.featuredProjects = projects,
-      error: (err) => console.error('Error loading featured projects', err)
+      next: (projects: Project[]) => this.featuredProjects = projects,
+      error: (err: Error) => console.error('Error loading featured projects', err)
     });
   }
 }

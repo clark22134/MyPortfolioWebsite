@@ -1,0 +1,31 @@
+# Automatically label PRs based on changed files
+
+backend:
+  - backend/**/*
+
+frontend:
+  - frontend/**/*
+
+infrastructure:
+  - terraform/**/*
+  - .github/workflows/**/*
+  - docker-compose.yml
+  - Dockerfile
+
+documentation:
+  - '**/*.md'
+  - docs/**/*
+
+dependencies:
+  - '**/package.json'
+  - '**/package-lock.json'
+  - '**/pom.xml'
+
+security:
+  - '.github/workflows/security-scanning.yml'
+  - '**/Dockerfile'
+
+tests:
+  - '**/*.spec.ts'
+  - '**/*Test.java'
+  - '**/*Tests.java'
