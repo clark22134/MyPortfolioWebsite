@@ -259,9 +259,10 @@ jobs:
                  --query 'services[0].events[0:5]' \
                  --output table && exit 1)
 
-      - name: Check frontend deployment status
-        run: |5 minutes)..."
-          timeout 300 bash -c '
+      - name: Wait for frontend deployment
+        run: |
+          echo "Waiting for frontend service to stabilize (max 5 minutes)..."
+          timeout 900 bash -c '
             while true; do
               # Check if new tasks are running and healthy
               RUNNING=$(aws ecs describe-services \
