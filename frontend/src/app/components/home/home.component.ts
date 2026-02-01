@@ -40,6 +40,27 @@ import { Project } from '../../models/project.model';
     </div>
 
     <div class="home-container" *ngIf="!showTerminal">
+      <!-- Cyber Logo -->
+      <div class="cyber-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <!-- Terminal window -->
+            <rect x="10" y="20" width="80" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+            <line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="2"/>
+            <!-- Terminal prompt -->
+            <text x="18" y="48" font-family="monospace" font-size="12" fill="currentColor">&gt;_</text>
+            <!-- Code lines -->
+            <line x1="35" y1="45" x2="70" y2="45" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="35" y1="55" x2="60" y2="55" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="35" y1="65" x2="75" y2="65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-prefix">root&#64;</span><span class="logo-host">portfolio</span>
+        </div>
+        <div class="scan-line"></div>
+      </div>
+
       <!-- Animated Background -->
       <div class="animated-bg">
         <div class="circle circle-1"></div>
@@ -70,7 +91,7 @@ import { Project } from '../../models/project.model';
               </svg>
               Resume
             </a>
-            <a routerLink="/login" class="btn btn-outline">Login</a>
+            <a routerLink="/login" class="btn btn-outline">Interactive Projects (Login)</a>
             <a href="https://github.com/clark22134" target="_blank" class="btn btn-outline">
               <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
@@ -296,6 +317,90 @@ import { Project } from '../../models/project.model';
       min-height: 100vh;
       position: relative;
       overflow-x: hidden;
+    }
+
+    /* Cyber Logo */
+    .cyber-logo {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 15px;
+      background: rgba(20, 20, 20, 0.85);
+      border: 2px solid rgba(0, 204, 51, 0.4);
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      box-shadow: 
+        0 0 20px rgba(0, 204, 51, 0.2),
+        inset 0 0 20px rgba(0, 204, 51, 0.05);
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    .cyber-logo:hover {
+      border-color: rgba(0, 204, 51, 0.7);
+      box-shadow: 
+        0 0 30px rgba(0, 204, 51, 0.4),
+        inset 0 0 20px rgba(0, 204, 51, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .logo-icon {
+      width: 50px;
+      height: 50px;
+      color: #00cc33;
+      animation: pulse 3s ease-in-out infinite;
+      filter: drop-shadow(0 0 8px rgba(0, 204, 51, 0.5));
+    }
+
+    .logo-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .logo-text {
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      color: #00cc33;
+      text-shadow: 0 0 5px rgba(0, 204, 51, 0.5);
+      letter-spacing: 1px;
+    }
+
+    .logo-prefix {
+      color: #808080;
+    }
+
+    .logo-host {
+      color: #00cc33;
+      font-weight: 600;
+    }
+
+    .scan-line {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00cc33, transparent);
+      animation: scanMove 2s linear infinite;
+    }
+
+    @keyframes scanMove {
+      0% {
+        transform: translateY(0);
+        opacity: 0;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-80px);
+        opacity: 0;
+      }
     }
 
     /* Animated Background */
@@ -1006,6 +1111,22 @@ import { Project } from '../../models/project.model';
         max-width: none;
       }
 
+      .cyber-logo {
+        top: 10px;
+        left: 10px;
+        padding: 10px;
+        gap: 5px;
+      }
+
+      .logo-icon {
+        width: 35px;
+        height: 35px;
+      }
+
+      .logo-text {
+        font-size: 0.75rem;
+      }
+
       .terminal-body {
         font-size: 0.75rem;
         padding: 1rem;
@@ -1202,6 +1323,10 @@ export class HomeComponent implements OnInit, AfterViewInit {
         // Hide terminal and show main site after a delay
         setTimeout(() => {
           this.showTerminal = false;
+          // Make all sections visible immediately after terminal
+          this.projectsVisible = true;
+          this.skillsVisible = true;
+          this.aboutVisible = true;
           // Start typing animation for welcome text
           setTimeout(() => this.typeText(), 100);
         }, 800);

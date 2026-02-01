@@ -88,16 +88,39 @@ interface InteractiveProject {
   styles: [`
     .interactive-projects-container {
       min-height: 100vh;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #0a0a0a;
       padding: 2rem;
+      position: relative;
+    }
+
+    .interactive-projects-container::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        repeating-linear-gradient(
+          0deg,
+          rgba(0, 204, 51, 0.03) 0px,
+          transparent 1px,
+          transparent 2px,
+          rgba(0, 204, 51, 0.03) 3px
+        );
+      pointer-events: none;
+      z-index: 0;
     }
 
     .page-header {
-      background: white;
+      background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
       border-radius: 12px;
       padding: 2rem;
       margin-bottom: 2rem;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 20px rgba(0, 204, 51, 0.3);
+      border: 1px solid rgba(0, 204, 51, 0.3);
+      position: relative;
+      z-index: 1;
     }
 
     .header-content {
@@ -107,45 +130,78 @@ interface InteractiveProject {
     }
 
     h1 {
-      color: #333;
+      color: #00cc33;
       margin: 0;
       font-size: 2rem;
+      font-family: 'Courier New', 'Space Grotesk', monospace;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-shadow: 
+        0 0 8px rgba(0, 204, 51, 0.4),
+        0 0 15px rgba(0, 204, 51, 0.3);
     }
 
     .btn-logout {
       padding: 0.75rem 1.5rem;
-      background: #dc3545;
-      color: white;
-      border: none;
+      background: rgba(0, 204, 51, 0.2);
+      color: #00cc33;
+      border: 1px solid rgba(0, 204, 51, 0.5);
       border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.3s;
+      font-family: 'Courier New', monospace;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .btn-logout:hover {
-      background: #c82333;
+      background: rgba(0, 204, 51, 0.3);
+      border-color: #00cc33;
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+      box-shadow: 0 0 15px rgba(0, 204, 51, 0.5);
     }
 
     .projects-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
       gap: 2rem;
+      position: relative;
+      z-index: 1;
     }
 
     .project-card {
-      background: white;
+      background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
       border-radius: 12px;
       padding: 2rem;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      transition: transform 0.3s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      border: 1px solid rgba(0, 204, 51, 0.2);
+      overflow: hidden;
+    }
+
+    .project-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 204, 51, 0.02) 0px,
+        transparent 1px,
+        transparent 2px,
+        rgba(0, 204, 51, 0.02) 3px
+      );
+      pointer-events: none;
     }
 
     .project-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      transform: translateY(-8px);
+      box-shadow: 0 12px 30px rgba(0, 204, 51, 0.3);
+      border-color: rgba(0, 204, 51, 0.5);
     }
 
     .project-icon {
@@ -155,17 +211,24 @@ interface InteractiveProject {
     }
 
     h2 {
-      color: #333;
+      color: #00cc33;
       margin: 0 0 1rem 0;
       font-size: 1.5rem;
       text-align: center;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 600;
+      text-shadow: 0 0 5px rgba(0, 204, 51, 0.3);
+      position: relative;
+      z-index: 1;
     }
 
     .project-description {
-      color: #666;
+      color: #b0b0b0;
       margin-bottom: 1.5rem;
       line-height: 1.6;
       text-align: center;
+      position: relative;
+      z-index: 1;
     }
 
     .upload-section {
@@ -177,34 +240,42 @@ interface InteractiveProject {
       justify-content: space-between;
       margin-bottom: 0.5rem;
       padding: 0.5rem;
-      background: #f8f9fa;
+      background: rgba(0, 204, 51, 0.05);
       border-radius: 6px;
+      border: 1px solid rgba(0, 204, 51, 0.2);
+      position: relative;
+      z-index: 1;
     }
 
     .file-info .label {
       font-weight: 600;
-      color: #555;
+      color: #808080;
+      font-family: 'Courier New', monospace;
     }
 
     .file-info .value {
-      color: #667eea;
-      font-family: monospace;
+      color: #00cc33;
+      font-family: 'Courier New', monospace;
     }
 
     .upload-area {
       margin: 1rem 0;
-      border: 2px dashed #ccc;
+      border: 2px dashed rgba(0, 204, 51, 0.3);
       border-radius: 8px;
       padding: 2rem;
       text-align: center;
       transition: all 0.3s;
       cursor: pointer;
+      background: rgba(0, 204, 51, 0.03);
+      position: relative;
+      z-index: 1;
     }
 
     .upload-area:hover,
     .upload-area.drag-over {
-      border-color: #667eea;
-      background: #f8f9ff;
+      border-color: #00cc33;
+      background: rgba(0, 204, 51, 0.1);
+      box-shadow: 0 0 15px rgba(0, 204, 51, 0.2);
     }
 
     .upload-label {
@@ -219,37 +290,48 @@ interface InteractiveProject {
 
     .upload-area p {
       margin: 0.5rem 0;
-      color: #666;
+      color: #b0b0b0;
+      font-family: 'Courier New', monospace;
     }
 
     .upload-hint {
       font-size: 0.9rem;
-      color: #999;
+      color: #808080;
       font-style: italic;
+      font-family: 'Courier New', monospace;
     }
 
     .btn-upload {
       width: 100%;
       padding: 0.75rem;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border: none;
+      background: rgba(0, 204, 51, 0.2);
+      color: #00cc33;
+      border: 1px solid rgba(0, 204, 51, 0.5);
       border-radius: 8px;
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.3s;
       margin-top: 1rem;
+      font-family: 'Courier New', monospace;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      position: relative;
+      z-index: 1;
     }
 
     .btn-upload:hover:not(:disabled) {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      background: rgba(0, 204, 51, 0.3);
+      border-color: #00cc33;
+      box-shadow: 0 0 15px rgba(0, 204, 51, 0.5);
     }
 
     .btn-upload:disabled {
-      opacity: 0.5;
+      opacity: 0.4;
       cursor: not-allowed;
+      border-color: rgba(0, 204, 51, 0.2);
+      color: rgba(0, 204, 51, 0.5);
     }
 
     .status-message {
@@ -258,28 +340,40 @@ interface InteractiveProject {
       border-radius: 8px;
       text-align: center;
       font-weight: 500;
+      font-family: 'Courier New', monospace;
+      position: relative;
+      z-index: 1;
     }
 
     .status-message.success {
-      background: #d4edda;
-      color: #155724;
+      background: rgba(0, 204, 51, 0.2);
+      color: #00cc33;
+      border: 1px solid rgba(0, 204, 51, 0.4);
+      box-shadow: 0 0 10px rgba(0, 204, 51, 0.2);
     }
 
     .status-message.error {
-      background: #f8d7da;
-      color: #721c24;
+      background: rgba(204, 0, 51, 0.2);
+      color: #ff3366;
+      border: 1px solid rgba(204, 0, 51, 0.4);
+      box-shadow: 0 0 10px rgba(204, 0, 51, 0.2);
     }
 
     .uploaded-files {
       margin-top: 2rem;
       padding-top: 1.5rem;
-      border-top: 1px solid #eee;
+      border-top: 1px solid rgba(0, 204, 51, 0.2);
+      position: relative;
+      z-index: 1;
     }
 
     .uploaded-files h3 {
-      color: #333;
+      color: #00cc33;
       margin: 0 0 1rem 0;
       font-size: 1.1rem;
+      font-family: 'Courier New', monospace;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .uploaded-files ul {
@@ -293,24 +387,33 @@ interface InteractiveProject {
       justify-content: space-between;
       align-items: center;
       padding: 0.75rem;
-      background: #f8f9fa;
+      background: rgba(0, 204, 51, 0.05);
       border-radius: 6px;
       margin-bottom: 0.5rem;
+      border: 1px solid rgba(0, 204, 51, 0.2);
+      transition: all 0.3s;
+    }
+
+    .uploaded-files li:hover {
+      background: rgba(0, 204, 51, 0.1);
+      border-color: rgba(0, 204, 51, 0.4);
     }
 
     .file-name {
       font-weight: 500;
-      color: #333;
+      color: #00cc33;
       flex: 1;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      font-family: 'Courier New', monospace;
     }
 
     .file-date {
       font-size: 0.85rem;
-      color: #999;
+      color: #808080;
       margin-left: 1rem;
+      font-family: 'Courier New', monospace;
     }
 
     @media (max-width: 768px) {
