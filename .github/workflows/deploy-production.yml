@@ -86,7 +86,7 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076  # v2.0.1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -188,19 +188,121 @@ jobs:
             --force-new-deployment \
             --region ${{ env.AWS_REGION }}
 
-      - name: Wait for backend deployment
+      - name: Check backend deployment status
         run: |
-          aws ecs wait services-stable \
+          echo "Checking backend service status..."
+          aws ecs describe-services \
             --cluster ${{ env.ECS_CLUSTER }} \
             --services ${{ env.ECS_BACKEND_SERVICE }} \
-            --region ${{ env.AWS_REGION }}
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount,Events:events[0:3]}' \
+            --output json
+
+      - name: Wait for backend deployment
+        run: |
+          echo "Waiting for backend service to stabilize (max 10 minutes)..."
+          timeout 600 bash -c '
+            while true; do
+              STATUS=$(aws ecs describe-services \
+                --cluster ${{ env.ECS_CLUSTER }} \
+                --services ${{ env.ECS_BACKEND_SERVICE }} \
+                --region ${{ env.AWS_REGION }} \
+                --query "services[0].deployments[?status=='\''PRIMARY'\''].rolloutState" \
+                --output text)
+              
+              RUNNING=$(aws ecs describe-services \
+                --cluster ${{ env.ECS_CLUSTER }} \
+                --services ${{ env.ECS_BACKEND_SERVICE }} \
+                --region ${{ env.AWS_REGION }} \
+                --query "services[0].runningCount" \
+                --output text)
+              
+              DESIRED=$(aws ecs describe-services \
+                --cluster ${{ env.ECS_CLUSTER }} \
+                --services ${{ env.ECS_BACKEND_SERVICE }} \
+                --region ${{ env.AWS_REGION }} \
+                --query "services[0].desiredCount" \
+                --output text)
+              
+              echo "Deployment status: $STATUS | Running: $RUNNING/$DESIRED tasks"
+              
+              if [ "$STATUS" = "COMPLETED" ] && [ "$RUNNING" = "$DESIRED" ]; then
+                echo "Backend deployment completed successfully!"
+                exit 0
+              fi
+              
+              if [ "$STATUS" = "FAILED" ]; then
+                echo "Backend deployment failed!"
+                exit 1
+              fi
+              
+              sleep 15
+            done
+          ' || (echo "Backend deployment timed out or failed. Checking service events..." && \
+               aws ecs describe-services \
+                 --cluster ${{ env.ECS_CLUSTER }} \
+                 --services ${{ env.ECS_BACKEND_SERVICE }} \
+                 --region ${{ env.AWS_REGION }} \
+                 --query 'services[0].events[0:10]' \
+                 --output table && exit 1)
+
+      - name: Check frontend deployment status
+        run: |
+          echo "Checking frontend service status..."
+          aws ecs describe-services \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_FRONTEND_SERVICE }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount,Events:events[0:3]}' \
+            --output json
 
       - name: Wait for frontend deployment
         run: |
-          aws ecs wait services-stable \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --services ${{ env.ECS_FRONTEND_SERVICE }} \
-            --region ${{ env.AWS_REGION }}
+          echo "Waiting for frontend service to stabilize (max 10 minutes)..."
+          timeout 600 bash -c '
+            while true; do
+              STATUS=$(aws ecs describe-services \
+                --cluster ${{ env.ECS_CLUSTER }} \
+                --services ${{ env.ECS_FRONTEND_SERVICE }} \
+                --region ${{ env.AWS_REGION }} \
+                --query "services[0].deployments[?status=='\''PRIMARY'\''].rolloutState" \
+                --output text)
+              
+              RUNNING=$(aws ecs describe-services \
+                --cluster ${{ env.ECS_CLUSTER }} \
+                --services ${{ env.ECS_FRONTEND_SERVICE }} \
+                --region ${{ env.AWS_REGION }} \
+                --query "services[0].runningCount" \
+                --output text)
+              
+              DESIRED=$(aws ecs describe-services \
+                --cluster ${{ env.ECS_CLUSTER }} \
+                --services ${{ env.ECS_FRONTEND_SERVICE }} \
+                --region ${{ env.AWS_REGION }} \
+                --query "services[0].desiredCount" \
+                --output text)
+              
+              echo "Deployment status: $STATUS | Running: $RUNNING/$DESIRED tasks"
+              
+              if [ "$STATUS" = "COMPLETED" ] && [ "$RUNNING" = "$DESIRED" ]; then
+                echo "Frontend deployment completed successfully!"
+                exit 0
+              fi
+              
+              if [ "$STATUS" = "FAILED" ]; then
+                echo "Frontend deployment failed!"
+                exit 1
+              fi
+              
+              sleep 15
+            done
+          ' || (echo "Frontend deployment timed out or failed. Checking service events..." && \
+               aws ecs describe-services \
+                 --cluster ${{ env.ECS_CLUSTER }} \
+                 --services ${{ env.ECS_FRONTEND_SERVICE }} \
+                 --region ${{ env.AWS_REGION }} \
+                 --query 'services[0].events[0:10]' \
+                 --output table && exit 1)
 
       - name: Verify deployment
         run: |
