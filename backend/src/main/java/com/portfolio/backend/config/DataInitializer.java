@@ -40,7 +40,6 @@ public class DataInitializer implements CommandLineRunner {
             user.setFullName(adminFullName);
             userRepository.save(user);
         }
-    }
         
         // Create sample projects
         if (projectRepository.count() == 0) {
