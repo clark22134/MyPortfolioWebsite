@@ -31,42 +31,15 @@ jobs:
 
   test-backend:
     name: Backend Tests
-    needs: [security-scan]
     uses: ./.github/workflows/reusable-test.yml
     with:
       component: backend
 
   test-frontend:
     name: Frontend Tests
-    needs: [security-scan]
     uses: ./.github/workflows/reusable-test.yml
     with:
       component: frontend
-        run: |
-          cd frontend
-          npm ci
-
-      - name: Type check
-        run: |
-          cd frontend
-          npm run build -- --configuration production
-
-      - name: Lint check
-        run: |
-          cd frontend
-          npm run lint
-
-      - name: Run tests with coverage
-        run: |
-          cd frontend
-          npm run test:coverage || true
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: frontend/coverage/lcov.info
-          flags: frontend
-          name: frontend-coverage
 
   security-audit:
     name: Security Audit
