@@ -156,7 +156,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
-      packages: write
+      id-token: write
     
     steps:
     - name: Checkout code
@@ -165,19 +165,24 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v3
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-      if: github.event_name == 'push'
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: us-east-1
+    
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
     
     - name: Build and push Backend Docker image
       uses: docker/build-push-action@v5
       with:
         context: ./backend
-        push: ${{ github.event_name == 'push' }}
-        tags: ${{ secrets.DOCKER_USERNAME }}/portfolio-backend:latest
+        push: true
+        tags: |
+          ${{ steps.login-ecr.outputs.registry }}/portfolio-backend:latest
+          ${{ steps.login-ecr.outputs.registry }}/portfolio-backend:${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
     
@@ -185,8 +190,10 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./frontend
-        push: ${{ github.event_name == 'push' }}
-        tags: ${{ secrets.DOCKER_USERNAME }}/portfolio-frontend:latest
+        push: true
+        tags: |
+          ${{ steps.login-ecr.outputs.registry }}/portfolio-frontend:latest
+          ${{ steps.login-ecr.outputs.registry }}/portfolio-frontend:${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
