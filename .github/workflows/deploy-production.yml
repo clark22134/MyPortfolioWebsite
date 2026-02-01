@@ -347,18 +347,7 @@ jobs:
                  --cluster ${{ env.ECS_CLUSTER }} \
                  --services ${{ env.ECS_FRONTEND_SERVICE }} \
                  --region ${{ env.AWS_REGION }} \
-                 --query 'services[0].events[0:5"
-                exit 1
-              fi
-              
-              sleep 15
-            done
-          ' || (echo "Frontend deployment timed out or failed. Checking service events..." && \
-               aws ecs describe-services \
-                 --cluster ${{ env.ECS_CLUSTER }} \
-                 --services ${{ env.ECS_FRONTEND_SERVICE }} \
-                 --region ${{ env.AWS_REGION }} \
-                 --query 'services[0].events[0:10]' \
+                 --query 'services[0].events[0:5]' \
                  --output table && exit 1)
 
       - name: Verify deployment
