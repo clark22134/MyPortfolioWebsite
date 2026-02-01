@@ -49,6 +49,7 @@ secret.yml
 secrets.json
 *-secret.yaml
 *-secret.yml
+creds.txt
 
 # Terraform sensitive files
 *.tfvars

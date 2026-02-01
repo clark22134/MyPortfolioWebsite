@@ -373,7 +373,7 @@ export class InteractiveProjectsComponent implements OnInit {
 
   ngOnInit(): void {
     // Check if user is authenticated
-    if (!this.authService.isLoggedIn()) {
+    if (!this.authService.isAuthenticated()) {
       this.router.navigate(['/login']);
     }
   }

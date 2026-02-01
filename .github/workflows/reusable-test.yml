@@ -44,9 +44,9 @@ jobs:
         run: |
           cd frontend
           npm ci
-          npm run lint || true
-          npm run test:ci || true
-          npm run build
+          npm run lint
+          npm run test:coverage
+          npm run build -- --configuration production
 
       - name: Upload Backend Artifact
         if: inputs.component == 'backend'
