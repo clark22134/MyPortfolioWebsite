@@ -74,6 +74,14 @@ module "route53" {
   alb_zone_id    = module.alb.alb_zone_id
 }
 
+# WAF for geo-restriction
+module "waf" {
+  source = "./modules/waf"
+  
+  environment = var.environment
+  alb_arn     = module.alb.alb_arn
+}
+
 # IAM Roles and Policies
 resource "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
