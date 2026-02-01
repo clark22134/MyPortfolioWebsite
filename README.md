@@ -7,19 +7,20 @@ A modern, full-stack portfolio website demonstrating mastery of RESTful API deve
 ## 🚀 Features
 
 - **Modern Frontend**: Built with Angular 19 and TypeScript
-- **Robust Backend**: RESTful API using Spring Boot 3.x and Java 17
+- **Robust Backend**: RESTful API using Spring Boot 3.2.1 and Java 21
 - **Authentication**: JWT-based authentication and authorization
 - **Cloud Infrastructure**: AWS deployment with Terraform IaC
 - **DevSecOps Pipeline**: Automated CI/CD with GitHub Actions
 - **Security**: Integrated security scanning with Trivy, OWASP Dependency Check, and CodeQL
 - **Containerization**: Docker and Docker Compose support
 - **Responsive Design**: Modern, beautiful UI with reactive functionality
+- **Comprehensive Testing**: 158 total tests (39 backend JUnit + 119 frontend Jasmine)
 
 ## 📋 Prerequisites
 
-- Java 17 or higher
+- Java 21 or higher
 - Node.js 20.x or higher
-- Maven 3.9 or higher
+- Maven 3.8 or higher
 - Docker & Docker Compose (optional)
 - Terraform 1.0+ (for AWS deployment)
 - AWS Account (for cloud deployment)
@@ -35,12 +36,12 @@ A modern, full-stack portfolio website demonstrating mastery of RESTful API deve
 
 ### Backend
 - Spring Boot 3.2.1
-- Java 17
-- Spring Security
-- JWT (JSON Web Tokens)
+- Java 21
+- Spring Security 6.x
+- JWT (JSON Web Tokens) 0.12.3
 - Spring Data JPA
 - H2 Database (development)
-- PostgreSQL (production)
+- Maven 3.8.7
 
 ### Infrastructure
 - AWS (EC2, VPC, ALB)
@@ -190,27 +191,46 @@ terraform destroy
 
 The project includes a comprehensive GitHub Actions workflow that:
 
-1. **Build & Test**: Compiles and tests both frontend and backend
+1. **Build & Test**: 
+   - Backend: Maven build + 39 JUnit tests
+   - Frontend: npm build + 119 Jasmine/Karma tests
 2. **Security Scanning**: 
    - Trivy vulnerability scanning
    - OWASP Dependency Check
    - CodeQL static analysis
 3. **Docker Build**: Creates and pushes Docker images
-4. **Deploy** (optional): Automated deployment to AWS
+4. **Code Quality**: SonarCloud integration for code analysis
+5. **Deploy** (optional): Automated deployment to AWS
+
+**Note**: All 158 tests run automatically on every push and pull request.
 
 ## 🧪 Testing
 
-### Backend Tests
+### Backend Tests (39 tests)
 ```bash
 cd backend
 mvn test
 ```
 
-### Frontend Tests
+Backend test coverage:
+- 4 Controller tests (integration with MockMvc)
+- 12 Service tests (unit tests with Mockito)
+- 18 Repository tests (@DataJpaTest)
+- 5 Authentication tests
+
+### Frontend Tests (119 tests)
 ```bash
 cd frontend
 npm test
+
+# Run with coverage
+npm run test:ci
 ```
+
+Frontend test coverage:
+- 23 Service tests (HTTP interceptors)
+- 96 Component tests (user interactions, routing, forms)
+- Coverage: 74% statements, 76% lines, 80% functions
 
 ## 📁 Project Structure
 

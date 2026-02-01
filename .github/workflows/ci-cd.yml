@@ -75,6 +75,11 @@ jobs:
         cd frontend
         npm ci
     
+    - name: Run tests
+      run: |
+        cd frontend
+        npm run test:ci
+    
     - name: Build Angular app
       run: |
         cd frontend
