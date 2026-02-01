@@ -26,15 +26,21 @@ public class DataInitializer implements CommandLineRunner {
     
     @Override
     public void run(String... args) throws Exception {
-        // Create admin user
-        if (!userRepository.existsByUsername("clark")) {
+        // Create admin user from environment variables
+        String adminUsername = System.getenv().getOrDefault("ADMIN_USERNAME", "admin");
+        String adminPassword = System.getenv().getOrDefault("ADMIN_PASSWORD", "defaultPassword");
+        String adminEmail = System.getenv().getOrDefault("ADMIN_EMAIL", "admin@clarkfoster.com");
+        String adminFullName = System.getenv().getOrDefault("ADMIN_FULLNAME", "Clark Foster");
+        
+        if (!userRepository.existsByUsername(adminUsername)) {
             User user = new User();
-            user.setUsername("clark");
-            user.setPassword(passwordEncoder.encode("Hereredblackdoor1!"));
-            user.setEmail("admin@clarkfoster.com");
-            user.setFullName("Clark Foster");
+            user.setUsername(adminUsername);
+            user.setPassword(passwordEncoder.encode(adminPassword));
+            user.setEmail(adminEmail);
+            user.setFullName(adminFullName);
             userRepository.save(user);
         }
+    }
         
         // Create sample projects
         if (projectRepository.count() == 0) {
