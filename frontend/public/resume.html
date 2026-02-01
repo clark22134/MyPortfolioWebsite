@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resume - Under Construction</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -12,24 +13,83 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            font-family: 'Space Grotesk', 'Courier New', monospace;
+            background: #0a0a0a;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            color: white;
+            color: #00cc33;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Cyber Grid Background */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 204, 51, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 204, 51, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            z-index: 0;
+        }
+
+        @keyframes gridMove {
+            0% {
+                transform: translate(0, 0);
+            }
+            100% {
+                transform: translate(50px, 50px);
+            }
+        }
+
+        /* Scanlines */
+        body::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 204, 51, 0.03) 0px,
+                transparent 1px,
+                transparent 2px,
+                rgba(0, 204, 51, 0.03) 3px
+            );
+            pointer-events: none;
+            animation: scanlines 8s linear infinite;
+            z-index: 1;
+        }
+
+        @keyframes scanlines {
+            0% {
+                transform: translateY(0);
+            }
+            100% {
+                transform: translateY(10px);
+            }
         }
 
         .container {
             text-align: center;
             padding: 3rem;
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(30, 30, 30, 0.9);
             border-radius: 20px;
             backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 204, 51, 0.2);
             max-width: 600px;
             animation: fadeIn 0.8s ease-out;
+            border: 2px solid rgba(0, 204, 51, 0.3);
+            position: relative;
+            z-index: 2;
         }
 
         @keyframes fadeIn {
@@ -47,6 +107,7 @@
             font-size: 5rem;
             margin-bottom: 1.5rem;
             animation: bounce 2s infinite;
+            filter: drop-shadow(0 0 10px rgba(0, 204, 51, 0.5));
         }
 
         @keyframes bounce {
@@ -65,35 +126,47 @@
             font-size: 2.5rem;
             margin-bottom: 1rem;
             font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 
+                0 0 8px rgba(0, 204, 51, 0.4),
+                0 0 15px rgba(0, 204, 51, 0.3);
         }
 
         p {
             font-size: 1.3rem;
-            opacity: 0.95;
+            opacity: 0.85;
             margin-bottom: 2rem;
+            color: #b0b0b0;
         }
 
         .back-btn {
             display: inline-block;
             padding: 0.75rem 2rem;
-            background: white;
-            color: #4facfe;
+            background: rgba(0, 204, 51, 0.2);
+            color: #00cc33;
             text-decoration: none;
             border-radius: 25px;
             font-weight: 600;
             transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 204, 51, 0.2);
+            border: 2px solid rgba(0, 204, 51, 0.4);
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .back-btn:hover {
             transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 20px rgba(0, 204, 51, 0.4);
+            background: rgba(0, 204, 51, 0.3);
+            border-color: rgba(0, 204, 51, 0.6);
         }
 
         .progress-bar {
             width: 100%;
             height: 4px;
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(0, 204, 51, 0.2);
             border-radius: 2px;
             margin-top: 2rem;
             overflow: hidden;
@@ -101,10 +174,11 @@
 
         .progress-fill {
             height: 100%;
-            background: white;
+            background: linear-gradient(90deg, #00cc33, rgba(0, 204, 51, 0.5));
             width: 60%;
             border-radius: 2px;
             animation: progress 2s ease-in-out infinite;
+            box-shadow: 0 0 10px rgba(0, 204, 51, 0.6);
         }
 
         @keyframes progress {
@@ -125,7 +199,7 @@
         <div class="icon">🚧</div>
         <h1>Under Construction</h1>
         <p>Resume coming soon!</p>
-        <p style="font-size: 1rem; opacity: 0.8;">I'm currently working on creating an amazing resume for you to view.</p>
+        <p style="font-size: 1rem; opacity: 0.8; color: #808080;">I'm currently working on creating an amazing resume for you to view.</p>
         <a href="/" class="back-btn">Back to Home</a>
         <div class="progress-bar">
             <div class="progress-fill"></div>

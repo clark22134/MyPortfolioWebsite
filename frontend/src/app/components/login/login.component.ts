@@ -54,23 +54,25 @@ import { LoginRequest } from '../../models/user.model';
       display: flex;
       justify-content: center;
       align-items: center;
-      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
       padding: 2rem;
     }
 
     .login-card {
-      background: white;
+      background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
       border-radius: 12px;
       padding: 3rem;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
       max-width: 400px;
       width: 100%;
+      border: 1px solid rgba(255,255,255,0.1);
     }
 
     h2 {
       text-align: center;
-      color: #333;
+      color: #ffffff;
       margin-bottom: 2rem;
+      font-weight: 600;
     }
 
     .form-group {
@@ -80,23 +82,26 @@ import { LoginRequest } from '../../models/user.model';
     label {
       display: block;
       margin-bottom: 0.5rem;
-      color: #555;
+      color: #e0e0e0;
       font-weight: 600;
     }
 
     .form-control {
       width: 100%;
       padding: 0.75rem;
-      border: 2px solid #e0e0e0;
+      border: 2px solid rgba(255, 255, 255, 0.2);
       border-radius: 8px;
       font-size: 1rem;
       transition: border-color 0.3s;
       box-sizing: border-box;
+      background: rgba(255, 255, 255, 0.05);
+      color: #ffffff;
     }
 
     .form-control:focus {
       outline: none;
-      border-color: #4facfe;
+      border-color: #ffffff;
+      background: rgba(255, 255, 255, 0.1);
     }
 
     .error-message {
@@ -111,19 +116,20 @@ import { LoginRequest } from '../../models/user.model';
     .btn-submit {
       width: 100%;
       padding: 0.75rem;
-      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-      color: white;
+      background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+      color: #1a1a1a;
       border: none;
       border-radius: 8px;
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.2s;
+      transition: all 0.3s;
+      box-shadow: 0 0 20px rgba(255,255,255,0.3);
     }
 
     .btn-submit:hover:not(:disabled) {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 20px rgba(255,255,255,0.5);
     }
 
     .btn-submit:disabled {
