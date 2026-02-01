@@ -5,7 +5,7 @@ echo "🚀 Starting local deployment to AWS..."
 
 # Step 1: Build images
 echo "📦 Step 1/7: Building Docker images..."
-docker compose build
+docker compose build --no-cache
 
 # Step 2: Tag images for ECR
 echo "🏷️  Step 2/7: Tagging images for ECR..."
