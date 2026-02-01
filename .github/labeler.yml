@@ -1,31 +1,43 @@
 # Automatically label PRs based on changed files
 
 backend:
-  - backend/**/*
+  - changed-files:
+    - any-glob-to-any-file: 'backend/**/*'
 
 frontend:
-  - frontend/**/*
+  - changed-files:
+    - any-glob-to-any-file: 'frontend/**/*'
 
 infrastructure:
-  - terraform/**/*
-  - .github/workflows/**/*
-  - docker-compose.yml
-  - Dockerfile
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'terraform/**/*'
+      - '.github/workflows/**/*'
+      - 'docker-compose.yml'
+      - 'Dockerfile'
 
 documentation:
-  - '**/*.md'
-  - docs/**/*
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**/*'
 
 dependencies:
-  - '**/package.json'
-  - '**/package-lock.json'
-  - '**/pom.xml'
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '**/pom.xml'
 
 security:
-  - '.github/workflows/security-scanning.yml'
-  - '**/Dockerfile'
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/workflows/security-scanning.yml'
+      - '**/Dockerfile'
 
 tests:
-  - '**/*.spec.ts'
-  - '**/*Test.java'
-  - '**/*Tests.java'
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.spec.ts'
+      - '**/*Test.java'
+      - '**/*Tests.java'
