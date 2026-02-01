@@ -14,8 +14,6 @@
 # Node modules and dependency files
 /node_modules/
 /frontend/node_modules/
-/package-lock.json
-/frontend/package-lock.json
 /yarn.lock
 
 # Environment files - CRITICAL SECURITY
