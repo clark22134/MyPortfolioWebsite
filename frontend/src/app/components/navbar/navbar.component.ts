@@ -24,11 +24,12 @@ import { AuthService } from '../../services/auth.service';
   `,
   styles: [`
     .navbar {
-      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
       position: sticky;
       top: 0;
       z-index: 1000;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
 
     .navbar-container {
@@ -88,18 +89,20 @@ import { AuthService } from '../../services/auth.service';
 
     .login-btn, .logout-btn {
       background: white;
-      color: #4facfe;
+      color: #1a1a1a;
       padding: 0.5rem 1.5rem;
       border-radius: 25px;
       font-weight: 600;
       border: none;
       cursor: pointer;
-      transition: transform 0.2s;
+      transition: all 0.3s;
+      box-shadow: 0 0 20px rgba(255,255,255,0.3);
     }
 
     .login-btn:hover, .logout-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 20px rgba(255,255,255,0.5);
+      background: #f0f0f0;
     }
   `]
 })
