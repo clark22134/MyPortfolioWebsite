@@ -54,7 +54,7 @@ import { LoginRequest } from '../../models/user.model';
       display: flex;
       justify-content: center;
       align-items: center;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
       padding: 2rem;
     }
 
@@ -96,7 +96,7 @@ import { LoginRequest } from '../../models/user.model';
 
     .form-control:focus {
       outline: none;
-      border-color: #667eea;
+      border-color: #4facfe;
     }
 
     .error-message {
@@ -111,7 +111,7 @@ import { LoginRequest } from '../../models/user.model';
     .btn-submit {
       width: 100%;
       padding: 0.75rem;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
       color: white;
       border: none;
       border-radius: 8px;
