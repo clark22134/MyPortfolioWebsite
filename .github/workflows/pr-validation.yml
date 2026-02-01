@@ -26,6 +26,9 @@ jobs:
 
   security-scan:
     name: Security Scan
+    permissions:
+      security-events: write
+      contents: read
     uses: ./.github/workflows/reusable-security.yml
     secrets: inherit
 
