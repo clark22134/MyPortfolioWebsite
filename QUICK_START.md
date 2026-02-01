@@ -14,8 +14,6 @@
 - Modern DevOps practices
 
 ### 2. **Secure Authentication**
-- Username: `clark`
-- Password: `Hereredblackdoor1!`
 - No credentials displayed on login page
 - Strong BCrypt encryption
 
@@ -51,8 +49,6 @@ Backend: http://localhost:8080
 http://localhost:4200/login
 
 # 2. Enter credentials
-Username: clark
-Password: Hereredblackdoor1!
 
 # 3. Should redirect to
 http://localhost:4200/admin/interactive-projects
@@ -105,8 +101,6 @@ curl -I https://clarkfoster.com
 https://clarkfoster.com/login
 
 # 3. Enter credentials
-Username: clark
-Password: Hereredblackdoor1!
 
 # 4. Should redirect to
 https://clarkfoster.com/admin/interactive-projects
