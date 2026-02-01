@@ -122,6 +122,27 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# Additional policy for Secrets Manager access
+resource "aws_iam_role_policy" "ecs_secrets" {
+  name = "${var.environment}-ecs-secrets-policy"
+  role = aws_iam_role.ecs_task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:*:*:secret:portfolio/*"
+        ]
+      }
+    ]
+  })
+}
+
 # Security Group for ECS Tasks
 resource "aws_security_group" "ecs_tasks" {
   name        = "${var.environment}-portfolio-ecs-tasks-sg"
@@ -181,6 +202,28 @@ resource "aws_ecs_task_definition" "backend" {
         {
           name  = "SPRING_PROFILES_ACTIVE"
           value = "prod"
+        }
+      ]
+      secrets = [
+        {
+          name      = "ADMIN_USERNAME"
+          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-username"
+        },
+        {
+          name      = "ADMIN_PASSWORD"
+          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-password"
+        },
+        {
+          name      = "ADMIN_EMAIL"
+          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-email"
+        },
+        {
+          name      = "ADMIN_FULLNAME"
+          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-fullname"
+        },
+        {
+          name      = "JWT_SECRET"
+          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/jwt-secret"
         }
       ]
       logConfiguration = {
