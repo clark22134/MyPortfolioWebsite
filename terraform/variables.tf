@@ -63,3 +63,9 @@ variable "frontend_memory" {
   type        = number
   default     = 512
 }
+
+variable "github_repository" {
+  description = "GitHub repository in format 'owner/repo'"
+  type        = string
+  default     = "clark22134/MyPortfolioWebsite"
+}
