@@ -169,14 +169,6 @@ user.setUsername("demo");
 user.setPassword(passwordEncoder.encode("demo123"));
 user.setEmail("demo@portfolio.com");
 
-// New
-User user = new User();
-user.setUsername("clark");
-user.setPassword(passwordEncoder.encode("Hereredblackdoor1!"));
-user.setEmail("admin@clarkfoster.com");
-user.setFullName("Clark Foster");
-```
-
 **Frontend - login.component.ts:**
 ```typescript
 // Removed demo credentials section from template
@@ -319,9 +311,6 @@ docker compose up --build
 # Navigate to login page
 http://localhost:4200/login
 
-# Use credentials:
-Username: clark
-Password: Hereredblackdoor1!
 
 # Should redirect to: /admin/interactive-projects
 ```
