@@ -202,7 +202,7 @@ jobs:
 
       - name: Wait for backend deployment
         run: |
-          echo "Waiting for backend service to stabilize (max 5 minutes)..."
+          echo "Waiting for backend service to stabilize (max 15 minutes)..."
           timeout 900 bash -c '
             while true; do
               # Check if new tasks are running and healthy
@@ -231,9 +231,25 @@ jobs:
               echo "Running: $RUNNING/$DESIRED tasks | Active deployments: $DEPLOYMENT_COUNT"
               
               # Success: desired count reached and only one deployment active
+              # OR running count matches desired and primary deployment is complete
               if [ "$RUNNING" = "$DESIRED" ] && [ "$DEPLOYMENT_COUNT" = "1" ]; then
                 echo "Backend deployment completed successfully!"
                 exit 0
+              fi
+              
+              # Alternative success: if running matches desired and no deployments are in progress
+              if [ "$RUNNING" = "$DESIRED" ]; then
+                PRIMARY_STATUS=$(aws ecs describe-services \
+                  --cluster ${{ env.ECS_CLUSTER }} \
+                  --services ${{ env.ECS_BACKEND_SERVICE }} \
+                  --region ${{ env.AWS_REGION }} \
+                  --query "services[0].deployments[?status=='\''PRIMARY'\''].rolloutState" \
+                  --output text)
+                
+                if [ "$PRIMARY_STATUS" = "COMPLETED" ]; then
+                  echo "Backend deployment completed successfully (cleanup in progress)!"
+                  exit 0
+                fi
               fi
               
               # Check for failures
@@ -261,7 +277,7 @@ jobs:
 
       - name: Wait for frontend deployment
         run: |
-          echo "Waiting for frontend service to stabilize (max 5 minutes)..."
+          echo "Waiting for frontend service to stabilize (max 15 minutes)..."
           timeout 900 bash -c '
             while true; do
               # Check if new tasks are running and healthy
@@ -290,9 +306,25 @@ jobs:
               echo "Running: $RUNNING/$DESIRED tasks | Active deployments: $DEPLOYMENT_COUNT"
               
               # Success: desired count reached and only one deployment active
+              # OR running count matches desired and primary deployment is complete
               if [ "$RUNNING" = "$DESIRED" ] && [ "$DEPLOYMENT_COUNT" = "1" ]; then
                 echo "Frontend deployment completed successfully!"
                 exit 0
+              fi
+              
+              # Alternative success: if running matches desired and no deployments are in progress
+              if [ "$RUNNING" = "$DESIRED" ]; then
+                PRIMARY_STATUS=$(aws ecs describe-services \
+                  --cluster ${{ env.ECS_CLUSTER }} \
+                  --services ${{ env.ECS_FRONTEND_SERVICE }} \
+                  --region ${{ env.AWS_REGION }} \
+                  --query "services[0].deployments[?status=='\''PRIMARY'\''].rolloutState" \
+                  --output text)
+                
+                if [ "$PRIMARY_STATUS" = "COMPLETED" ]; then
+                  echo "Frontend deployment completed successfully (cleanup in progress)!"
+                  exit 0
+                fi
               fi
               
               # Check for failures
