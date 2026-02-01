@@ -153,9 +153,7 @@ jobs:
 - ❌ Weak password
 - ❌ Publicly known
 
-**New (Production Credentials):**
-- Username: `clark`
-- Password: `Hereredblackdoor1!`
+**Credentials:**
 - ✅ Not displayed anywhere
 - ✅ Strong password (uppercase, lowercase, numbers, special chars)
 - ✅ Secure BCrypt hashing
