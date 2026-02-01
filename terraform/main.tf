@@ -102,7 +102,7 @@ resource "aws_iam_role" "github_actions" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:clark22134/MyPortfolioWebsite:*"
+          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:*"
         }
       }
     }]
@@ -127,13 +127,12 @@ resource "aws_iam_role_policy" "github_actions" {
         "ecr:UploadLayerPart",
         "ecr:CompleteLayerUpload",
         "ecs:UpdateService",
-        "ecs:DescribeServices"
+        "ecs:DescribeServices",
+        "ecs:DescribeClusters",
+        "ecs:DescribeTaskDefinition",
+        "ecs:RegisterTaskDefinition"
       ]
       Resource = "*"
     }]
   })
-}
-
-output "github_actions_role_arn" {
-  value = aws_iam_role.github_actions.arn
 }
