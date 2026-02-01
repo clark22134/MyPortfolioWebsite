@@ -14,6 +14,7 @@ import { AuthService } from '../../services/auth.service';
         <div class="navbar-menu">
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a>
           <a routerLink="/projects" routerLinkActive="active">Projects</a>
+          <a href="/resume.html" target="_blank" class="resume-link">Resume</a>
           <a href="https://github.com/clark22134" target="_blank">GitHub</a>
           <a *ngIf="!isAuthenticated()" routerLink="/login" routerLinkActive="active" class="login-btn">Login</a>
           <button *ngIf="isAuthenticated()" (click)="logout()" class="logout-btn">Logout</button>
@@ -23,7 +24,7 @@ import { AuthService } from '../../services/auth.service';
   `,
   styles: [`
     .navbar {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       position: sticky;
       top: 0;
@@ -75,9 +76,19 @@ import { AuthService } from '../../services/auth.service';
       background: rgba(255, 255, 255, 0.2);
     }
 
+    .resume-link {
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .resume-link:hover {
+      background: rgba(255, 255, 255, 0.25) !important;
+      border-color: white;
+    }
+
     .login-btn, .logout-btn {
       background: white;
-      color: #667eea;
+      color: #4facfe;
       padding: 0.5rem 1.5rem;
       border-radius: 25px;
       font-weight: 600;
