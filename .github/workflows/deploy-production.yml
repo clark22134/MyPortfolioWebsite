@@ -367,6 +367,11 @@ jobs:
                  --query 'services[0].events[0:5]' \
                  --output table && exit 1)
 
+      - name: Wait for tasks to refresh
+        run: |
+          echo "Waiting for new tasks to fully start and old tasks to drain..."
+          sleep 180
+
       - name: Verify deployment and container images
         run: |
           echo "Verifying backend is running correct image..."
