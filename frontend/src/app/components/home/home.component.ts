@@ -56,7 +56,7 @@ import { Project } from '../../models/project.model';
           </svg>
         </div>
         <div class="logo-text">
-          <span class="logo-prefix">root&#64;</span><span class="logo-host">portfolio</span>
+          <span class="logo-prefix">user&#64;</span><span class="logo-host">portfolio</span>
         </div>
         <div class="scan-line"></div>
       </div>
