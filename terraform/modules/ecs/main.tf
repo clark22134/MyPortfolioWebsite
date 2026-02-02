@@ -207,23 +207,23 @@ resource "aws_ecs_task_definition" "backend" {
       secrets = [
         {
           name      = "ADMIN_USERNAME"
-          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-username"
+          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-username-unJLvx"
         },
         {
           name      = "ADMIN_PASSWORD"
-          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-password"
+          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-password-Md7Ysu"
         },
         {
           name      = "ADMIN_EMAIL"
-          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-email"
+          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-email-8zlHy8"
         },
         {
           name      = "ADMIN_FULLNAME"
-          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-fullname"
+          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-fullname-kse3cP"
         },
         {
           name      = "JWT_SECRET"
-          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/jwt-secret"
+          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/jwt-secret-OXGYxx"
         }
       ]
       logConfiguration = {
