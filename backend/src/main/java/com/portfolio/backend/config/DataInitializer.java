@@ -64,11 +64,12 @@ public class DataInitializer implements CommandLineRunner {
             projectRepository.save(project2);
             
             Project project3 = new Project();
-            project3.setTitle("Portfolio Website");
-            project3.setDescription("This portfolio website showcasing RESTful API development, modern UI/UX, and cloud infrastructure deployment using Terraform and AWS.");
-            project3.setTechnologies(Arrays.asList("Angular", "Spring Boot", "AWS", "Terraform", "GitHub Actions"));
-            project3.setGithubUrl("https://github.com/clark22134/angular-spring-rest-app");
+            project3.setTitle("SecureCloud DevOps Platform");
+            project3.setDescription("An enterprise-grade DevSecOps automation platform integrating AI-powered threat detection, automated CI/CD pipelines, and cloud infrastructure management. Features include real-time security scanning with Trivy, automated Terraform deployments to AWS ECS/Lambda, GitHub Actions workflows, and LLM-powered incident response analysis using Python and HuggingFace transformers.");
+            project3.setTechnologies(Arrays.asList("Angular", "Spring Boot", "Python", "AWS (ECS, Lambda, S3, CloudWatch)", "Terraform", "GitHub Actions", "Docker", "SonarQube", "PostgreSQL", "LLMs", "HuggingFace"));
+            project3.setGithubUrl("https://github.com/clark22134");
             project3.setStartDate(LocalDate.of(2024, 1, 1));
+            project3.setEndDate(LocalDate.of(2024, 6, 30));
             project3.setFeatured(true);
             projectRepository.save(project3);
         }
