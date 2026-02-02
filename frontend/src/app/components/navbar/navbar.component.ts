@@ -14,6 +14,7 @@ import { AuthService } from '../../services/auth.service';
         <div class="navbar-menu">
           <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a>
           <a routerLink="/projects" routerLinkActive="active">Projects</a>
+          <a routerLink="/contact" routerLinkActive="active">Contact</a>
           <a href="/resume.html" target="_blank" class="resume-link">Resume</a>
           <a href="https://github.com/clark22134" target="_blank">GitHub</a>
           <a *ngIf="!isAuthenticated()" routerLink="/login" routerLinkActive="active" class="login-btn">Login</a>
