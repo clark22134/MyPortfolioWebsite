@@ -4,11 +4,13 @@ import { RouterModule } from '@angular/router';
 import { trigger, state, style, transition, animate } from '@angular/animations';
 import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
+import { NavComponent } from '../nav/nav.component';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, NavComponent],
   animations: [
     trigger('terminalFade', [
       state('void', style({ opacity: 1 })),
@@ -18,6 +20,8 @@ import { Project } from '../../models/project.model';
     ])
   ],
   template: `
+    <app-nav></app-nav>
+    
     <!-- Terminal Loading Screen -->
     <div class="terminal-loader" *ngIf="showTerminal" [@terminalFade]>
       <div class="terminal-network-bg"></div>
@@ -56,7 +60,7 @@ import { Project } from '../../models/project.model';
           </svg>
         </div>
         <div class="logo-text">
-          <span class="logo-prefix">user&#64;</span><span class="logo-host">portfolio</span>
+          <span class="logo-prefix">{{ isAuthenticated ? 'root' : 'user' }}&#64;</span><span class="logo-host">portfolio</span>
         </div>
         <div class="scan-line"></div>
       </div>
@@ -73,31 +77,36 @@ import { Project } from '../../models/project.model';
           <h1 class="hero-title">
             <span class="typed-text">{{ typedText }}</span><span class="cursor" [class.typing]="isTyping">|</span>
           </h1>
-          <p class="hero-subtitle">Full Stack Developer & Security Enthusiast</p>
+          <p class="hero-subtitle">Full Stack Developer & Security Engineer</p>
           <p class="hero-intro">
             Building secure, scalable applications with modern technologies. 
             Passionate about cloud architecture, DevSecOps practices, and creating 
             seamless user experiences. Let's connect and build something amazing together.
           </p>
           <div class="hero-buttons">
-            <a routerLink="/projects" class="btn btn-primary">View Projects</a>
-            <a href="/resume.html" target="_blank" class="btn btn-secondary">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
-              Resume
-            </a>
-            <a routerLink="/login" class="btn btn-outline">Interactive Projects (Login)</a>
-            <a href="https://github.com/clark22134" target="_blank" class="btn btn-outline">
-              <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-              </svg>
-              GitHub
-            </a>
+            <div class="button-row">
+              <a routerLink="/projects" class="btn btn-primary">Angular/Java Projects</a>
+              <a routerLink="/admin/interactive-projects" class="btn btn-outline">AI Projects</a>
+            </div>
+            <div class="button-row">
+              <a routerLink="/contact" class="btn btn-primary">Contact Me</a>
+              <a href="/resume.html" target="_blank" class="btn btn-secondary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Resume
+              </a>
+              <a href="https://github.com/clark22134" target="_blank" class="btn btn-outline">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                GitHub
+              </a>
+            </div>
           </div>
         </div>
         <div class="scroll-indicator">
@@ -105,36 +114,25 @@ import { Project } from '../../models/project.model';
         </div>
       </section>
 
-      <section class="featured-projects" #projectsSection>
-        <h2 class="section-title">Featured Projects</h2>
-        <div class="projects-grid">
-          <div *ngFor="let project of featuredProjects; let i = index" 
-               class="project-card"
-               [class.visible]="projectsVisible"
-               [style.animation-delay]="i * 0.1 + 's'">
-            <div class="card-glow"></div>
-            <h3>{{ project.title }}</h3>
-            <p>{{ project.description }}</p>
-            <div class="technologies">
-              <span *ngFor="let tech of project.technologies" class="tech-badge">{{ tech }}</span>
-            </div>
-            <div class="project-links">
-              <a *ngIf="project.githubUrl" [href]="project.githubUrl" target="_blank" class="link">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-                </svg>
-                GitHub
-              </a>
-              <a *ngIf="project.demoUrl" [href]="project.demoUrl" target="_blank" class="link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                  <polyline points="15 3 21 3 21 9"></polyline>
-                  <line x1="10" y1="14" x2="21" y2="3"></line>
-                </svg>
-                Live Demo
-              </a>
-            </div>
-          </div>
+      <section class="about-me" #aboutMeSection [class.visible]="projectsVisible">
+        <h2 class="section-title">About Me</h2>
+        <div class="about-me-content">
+          <p>
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
+            Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure 
+            dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non 
+            proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+          </p>
+          <p>
+            Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque 
+            ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia 
+            voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
+          </p>
+          <p>
+            Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi 
+            tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem 
+            ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur.
+          </p>
         </div>
       </section>
 
@@ -328,8 +326,8 @@ import { Project } from '../../models/project.model';
       display: flex;
       flex-direction: column;
       align-items: flex-start;
-      gap: 8px;
-      padding: 15px;
+      gap: 4px;
+      padding: 8px;
       background: rgba(20, 20, 20, 0.85);
       border: 2px solid rgba(0, 204, 51, 0.4);
       border-radius: 8px;
@@ -350,8 +348,8 @@ import { Project } from '../../models/project.model';
     }
 
     .logo-icon {
-      width: 50px;
-      height: 50px;
+      width: 25px;
+      height: 25px;
       color: #00cc33;
       animation: pulse 3s ease-in-out infinite;
       filter: drop-shadow(0 0 8px rgba(0, 204, 51, 0.5));
@@ -364,7 +362,7 @@ import { Project } from '../../models/project.model';
 
     .logo-text {
       font-family: 'Courier New', monospace;
-      font-size: 0.9rem;
+      font-size: 0.45rem;
       color: #00cc33;
       text-shadow: 0 0 5px rgba(0, 204, 51, 0.5);
       letter-spacing: 1px;
@@ -660,10 +658,17 @@ import { Project } from '../../models/project.model';
 
     .hero-buttons {
       display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+      animation: fadeIn 1s ease-out 0.8s both;
+    }
+
+    .button-row {
+      display: flex;
       gap: 1rem;
       justify-content: center;
       flex-wrap: wrap;
-      animation: fadeIn 1s ease-out 0.8s both;
     }
 
     .btn {
@@ -779,12 +784,26 @@ import { Project } from '../../models/project.model';
       }
     }
 
-    .featured-projects, .about {
+    .about-me, .about {
       max-width: 1200px;
       margin: 4rem auto;
       padding: 0 2rem;
       position: relative;
       z-index: 1;
+    }
+
+    .about-me-content {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: left;
+    }
+
+    .about-me-content p {
+      font-size: 1.1rem;
+      line-height: 1.8;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 1.5rem;
+      text-align: justify;
     }
 
     .section-title {
@@ -1159,6 +1178,10 @@ import { Project } from '../../models/project.model';
       }
 
       .hero-buttons {
+        width: 100%;
+      }
+
+      .button-row {
         flex-direction: column;
         width: 100%;
       }
@@ -1182,9 +1205,14 @@ import { Project } from '../../models/project.model';
         font-size: 1.75rem;
       }
 
-      .featured-projects, .skills, .about {
+      .about-me, .skills, .about {
         padding: 0 1rem;
         margin: 3rem auto;
+      }
+
+      .about-me-content p {
+        font-size: 1rem;
+        line-height: 1.6;
       }
 
       .about ul {
@@ -1263,8 +1291,18 @@ export class HomeComponent implements OnInit, AfterViewInit {
     },
     {
       icon: '☁️',
-      title: 'Cloud & DevOps',
-      skills: ['AWS ECS', 'Docker', 'Terraform', 'GitHub Actions', 'CI/CD']
+      title: 'Cloud Infrastructure',
+      skills: ['AWS S3', 'Route 53', 'ECS/Fargate', 'CloudWatch', 'EC2', 'Lambda', 'Terraform', 'ALB', 'ACM', 'ECR']
+    },
+    {
+      icon: '🔧',
+      title: 'DevSecOps & CI/CD',
+      skills: ['GitHub Actions', 'SonarQube', 'Trivy', 'Docker', 'Linux/Windows', 'GitHub', 'Agile']
+    },
+    {
+      icon: '🤖',
+      title: 'AI/ML',
+      skills: ['Python (HuggingFace & LangChain)', 'LLMs', 'RAG', 'GitHub Copilot', 'IDP']
     },
     {
       icon: '🗄️',
@@ -1278,7 +1316,16 @@ export class HomeComponent implements OnInit, AfterViewInit {
     }
   ];
 
-  constructor(private projectService: ProjectService) {}
+  isAuthenticated = false;
+
+  constructor(
+    private projectService: ProjectService,
+    private authService: AuthService
+  ) {
+    this.authService.currentUser$.subscribe(user => {
+      this.isAuthenticated = !!user;
+    });
+  }
 
   ngOnInit(): void {
     this.projectService.getFeaturedProjects().subscribe({
@@ -1286,7 +1333,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
       error: (err: Error) => console.error('Error loading featured projects', err)
     });
 
-    // Start terminal boot sequence
+    // Always start terminal boot sequence on page load
     this.startTerminalSequence();
   }
 
@@ -1373,7 +1420,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
 
     // Observe sections after a delay to ensure DOM is ready
     setTimeout(() => {
-      const projectsSection = document.querySelector('.featured-projects');
+      const projectsSection = document.querySelector('.about-me');
       const skillsSection = document.querySelector('.skills');
       const aboutSection = document.querySelector('.about');
       

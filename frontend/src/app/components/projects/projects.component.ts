@@ -2,15 +2,51 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
+import { NavComponent } from '../nav/nav.component';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-projects',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, NavComponent],
   template: `
+    <app-nav></app-nav>
+    
     <div class="projects-container">
-      <h1>My Projects</h1>
-      <div class="projects-grid">
+      <!-- Cyber Logo -->
+      <div class="cyber-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <!-- Terminal window -->
+            <rect x="10" y="20" width="80" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+            <line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="2"/>
+            <!-- Terminal prompt -->
+            <text x="18" y="48" font-family="monospace" font-size="12" fill="currentColor">&gt;_</text>
+            <!-- Code lines -->
+            <line x1="35" y1="45" x2="70" y2="45" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="35" y1="55" x2="60" y2="55" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="35" y1="65" x2="75" y2="65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-prefix">{{ isAuthenticated ? 'root' : 'user' }}&#64;</span><span class="logo-host">portfolio</span>
+        </div>
+        <div class="scan-line"></div>
+      </div>
+
+      <h1>Angular/Java Projects</h1>
+      
+      <div *ngIf="loading" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>Loading projects...</p>
+      </div>
+
+      <div *ngIf="error" class="error-container">
+        <p>{{ error }}</p>
+        <button (click)="loadProjects()" class="retry-button">Retry</button>
+      </div>
+
+      <div class="projects-grid" *ngIf="!loading && !error">
         <div *ngFor="let project of projects" class="project-card">
           <h3>{{ project.title }}</h3>
           <p class="description">{{ project.description }}</p>
@@ -35,14 +71,13 @@ import { Project } from '../../models/project.model';
               Live Demo
             </a>
           </div>
-          <div *ngIf="project.featured" class="featured-badge">Featured</div>
         </div>
       </div>
     </div>
   `,
   styles: [`
     .projects-container {
-      max-width: 1200px;
+      max-width: 1000px;
       margin: 2rem auto;
       padding: 0 2rem;
       min-height: calc(100vh - 100px);
@@ -50,14 +85,138 @@ import { Project } from '../../models/project.model';
       z-index: 1;
     }
 
-    h1 {
-      font-size: 3rem;
+    /* Auth Button Styles */
+    .auth-button {
+      position: fixed;
+      top: 20px;
+      left: 160px;
+      z-index: 1001;
+      padding: 8px 16px;
+      background: rgba(20, 20, 20, 0.85);
+      border: 2px solid rgba(0, 204, 51, 0.4);
+      border-radius: 6px;
       color: #00cc33;
-      text-align: center;
-      margin-bottom: 3rem;
-      font-family: 'Courier New', 'Space Grotesk', monospace;
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 20px rgba(0, 204, 51, 0.2);
+      transition: all 0.3s ease;
+      letter-spacing: 1px;
       text-transform: uppercase;
-      letter-spacing: 3px;
+    }
+
+    .auth-button:hover {
+      border-color: rgba(0, 204, 51, 0.7);
+      box-shadow: 0 0 30px rgba(0, 204, 51, 0.4);
+      transform: translateY(-2px);
+      background: rgba(0, 204, 51, 0.1);
+    }
+
+    /* Cyber Logo Styles */
+    .cyber-logo {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 8px;
+      background: rgba(20, 20, 20, 0.85);
+      border: 2px solid rgba(0, 204, 51, 0.4);
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      box-shadow: 
+        0 0 20px rgba(0, 204, 51, 0.2),
+        inset 0 0 20px rgba(0, 204, 51, 0.05);
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    .cyber-logo:hover {
+      border-color: rgba(0, 204, 51, 0.7);
+      box-shadow: 
+        0 0 30px rgba(0, 204, 51, 0.4),
+        inset 0 0 20px rgba(0, 204, 51, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .logo-icon {
+      width: 25px;
+      height: 25px;
+      color: #00cc33;
+      animation: pulse 3s ease-in-out infinite;
+      filter: drop-shadow(0 0 8px rgba(0, 204, 51, 0.5));
+    }
+
+    .logo-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .logo-text {
+      font-family: 'Courier New', monospace;
+      font-size: 0.45rem;
+      color: #00cc33;
+      text-shadow: 0 0 5px rgba(0, 204, 51, 0.5);
+      letter-spacing: 1px;
+    }
+
+    .logo-prefix {
+      color: #808080;
+    }
+
+    .logo-host {
+      color: #00cc33;
+      font-weight: 600;
+    }
+
+    .scan-line {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00cc33, transparent);
+      animation: scanMove 2s linear infinite;
+    }
+
+    @keyframes scanMove {
+      0% {
+        transform: translateY(0);
+        opacity: 0;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-80px);
+        opacity: 0;
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        filter: drop-shadow(0 0 8px rgba(0, 204, 51, 0.5));
+      }
+      50% {
+        opacity: 0.8;
+        filter: drop-shadow(0 0 15px rgba(0, 204, 51, 0.7));
+      }
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: #00cc33;
+      text-align: left;
+      margin-bottom: 3rem;
+      margin-top: 160px;
+      font-family: 'Courier New', 'Space Grotesk', monospace;
+      letter-spacing: 2px;
       text-shadow: 
         0 0 8px rgba(0, 204, 51, 0.4),
         0 0 15px rgba(0, 204, 51, 0.3);
@@ -191,22 +350,6 @@ import { Project } from '../../models/project.model';
       box-shadow: 0 0 10px rgba(0, 204, 51, 0.3);
     }
 
-    .featured-badge {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-      background: rgba(0, 204, 51, 0.2);
-      color: #00cc33;
-      padding: 0.4rem 0.9rem;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      border: 1px solid rgba(0, 204, 51, 0.4);
-      font-family: 'Courier New', monospace;
-      text-transform: uppercase;
-      z-index: 2;
-    }
-
     @media (max-width: 768px) {
       .projects-container {
         padding: 0 1rem;
@@ -246,6 +389,56 @@ import { Project } from '../../models/project.model';
       }
     }
 
+    .loading-container {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #00cc33;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(0, 204, 51, 0.2);
+      border-top-color: #00cc33;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-container {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #ff4444;
+    }
+
+    .error-container p {
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .retry-button {
+      background: linear-gradient(135deg, #00cc33 0%, #009926 100%);
+      color: #0a0a0a;
+      border: none;
+      padding: 0.75rem 2rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 204, 51, 0.3);
+    }
+
+    .retry-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 204, 51, 0.4);
+    }
+
     @media (max-width: 480px) {
       h1 {
         font-size: 1.5rem;
@@ -270,13 +463,37 @@ import { Project } from '../../models/project.model';
 })
 export class ProjectsComponent implements OnInit {
   projects: Project[] = [];
+  loading = true;
+  error = '';
+  isAuthenticated = false;
 
-  constructor(private projectService: ProjectService) {}
+  constructor(
+    private projectService: ProjectService,
+    private authService: AuthService
+  ) {
+    this.authService.currentUser$.subscribe(user => {
+      this.isAuthenticated = !!user;
+    });
+  }
 
   ngOnInit(): void {
+    this.loadProjects();
+  }
+
+  loadProjects(): void {
+    this.loading = true;
+    this.error = '';
+    
     this.projectService.getAllProjects().subscribe({
-      next: (projects) => this.projects = projects,
-      error: (err) => console.error('Error loading projects', err)
+      next: (projects) => {
+        this.projects = projects;
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Error loading projects', err);
+        this.error = 'Failed to load projects. Please try again.';
+        this.loading = false;
+      }
     });
   }
 
