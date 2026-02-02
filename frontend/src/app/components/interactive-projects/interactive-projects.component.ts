@@ -18,6 +18,27 @@ interface InteractiveProject {
   imports: [CommonModule, FormsModule],
   template: `
     <div class="interactive-projects-container">
+      <!-- Cyber Logo -->
+      <div class="cyber-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <!-- Terminal window -->
+            <rect x="10" y="20" width="80" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+            <line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="2"/>
+            <!-- Terminal prompt -->
+            <text x="18" y="48" font-family="monospace" font-size="12" fill="currentColor">&gt;_</text>
+            <!-- Code lines -->
+            <line x1="35" y1="45" x2="70" y2="45" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="35" y1="55" x2="60" y2="55" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="35" y1="65" x2="75" y2="65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-prefix">root&#64;</span><span class="logo-host">portfolio</span>
+        </div>
+        <div class="scan-line"></div>
+      </div>
+
       <header class="page-header">
         <div class="header-content">
           <h1>Interactive Projects Dashboard</h1>
@@ -110,6 +131,99 @@ interface InteractiveProject {
         );
       pointer-events: none;
       z-index: 0;
+    }
+
+    /* Cyber Logo Styles */
+    .cyber-logo {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 15px;
+      background: rgba(20, 20, 20, 0.85);
+      border: 2px solid rgba(0, 204, 51, 0.4);
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      box-shadow: 
+        0 0 20px rgba(0, 204, 51, 0.2),
+        inset 0 0 20px rgba(0, 204, 51, 0.05);
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    .cyber-logo:hover {
+      border-color: rgba(0, 204, 51, 0.7);
+      box-shadow: 
+        0 0 30px rgba(0, 204, 51, 0.4),
+        inset 0 0 20px rgba(0, 204, 51, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .logo-icon {
+      width: 50px;
+      height: 50px;
+      color: #00cc33;
+      animation: pulse 3s ease-in-out infinite;
+      filter: drop-shadow(0 0 8px rgba(0, 204, 51, 0.5));
+    }
+
+    .logo-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.7;
+      }
+    }
+
+    .logo-text {
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      color: #00cc33;
+      text-shadow: 0 0 5px rgba(0, 204, 51, 0.5);
+      letter-spacing: 1px;
+    }
+
+    .logo-prefix {
+      color: #808080;
+    }
+
+    .logo-host {
+      color: #00cc33;
+      font-weight: 600;
+    }
+
+    .scan-line {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00cc33, transparent);
+      animation: scanMove 2s linear infinite;
+    }
+
+    @keyframes scanMove {
+      0% {
+        transform: translateY(0);
+        opacity: 0;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-80px);
+        opacity: 0;
+      }
     }
 
     .page-header {
