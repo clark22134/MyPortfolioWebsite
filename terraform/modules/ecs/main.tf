@@ -224,6 +224,18 @@ resource "aws_ecs_task_definition" "backend" {
         {
           name      = "JWT_SECRET"
           valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/jwt-secret-OXGYxx"
+        },
+        {
+          name      = "MAIL_USERNAME"
+          valueFrom = aws_secretsmanager_secret.mail_username.arn
+        },
+        {
+          name      = "MAIL_PASSWORD"
+          valueFrom = aws_secretsmanager_secret.mail_password.arn
+        },
+        {
+          name      = "CONTACT_EMAIL"
+          valueFrom = aws_secretsmanager_secret.contact_email.arn
         }
       ]
       logConfiguration = {
