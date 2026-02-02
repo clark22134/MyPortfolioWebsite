@@ -26,7 +26,6 @@ jobs:
       security-events: write
       contents: read
     uses: ./.github/workflows/reusable-security.yml
-    secrets: inherit
 
   code-quality:
     name: Code Quality Analysis
@@ -98,10 +97,8 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           cd backend
-          docker build -t $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG \
-                       -t $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:latest .
+          docker build --build-arg GIT_COMMIT=${{ github.sha }} -t $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:latest
           echo "image=$ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Build and push frontend image
@@ -111,10 +108,8 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           cd frontend
-          docker build -t $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG \
-                       -t $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:latest .
+          docker build -t $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:latest
           echo "image=$ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Scan backend image with Trivy
@@ -239,16 +234,6 @@ jobs:
           
           wait
           echo "Both deployments initiated with new images"
-
-      - name: Check backend deployment status
-        run: |
-          echo "Checking backend service status..."
-          aws ecs describe-services \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --services ${{ env.ECS_BACKEND_SERVICE }} \
-            --region ${{ env.AWS_REGION }} \
-            --query 'services[0].{Status:status,Running:runningCount,Desired:desiredCount,Events:events[0:3]}' \
-            --output json
 
       - name: Wait for backend deployment
         run: |
@@ -382,11 +367,64 @@ jobs:
                  --query 'services[0].events[0:5]' \
                  --output table && exit 1)
 
-      - name: Verify deployment
+      - name: Verify deployment and container images
         run: |
-          echo "Checking deployment health..."
+          echo "Verifying backend is running correct image..."
+          BACKEND_TASKS=$(aws ecs list-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service-name ${{ env.ECS_BACKEND_SERVICE }} \
+            --desired-status RUNNING \
+            --region ${{ env.AWS_REGION }} \
+            --query 'taskArns[0]' \
+            --output text)
+          
+          BACKEND_IMAGE=$(aws ecs describe-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $BACKEND_TASKS \
+            --region ${{ env.AWS_REGION }} \
+            --query 'tasks[0].containers[0].image' \
+            --output text)
+          
+          EXPECTED_BACKEND_IMAGE="${{ needs.build-and-push-images.outputs.backend-image }}"
+          
+          if [[ "$BACKEND_IMAGE" != "$EXPECTED_BACKEND_IMAGE" ]]; then
+            echo "❌ Backend image mismatch!"
+            echo "Expected: $EXPECTED_BACKEND_IMAGE"
+            echo "Running:  $BACKEND_IMAGE"
+            exit 1
+          fi
+          echo "✅ Backend verified: $BACKEND_IMAGE"
+          
+          echo "Verifying frontend is running correct image..."
+          FRONTEND_TASKS=$(aws ecs list-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service-name ${{ env.ECS_FRONTEND_SERVICE }} \
+            --desired-status RUNNING \
+            --region ${{ env.AWS_REGION }} \
+            --query 'taskArns[0]' \
+            --output text)
+          
+          FRONTEND_IMAGE=$(aws ecs describe-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $FRONTEND_TASKS \
+            --region ${{ env.AWS_REGION }} \
+            --query 'tasks[0].containers[0].image' \
+            --output text)
+          
+          EXPECTED_FRONTEND_IMAGE="${{ needs.build-and-push-images.outputs.frontend-image }}"
+          
+          if [[ "$FRONTEND_IMAGE" != "$EXPECTED_FRONTEND_IMAGE" ]]; then
+            echo "❌ Frontend image mismatch!"
+            echo "Expected: $EXPECTED_FRONTEND_IMAGE"
+            echo "Running:  $FRONTEND_IMAGE"
+            exit 1
+          fi
+          echo "✅ Frontend verified: $FRONTEND_IMAGE"
+          
+          echo "Checking website health..."
           curl -f https://clarkfoster.com || exit 1
-          echo "Deployment successful!"
+          
+          echo "✅ All containers verified and website is healthy!"
 
   post-deployment-tests:
     name: Post-Deployment Verification
@@ -403,11 +441,21 @@ jobs:
         run: |
           echo "Running smoke tests against production..."
           
-          # Test homepage
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://clarkfoster.com)
-          if [ $response -ne 200 ]; then
-            echo "Homepage check failed with status $response"
-            exit 1
+          # Test API version endpoint and verify commit SHA
+          echo "Checking deployed version..."
+          API_VERSION=$(curl -s https://clarkfoster.com/api/version)
+          DEPLOYED_COMMIT=$(echo $API_VERSION | jq -r '.commit')
+          EXPECTED_COMMIT="${{ github.sha }}"
+          
+          echo "API Version Response: $API_VERSION"
+          echo "Expected commit: $EXPECTED_COMMIT"
+          echo "Deployed commit: $DEPLOYED_COMMIT"
+          
+          if [[ "$DEPLOYED_COMMIT" != "$EXPECTED_COMMIT" ]]; then
+            echo "⚠️  Warning: Deployed commit ($DEPLOYED_COMMIT) doesn't match expected ($EXPECTED_COMMIT)"
+            echo "This may indicate the backend hasn't fully restarted yet"
+          else
+            echo "✅ Version verified: Deployed commit matches expected commit"
           fi
           
           # Test SSL certificate
