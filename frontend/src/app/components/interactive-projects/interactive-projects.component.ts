@@ -19,7 +19,7 @@ interface InteractiveProject {
   imports: [CommonModule, FormsModule, NavComponent],
   template: `
     <app-nav></app-nav>
-    
+
     <div class="interactive-projects-container">
       <!-- Cyber Logo -->
       <div class="cyber-logo">
@@ -49,7 +49,7 @@ interface InteractiveProject {
           <div class="project-icon">📁</div>
           <h2>{{ project.title }}</h2>
           <p class="project-description">{{ project.description }}</p>
-          
+
           <div class="upload-section">
             <div class="file-info">
               <span class="label">Accepted types:</span>
@@ -59,13 +59,13 @@ interface InteractiveProject {
               <span class="label">Max size:</span>
               <span class="value">{{ formatFileSize(project.maxFileSize) }}</span>
             </div>
-            
-            <div class="upload-area" 
-                 (dragover)="onDragOver($event)" 
+
+            <div class="upload-area"
+                 (dragover)="onDragOver($event)"
                  (dragleave)="onDragLeave($event)"
                  (drop)="onDrop($event, project.id)">
-              <input 
-                type="file" 
+              <input
+                type="file"
                 [id]="'file-' + project.id"
                 [accept]="project.uploadTypes.join(',')"
                 (change)="onFileSelected($event, project.id)"
@@ -77,15 +77,15 @@ interface InteractiveProject {
                 <p class="upload-hint">{{ selectedFiles[project.id]?.name || 'No file selected' }}</p>
               </label>
             </div>
-            
-            <button 
-              class="btn-upload" 
+
+            <button
+              class="btn-upload"
               [disabled]="!selectedFiles[project.id] || uploading[project.id]"
               (click)="uploadFile(project.id)">
               {{ uploading[project.id] ? 'Uploading...' : 'Upload File' }}
             </button>
-            
-            <div *ngIf="uploadStatus[project.id]" 
+
+            <div *ngIf="uploadStatus[project.id]"
                  [class]="'status-message ' + uploadStatus[project.id].type">
               {{ uploadStatus[project.id].message }}
             </div>
@@ -121,7 +121,7 @@ interface InteractiveProject {
       left: 0;
       width: 100%;
       height: 100%;
-      background: 
+      background:
         repeating-linear-gradient(
           0deg,
           rgba(0, 204, 51, 0.03) 0px,
@@ -177,7 +177,7 @@ interface InteractiveProject {
       border: 2px solid rgba(0, 204, 51, 0.4);
       border-radius: 8px;
       backdrop-filter: blur(10px);
-      box-shadow: 
+      box-shadow:
         0 0 20px rgba(0, 204, 51, 0.2),
         inset 0 0 20px rgba(0, 204, 51, 0.05);
       transition: all 0.3s ease;
@@ -186,7 +186,7 @@ interface InteractiveProject {
 
     .cyber-logo:hover {
       border-color: rgba(0, 204, 51, 0.7);
-      box-shadow: 
+      box-shadow:
         0 0 30px rgba(0, 204, 51, 0.4),
         inset 0 0 20px rgba(0, 204, 51, 0.1);
       transform: translateY(-2px);
@@ -275,7 +275,7 @@ interface InteractiveProject {
       margin-top: 160px;
       font-family: 'Courier New', 'Space Grotesk', monospace;
       letter-spacing: 2px;
-      text-shadow: 
+      text-shadow:
         0 0 8px rgba(0, 204, 51, 0.4),
         0 0 15px rgba(0, 204, 51, 0.3);
     }
@@ -659,7 +659,7 @@ export class InteractiveProjectsComponent implements OnInit {
     event.preventDefault();
     event.stopPropagation();
     (event.currentTarget as HTMLElement).classList.remove('drag-over');
-    
+
     if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
       const file = event.dataTransfer.files[0];
       this.validateAndSetFile(file, projectId);
@@ -703,7 +703,7 @@ export class InteractiveProjectsComponent implements OnInit {
     // Simulate file upload (replace with actual API call)
     setTimeout(() => {
       this.uploading[projectId] = false;
-      
+
       // Add to uploaded files list
       if (!this.uploadedFiles[projectId]) {
         this.uploadedFiles[projectId] = [];
@@ -720,7 +720,7 @@ export class InteractiveProjectsComponent implements OnInit {
 
       // Clear selected file
       this.selectedFiles[projectId] = null;
-      
+
       // Clear status after 3 seconds
       setTimeout(() => {
         this.uploadStatus[projectId] = { type: '', message: '' };

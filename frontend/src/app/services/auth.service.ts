@@ -5,12 +5,12 @@ import { LoginRequest, LoginResponse, RegisterRequest } from '../models/user.mod
 
 /**
  * SECURITY NOTE: This service stores JWT tokens in memory and sessionStorage.
- * 
+ *
  * For maximum security in production, consider:
  * 1. Using HttpOnly cookies set by the backend (requires backend changes)
  * 2. Implementing token refresh with short-lived access tokens
  * 3. Adding CSRF protection if using cookies
- * 
+ *
  * Current implementation uses sessionStorage (cleared on browser close) instead
  * of localStorage for improved security against persistent XSS attacks.
  */
@@ -21,7 +21,7 @@ export class AuthService {
   private apiUrl = '/api/auth';
   private currentUserSubject = new BehaviorSubject<LoginResponse | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
-  
+
   // In-memory token storage (primary) - cleared on page refresh
   private tokenCache: string | null = null;
 
