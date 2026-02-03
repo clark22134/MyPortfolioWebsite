@@ -429,64 +429,129 @@ jobs:
                  --query 'services[0].events[0:5]' \
                  --output table && exit 1)
 
-      - name: Wait for tasks to refresh
+      - name: Wait for old deployments to drain
         run: |
-          echo "Waiting for new tasks to fully start and old tasks to drain..."
-          sleep 180
+          echo "Waiting for old deployments to fully drain..."
+          
+          # Wait for backend to have only 1 deployment
+          echo "Checking backend deployments..."
+          for i in {1..60}; do
+            BACKEND_DEPLOYMENTS=$(aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services ${{ env.ECS_BACKEND_SERVICE }} \
+              --region ${{ env.AWS_REGION }} \
+              --query "length(services[0].deployments)" \
+              --output text)
+            
+            if [ "$BACKEND_DEPLOYMENTS" = "1" ]; then
+              echo "✓ Backend has 1 active deployment"
+              break
+            fi
+            echo "Backend has $BACKEND_DEPLOYMENTS deployments, waiting... ($i/60)"
+            sleep 10
+          done
+          
+          # Wait for frontend to have only 1 deployment
+          echo "Checking frontend deployments..."
+          for i in {1..60}; do
+            FRONTEND_DEPLOYMENTS=$(aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services ${{ env.ECS_FRONTEND_SERVICE }} \
+              --region ${{ env.AWS_REGION }} \
+              --query "length(services[0].deployments)" \
+              --output text)
+            
+            if [ "$FRONTEND_DEPLOYMENTS" = "1" ]; then
+              echo "✓ Frontend has 1 active deployment"
+              break
+            fi
+            echo "Frontend has $FRONTEND_DEPLOYMENTS deployments, waiting... ($i/60)"
+            sleep 10
+          done
+          
+          echo "All old deployments have drained"
 
       - name: Verify deployment and container images
         run: |
-          echo "Verifying backend is running correct image..."
-          BACKEND_TASKS=$(aws ecs list-tasks \
+          EXPECTED_BACKEND_IMAGE="${{ needs.build-and-push-images.outputs.backend-image }}"
+          EXPECTED_FRONTEND_IMAGE="${{ needs.build-and-push-images.outputs.frontend-image }}"
+          
+          echo "Expected backend image: $EXPECTED_BACKEND_IMAGE"
+          echo "Expected frontend image: $EXPECTED_FRONTEND_IMAGE"
+          
+          # Get ALL backend tasks and verify each one
+          echo "Verifying backend tasks..."
+          BACKEND_TASK_ARNS=$(aws ecs list-tasks \
             --cluster ${{ env.ECS_CLUSTER }} \
             --service-name ${{ env.ECS_BACKEND_SERVICE }} \
             --desired-status RUNNING \
             --region ${{ env.AWS_REGION }} \
-            --query 'taskArns[0]' \
-            --output text)
+            --query 'taskArns' \
+            --output json)
           
-          BACKEND_IMAGE=$(aws ecs describe-tasks \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --tasks $BACKEND_TASKS \
-            --region ${{ env.AWS_REGION }} \
-            --query 'tasks[0].containers[0].image' \
-            --output text)
+          BACKEND_TASK_COUNT=$(echo $BACKEND_TASK_ARNS | jq 'length')
+          echo "Found $BACKEND_TASK_COUNT backend tasks"
           
-          EXPECTED_BACKEND_IMAGE="${{ needs.build-and-push-images.outputs.backend-image }}"
-          
-          if [[ "$BACKEND_IMAGE" != "$EXPECTED_BACKEND_IMAGE" ]]; then
-            echo "❌ Backend image mismatch!"
-            echo "Expected: $EXPECTED_BACKEND_IMAGE"
-            echo "Running:  $BACKEND_IMAGE"
+          if [ "$BACKEND_TASK_COUNT" = "0" ]; then
+            echo "❌ No backend tasks running!"
             exit 1
           fi
-          echo "✅ Backend verified: $BACKEND_IMAGE"
           
-          echo "Verifying frontend is running correct image..."
-          FRONTEND_TASKS=$(aws ecs list-tasks \
+          BACKEND_IMAGES=$(aws ecs describe-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $(echo $BACKEND_TASK_ARNS | jq -r '.[]') \
+            --region ${{ env.AWS_REGION }} \
+            --query 'tasks[].containers[0].image' \
+            --output json)
+          
+          echo "Backend images running: $BACKEND_IMAGES"
+          
+          # Check if all backend tasks have the correct image
+          BACKEND_MISMATCH=$(echo $BACKEND_IMAGES | jq --arg expected "$EXPECTED_BACKEND_IMAGE" '[.[] | select(. != $expected)] | length')
+          if [ "$BACKEND_MISMATCH" != "0" ]; then
+            echo "❌ Backend image mismatch! $BACKEND_MISMATCH task(s) running wrong image"
+            echo "Expected: $EXPECTED_BACKEND_IMAGE"
+            echo "Running: $BACKEND_IMAGES"
+            exit 1
+          fi
+          echo "✅ All $BACKEND_TASK_COUNT backend tasks verified"
+          
+          # Get ALL frontend tasks and verify each one
+          echo "Verifying frontend tasks..."
+          FRONTEND_TASK_ARNS=$(aws ecs list-tasks \
             --cluster ${{ env.ECS_CLUSTER }} \
             --service-name ${{ env.ECS_FRONTEND_SERVICE }} \
             --desired-status RUNNING \
             --region ${{ env.AWS_REGION }} \
-            --query 'taskArns[0]' \
-            --output text)
+            --query 'taskArns' \
+            --output json)
           
-          FRONTEND_IMAGE=$(aws ecs describe-tasks \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --tasks $FRONTEND_TASKS \
-            --region ${{ env.AWS_REGION }} \
-            --query 'tasks[0].containers[0].image' \
-            --output text)
+          FRONTEND_TASK_COUNT=$(echo $FRONTEND_TASK_ARNS | jq 'length')
+          echo "Found $FRONTEND_TASK_COUNT frontend tasks"
           
-          EXPECTED_FRONTEND_IMAGE="${{ needs.build-and-push-images.outputs.frontend-image }}"
-          
-          if [[ "$FRONTEND_IMAGE" != "$EXPECTED_FRONTEND_IMAGE" ]]; then
-            echo "❌ Frontend image mismatch!"
-            echo "Expected: $EXPECTED_FRONTEND_IMAGE"
-            echo "Running:  $FRONTEND_IMAGE"
+          if [ "$FRONTEND_TASK_COUNT" = "0" ]; then
+            echo "❌ No frontend tasks running!"
             exit 1
           fi
-          echo "✅ Frontend verified: $FRONTEND_IMAGE"
+          
+          FRONTEND_IMAGES=$(aws ecs describe-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $(echo $FRONTEND_TASK_ARNS | jq -r '.[]') \
+            --region ${{ env.AWS_REGION }} \
+            --query 'tasks[].containers[0].image' \
+            --output json)
+          
+          echo "Frontend images running: $FRONTEND_IMAGES"
+          
+          # Check if all frontend tasks have the correct image
+          FRONTEND_MISMATCH=$(echo $FRONTEND_IMAGES | jq --arg expected "$EXPECTED_FRONTEND_IMAGE" '[.[] | select(. != $expected)] | length')
+          if [ "$FRONTEND_MISMATCH" != "0" ]; then
+            echo "❌ Frontend image mismatch! $FRONTEND_MISMATCH task(s) running wrong image"
+            echo "Expected: $EXPECTED_FRONTEND_IMAGE"
+            echo "Running: $FRONTEND_IMAGES"
+            exit 1
+          fi
+          echo "✅ All $FRONTEND_TASK_COUNT frontend tasks verified"
           
           echo "Checking website health..."
           curl -f https://clarkfoster.com || exit 1
