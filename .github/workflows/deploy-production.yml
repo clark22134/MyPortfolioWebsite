@@ -144,10 +144,56 @@ jobs:
           category: 'frontend-image'
         continue-on-error: true
 
+  deploy-infrastructure:
+    name: Deploy Infrastructure (Terraform)
+    runs-on: ubuntu-latest
+    needs: [build-and-push-images]
+    permissions:
+      id-token: write
+      contents: read
+    if: |
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && (github.base_ref == 'main' || github.base_ref == 'master'))
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -out=tfplan -input=false -no-color 2>&1 | tee plan_output.txt
+          echo "plan_output<<EOF" >> $GITHUB_OUTPUT
+          cat plan_output.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -input=false tfplan
+
   deploy-to-aws:
     name: Deploy to AWS ECS
     runs-on: ubuntu-latest
-    needs: [build-and-push-images]
+    needs: [build-and-push-images, deploy-infrastructure]
     permissions:
       id-token: write
       contents: read

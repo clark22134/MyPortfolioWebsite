@@ -1,217 +1,306 @@
-import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { AuthService } from './auth.service';
-import { LoginRequest, LoginResponse, RegisterRequest } from '../models/user.model';
+import { TestBed, fakeAsync, tick, discardPeriodicTasks, flush } from '@angular/core/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { AuthService, UserInfo } from './auth.service';
+import { LoginRequest, RegisterRequest } from '../models/user.model';
 
 describe('AuthService', () => {
   let service: AuthService;
   let httpMock: HttpTestingController;
+  const apiUrl = '/api/auth';
 
-  beforeEach(() => {
+  // Helper to handle any pending refresh requests
+  function flushPendingRefreshRequests(): void {
+    try {
+      const refreshReqs = httpMock.match(`${apiUrl}/refresh`);
+      refreshReqs.forEach(req => req.flush({}));
+    } catch {
+      // No pending requests
+    }
+  }
+
+  beforeEach(fakeAsync(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [AuthService]
+      providers: [
+        AuthService,
+        provideHttpClient(),
+        provideHttpClientTesting()
+      ]
     });
-    service = TestBed.inject(AuthService);
+
     httpMock = TestBed.inject(HttpTestingController);
-    sessionStorage.clear();
-  });
+    service = TestBed.inject(AuthService);
 
-  afterEach(() => {
+    // Handle the initial /me request that fires on service construction
+    const meReq = httpMock.expectOne(`${apiUrl}/me`);
+    meReq.flush(null, { status: 401, statusText: 'Unauthorized' });
+    tick();
+  }));
+
+  afterEach(fakeAsync(() => {
+    // Flush any pending timers and requests
+    flushPendingRefreshRequests();
+    discardPeriodicTasks();
     httpMock.verify();
-    sessionStorage.clear();
-  });
+  }));
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
+  describe('initialization', () => {
+    it('should be created', () => {
+      expect(service).toBeTruthy();
+    });
+
+    it('should start with isAuthenticated as false after failed /me check', () => {
+      expect(service.isAuthenticated()).toBeFalse();
+    });
+
+    it('should have null currentUser$ after failed /me check', (done) => {
+      service.currentUser$.subscribe(user => {
+        expect(user).toBeNull();
+        done();
+      });
+    });
   });
 
   describe('login', () => {
-    it('should login successfully and store token', () => {
-      const loginRequest: LoginRequest = {
-        username: 'testuser',
-        password: 'password123'
-      };
+    const loginRequest: LoginRequest = { username: 'testuser', password: 'password123' };
+    const mockUserInfo: UserInfo = {
+      username: 'testuser',
+      email: 'test@example.com',
+      fullName: 'Test User'
+    };
 
-      const mockResponse: LoginResponse = {
-        token: 'mock-jwt-token',
-        username: 'testuser',
-        email: 'test@example.com',
-        fullName: 'Test User'
-      };
+    it('should send login request with credentials', fakeAsync(() => {
+      service.login(loginRequest).subscribe();
 
-      service.login(loginRequest).subscribe(response => {
-        expect(response).toEqual(mockResponse);
-        expect(sessionStorage.getItem('currentUser')).toBe(JSON.stringify(mockResponse));
-      });
-
-      const req = httpMock.expectOne('/api/auth/login');
+      const req = httpMock.expectOne(`${apiUrl}/login`);
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(loginRequest);
-      req.flush(mockResponse);
-    });
+      expect(req.request.withCredentials).toBeTrue();
+      req.flush(mockUserInfo);
 
-    it('should update currentUser$ observable on login', (done) => {
-      const loginRequest: LoginRequest = {
-        username: 'testuser',
-        password: 'password123'
-      };
+      tick();
+      // Cleanup: logout to cancel refresh timer
+      service.logout().subscribe();
+      httpMock.expectOne(`${apiUrl}/logout`).flush({});
+      tick();
+    }));
 
-      const mockResponse: LoginResponse = {
-        token: 'mock-jwt-token',
-        username: 'testuser',
-        email: 'test@example.com',
-        fullName: 'Test User'
-      };
+    it('should update isAuthenticated to true on successful login', fakeAsync(() => {
+      service.login(loginRequest).subscribe();
 
-      service.currentUser$.subscribe(user => {
-        if (user) {
-          expect(user).toEqual(mockResponse);
-          done();
-        }
-      });
+      const req = httpMock.expectOne(`${apiUrl}/login`);
+      req.flush(mockUserInfo);
+
+      tick();
+      expect(service.isAuthenticated()).toBeTrue();
+
+      // Cleanup
+      service.logout().subscribe();
+      httpMock.expectOne(`${apiUrl}/logout`).flush({});
+      tick();
+    }));
+
+    it('should update currentUser$ on successful login', fakeAsync(() => {
+      let user: UserInfo | null = null;
+      service.currentUser$.subscribe(val => user = val);
 
       service.login(loginRequest).subscribe();
 
-      const req = httpMock.expectOne('/api/auth/login');
-      req.flush(mockResponse);
-    });
+      const req = httpMock.expectOne(`${apiUrl}/login`);
+      req.flush(mockUserInfo);
 
-    it('should handle login errors', () => {
-      const loginRequest: LoginRequest = {
-        username: 'wronguser',
-        password: 'wrongpass'
-      };
+      tick();
+      expect(user).not.toBeNull();
+      expect(user!.username).toBe(mockUserInfo.username);
+      expect(user!.email).toBe(mockUserInfo.email);
 
+      // Cleanup
+      service.logout().subscribe();
+      httpMock.expectOne(`${apiUrl}/logout`).flush({});
+      tick();
+    }));
+
+    it('should not update auth state on failed login', fakeAsync(() => {
       service.login(loginRequest).subscribe({
-        next: () => fail('should have failed'),
-        error: (error) => {
-          expect(error.status).toBe(401);
-        }
+        error: () => {}
       });
 
-      const req = httpMock.expectOne('/api/auth/login');
-      req.flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });
-    });
+      const req = httpMock.expectOne(`${apiUrl}/login`);
+      req.flush({ message: 'Invalid credentials' }, { status: 401, statusText: 'Unauthorized' });
+
+      tick();
+      expect(service.isAuthenticated()).toBeFalse();
+    }));
   });
 
   describe('register', () => {
-    it('should register a new user successfully', () => {
-      const registerRequest: RegisterRequest = {
-        username: 'newuser',
-        password: 'password123',
-        email: 'newuser@example.com',
-        fullName: 'New User'
-      };
+    const registerRequest: RegisterRequest = {
+      username: 'newuser',
+      email: 'newuser@example.com',
+      password: 'password123',
+      fullName: 'New User'
+    };
 
-      const mockResponse = { message: 'User registered successfully' };
+    it('should send registration request with credentials', fakeAsync(() => {
+      service.register(registerRequest).subscribe();
 
-      service.register(registerRequest).subscribe(response => {
-        expect(response).toEqual(mockResponse);
-      });
-
-      const req = httpMock.expectOne('/api/auth/register');
+      const req = httpMock.expectOne(`${apiUrl}/register`);
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(registerRequest);
-      req.flush(mockResponse);
-    });
-
-    it('should handle registration errors', () => {
-      const registerRequest: RegisterRequest = {
-        username: 'existinguser',
-        password: 'password123',
-        email: 'existing@example.com',
-        fullName: 'Existing User'
-      };
-
-      service.register(registerRequest).subscribe({
-        next: () => fail('should have failed'),
-        error: (error) => {
-          expect(error.status).toBe(400);
-        }
-      });
-
-      const req = httpMock.expectOne('/api/auth/register');
-      req.flush('User already exists', { status: 400, statusText: 'Bad Request' });
-    });
+      expect(req.request.withCredentials).toBeTrue();
+      req.flush({ message: 'Registration successful' });
+      tick();
+    }));
   });
 
   describe('logout', () => {
-    it('should clear sessionStorage and reset currentUser$', (done) => {
-      sessionStorage.setItem('currentUser', JSON.stringify({ token: 'mock-token' }));
+    const mockUserInfo: UserInfo = {
+      username: 'testuser',
+      email: 'test@example.com',
+      fullName: 'Test User'
+    };
 
-      service.logout();
+    it('should send logout request and clear auth state', fakeAsync(() => {
+      // First login
+      service.login({ username: 'testuser', password: 'password' }).subscribe();
+      const loginReq = httpMock.expectOne(`${apiUrl}/login`);
+      loginReq.flush(mockUserInfo);
+      tick();
 
-      expect(sessionStorage.getItem('currentUser')).toBeNull();
+      expect(service.isAuthenticated()).toBeTrue();
 
-      service.currentUser$.subscribe(user => {
-        expect(user).toBeNull();
-        done();
+      service.logout().subscribe();
+
+      const logoutReq = httpMock.expectOne(`${apiUrl}/logout`);
+      expect(logoutReq.request.method).toBe('POST');
+      expect(logoutReq.request.withCredentials).toBeTrue();
+      logoutReq.flush({});
+
+      tick();
+      expect(service.isAuthenticated()).toBeFalse();
+    }));
+
+    it('should clear auth state even if logout request fails', fakeAsync(() => {
+      // First login
+      service.login({ username: 'testuser', password: 'password' }).subscribe();
+      const loginReq = httpMock.expectOne(`${apiUrl}/login`);
+      loginReq.flush(mockUserInfo);
+      tick();
+
+      expect(service.isAuthenticated()).toBeTrue();
+
+      service.logout().subscribe();
+
+      const logoutReq = httpMock.expectOne(`${apiUrl}/logout`);
+      logoutReq.flush({}, { status: 500, statusText: 'Server Error' });
+
+      tick();
+      expect(service.isAuthenticated()).toBeFalse();
+    }));
+  });
+
+  describe('logoutAllDevices', () => {
+    it('should send logout-all request', fakeAsync(() => {
+      service.logoutAllDevices().subscribe();
+
+      const req = httpMock.expectOne(`${apiUrl}/logout-all`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.withCredentials).toBeTrue();
+      req.flush({});
+
+      tick();
+    }));
+  });
+
+  describe('refreshToken', () => {
+    it('should send refresh request with credentials', fakeAsync(() => {
+      service.refreshToken().subscribe();
+
+      const req = httpMock.expectOne(`${apiUrl}/refresh`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.withCredentials).toBeTrue();
+      req.flush({});
+
+      tick();
+      // Cleanup - cancel scheduled refresh
+      service.logout().subscribe();
+      httpMock.expectOne(`${apiUrl}/logout`).flush({});
+      tick();
+    }));
+
+    it('should clear auth state on failed refresh', fakeAsync(() => {
+      service.refreshToken().subscribe();
+
+      const req = httpMock.expectOne(`${apiUrl}/refresh`);
+      req.flush({}, { status: 401, statusText: 'Unauthorized' });
+
+      tick();
+      expect(service.isAuthenticated()).toBeFalse();
+    }));
+  });
+
+  describe('getCurrentUser', () => {
+    it('should fetch current user info', fakeAsync(() => {
+      const mockUserInfo: UserInfo = {
+        username: 'testuser',
+        email: 'test@example.com',
+        fullName: 'Test User'
+      };
+
+      service.getCurrentUser().subscribe(user => {
+        expect(user).not.toBeNull();
+        expect(user!.username).toBe(mockUserInfo.username);
       });
-    });
+
+      const req = httpMock.expectOne(`${apiUrl}/me`);
+      expect(req.request.method).toBe('GET');
+      expect(req.request.withCredentials).toBeTrue();
+      req.flush(mockUserInfo);
+
+      tick();
+      // Cleanup
+      service.logout().subscribe();
+      httpMock.expectOne(`${apiUrl}/logout`).flush({});
+      tick();
+    }));
+
+    it('should return null and clear state on failed request', fakeAsync(() => {
+      service.getCurrentUser().subscribe(user => {
+        expect(user).toBeNull();
+      });
+
+      const req = httpMock.expectOne(`${apiUrl}/me`);
+      req.flush({}, { status: 401, statusText: 'Unauthorized' });
+
+      tick();
+      expect(service.isAuthenticated()).toBeFalse();
+    }));
   });
 
   describe('isAuthenticated', () => {
-    it('should return true when user is logged in', () => {
-      const mockResponse: LoginResponse = {
-        token: 'mock-token',
+    it('should return false when not authenticated', () => {
+      expect(service.isAuthenticated()).toBeFalse();
+    });
+
+    it('should return true when authenticated', fakeAsync(() => {
+      const mockUserInfo: UserInfo = {
         username: 'testuser',
         email: 'test@example.com',
         fullName: 'Test User'
       };
-      sessionStorage.setItem('currentUser', JSON.stringify(mockResponse));
 
-      // Recreate service to load from sessionStorage
-      service = new AuthService(TestBed.inject(HttpClientTestingModule) as any);
+      service.login({ username: 'testuser', password: 'password' }).subscribe();
 
-      // Manually set the current user
-      (service as any).currentUserSubject.next(mockResponse);
+      const req = httpMock.expectOne(`${apiUrl}/login`);
+      req.flush(mockUserInfo);
 
-      expect(service.isAuthenticated()).toBe(true);
-    });
+      tick();
+      expect(service.isAuthenticated()).toBeTrue();
 
-    it('should return false when user is not logged in', () => {
-      expect(service.isAuthenticated()).toBe(false);
-    });
-  });
-
-  describe('getToken', () => {
-    it('should return token from sessionStorage', () => {
-      sessionStorage.setItem('currentUser', JSON.stringify({ token: 'mock-token' }));
-      // Need to reload the service to pick up sessionStorage
-      service = new AuthService(TestBed.inject(HttpClientTestingModule) as any);
-      expect(service.getToken()).toBe('mock-token');
-    });
-
-    it('should return null when no token exists', () => {
-      expect(service.getToken()).toBeNull();
-    });
-  });
-
-  describe('initialization', () => {
-    it('should load user from sessionStorage on init', () => {
-      const mockUser: LoginResponse = {
-        token: 'stored-token',
-        username: 'testuser',
-        email: 'test@example.com',
-        fullName: 'Test User'
-      };
-      sessionStorage.setItem('currentUser', JSON.stringify(mockUser));
-
-      const newService = new AuthService(TestBed.inject(HttpClientTestingModule) as any);
-
-      newService.currentUser$.subscribe(user => {
-        expect(user).toEqual(mockUser);
-      });
-    });
-
-    it('should have null user when localStorage is empty', (done) => {
-      const newService = new AuthService(TestBed.inject(HttpClientTestingModule) as any);
-
-      newService.currentUser$.subscribe(user => {
-        expect(user).toBeNull();
-        done();
-      });
-    });
+      // Cleanup
+      service.logout().subscribe();
+      httpMock.expectOne(`${apiUrl}/logout`).flush({});
+      tick();
+    }));
   });
 });

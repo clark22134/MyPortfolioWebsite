@@ -1,87 +1,182 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, tap } from 'rxjs';
-import { LoginRequest, LoginResponse, RegisterRequest } from '../models/user.model';
+import { Observable, BehaviorSubject, tap, catchError, of, switchMap } from 'rxjs';
+import { LoginRequest, RegisterRequest } from '../models/user.model';
 
 /**
- * SECURITY NOTE: This service stores JWT tokens in memory and sessionStorage.
+ * Authentication service using HTTP-only cookies for JWT storage.
  *
- * For maximum security in production, consider:
- * 1. Using HttpOnly cookies set by the backend (requires backend changes)
- * 2. Implementing token refresh with short-lived access tokens
- * 3. Adding CSRF protection if using cookies
- *
- * Current implementation uses sessionStorage (cleared on browser close) instead
- * of localStorage for improved security against persistent XSS attacks.
+ * Security features:
+ * - Access tokens stored in HTTP-only cookies (not accessible to JavaScript)
+ * - Refresh tokens with automatic rotation
+ * - CSRF protection via X-XSRF-TOKEN header
+ * - Short-lived access tokens (15 min) with silent refresh
  */
+
+export interface UserInfo {
+  username: string;
+  email: string;
+  fullName: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
   private apiUrl = '/api/auth';
-  private currentUserSubject = new BehaviorSubject<LoginResponse | null>(null);
+  private currentUserSubject = new BehaviorSubject<UserInfo | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  // In-memory token storage (primary) - cleared on page refresh
-  private tokenCache: string | null = null;
+  // Timer for automatic token refresh
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Access token lifetime in ms (should match backend: 15 min)
+  private readonly ACCESS_TOKEN_LIFETIME_MS = 900000;
+  // Refresh 1 minute before expiry
+  private readonly REFRESH_BUFFER_MS = 60000;
 
   constructor(private http: HttpClient) {
-    // Use sessionStorage instead of localStorage for better security
-    // sessionStorage is cleared when the browser tab is closed
-    const storedUser = sessionStorage.getItem('currentUser');
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        this.currentUserSubject.next(parsed);
-        this.tokenCache = parsed?.token || null;
-      } catch (e) {
-        // Invalid stored data - clear it
-        sessionStorage.removeItem('currentUser');
-      }
-    }
+    // On app initialization, check if user is authenticated via /me endpoint
+    this.checkAuthentication();
   }
 
-  login(credentials: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, credentials).pipe(
-      tap(response => {
-        // Store in memory first (most secure)
-        this.tokenCache = response.token;
-        // Store in sessionStorage for tab persistence (cleared on browser close)
-        sessionStorage.setItem('currentUser', JSON.stringify(response));
-        this.currentUserSubject.next(response);
+  /**
+   * Check if user is authenticated by calling the /me endpoint.
+   * This works because cookies are sent automatically.
+   */
+  private checkAuthentication(): void {
+    this.http.get<UserInfo>(`${this.apiUrl}/me`, { withCredentials: true }).pipe(
+      tap(user => {
+        this.currentUserSubject.next(user);
+        this.scheduleTokenRefresh();
+      }),
+      catchError(() => {
+        this.currentUserSubject.next(null);
+        return of(null);
+      })
+    ).subscribe();
+  }
+
+  /**
+   * Login with username and password.
+   * Tokens are set as HTTP-only cookies by the backend.
+   */
+  login(credentials: LoginRequest): Observable<UserInfo> {
+    return this.http.post<UserInfo>(`${this.apiUrl}/login`, credentials, {
+      withCredentials: true
+    }).pipe(
+      tap(user => {
+        this.currentUserSubject.next(user);
+        this.scheduleTokenRefresh();
       })
     );
   }
 
+  /**
+   * Register a new user.
+   */
   register(user: RegisterRequest): Observable<any> {
-    return this.http.post(`${this.apiUrl}/register`, user);
+    return this.http.post(`${this.apiUrl}/register`, user, {
+      withCredentials: true
+    });
   }
 
-  logout(): void {
-    this.tokenCache = null;
-    sessionStorage.removeItem('currentUser');
-    this.currentUserSubject.next(null);
+  /**
+   * Logout from current device.
+   * Clears cookies via backend response.
+   */
+  logout(): Observable<any> {
+    this.cancelTokenRefresh();
+    return this.http.post(`${this.apiUrl}/logout`, {}, {
+      withCredentials: true
+    }).pipe(
+      tap(() => {
+        this.currentUserSubject.next(null);
+      }),
+      catchError(() => {
+        this.currentUserSubject.next(null);
+        return of(null);
+      })
+    );
   }
 
+  /**
+   * Logout from all devices.
+   * Revokes all refresh tokens for this user.
+   */
+  logoutAllDevices(): Observable<any> {
+    this.cancelTokenRefresh();
+    return this.http.post(`${this.apiUrl}/logout-all`, {}, {
+      withCredentials: true
+    }).pipe(
+      tap(() => {
+        this.currentUserSubject.next(null);
+      })
+    );
+  }
+
+  /**
+   * Refresh the access token using the refresh token cookie.
+   */
+  refreshToken(): Observable<any> {
+    return this.http.post(`${this.apiUrl}/refresh`, {}, {
+      withCredentials: true
+    }).pipe(
+      tap(() => {
+        this.scheduleTokenRefresh();
+      }),
+      catchError(error => {
+        // Refresh failed - user needs to login again
+        this.currentUserSubject.next(null);
+        this.cancelTokenRefresh();
+        return of(null);
+      })
+    );
+  }
+
+  /**
+   * Get current user info from the server.
+   */
+  getCurrentUser(): Observable<UserInfo | null> {
+    return this.http.get<UserInfo>(`${this.apiUrl}/me`, {
+      withCredentials: true
+    }).pipe(
+      tap(user => this.currentUserSubject.next(user)),
+      catchError(() => {
+        this.currentUserSubject.next(null);
+        return of(null);
+      })
+    );
+  }
+
+  /**
+   * Check if user is currently authenticated.
+   */
   isAuthenticated(): boolean {
     return !!this.currentUserSubject.value;
   }
 
-  getToken(): string | null {
-    // Prefer in-memory token, fallback to sessionStorage
-    if (this.tokenCache) {
-      return this.tokenCache;
+  /**
+   * Schedule automatic token refresh before expiry.
+   */
+  private scheduleTokenRefresh(): void {
+    this.cancelTokenRefresh();
+
+    // Refresh 1 minute before the access token expires
+    const refreshTime = this.ACCESS_TOKEN_LIFETIME_MS - this.REFRESH_BUFFER_MS;
+
+    this.refreshTimer = setTimeout(() => {
+      this.refreshToken().subscribe();
+    }, refreshTime);
+  }
+
+  /**
+   * Cancel the scheduled token refresh.
+   */
+  private cancelTokenRefresh(): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
     }
-    const storedUser = sessionStorage.getItem('currentUser');
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        this.tokenCache = parsed?.token || null;
-        return this.tokenCache;
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
   }
 }

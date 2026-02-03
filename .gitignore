@@ -106,11 +106,16 @@ yarn-error.log*
 /backend/target/
 /backend/.mvn/
 
-# Terraform
+# Terraform - State files and local cache
 *.tfstate
 *.tfstate.*
+*.tfstate.backup
 .terraform/
 .terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf.json
+*_override.tf.json
 
 # IDE and OS files
 .vscode/

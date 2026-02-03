@@ -14,6 +14,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -31,21 +33,51 @@ public class SecurityConfig {
     @Value("${cors.allowed.origins}")
     private String allowedOrigins;
     
+    @Value("${csrf.enabled:true}")
+    private boolean csrfEnabled;
+    
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        // Configure CSRF with cookie-based token for SPA
+        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+        // Don't defer loading the CSRF token
+        requestHandler.setCsrfRequestAttributeName(null);
+        
         http
-                // CSRF disabled for stateless JWT API - tokens are not stored in cookies
-                // For cookie-based sessions, CSRF protection should be enabled
-                .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/projects/**", "/api/contact/**", "/h2-console/**", "/actuator/health/**").permitAll()
+                        .requestMatchers(
+                            "/api/auth/login", 
+                            "/api/auth/register", 
+                            "/api/auth/refresh",
+                            "/api/projects/**", 
+                            "/api/contact/**", 
+                            "/h2-console/**", 
+                            "/actuator/health/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .headers(headers -> headers.frameOptions(frame -> frame.disable()));
+        
+        // Configure CSRF protection
+        if (csrfEnabled) {
+            http.csrf(csrf -> csrf
+                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .csrfTokenRequestHandler(requestHandler)
+                    // Exclude auth endpoints that need to work before CSRF token is set
+                    .ignoringRequestMatchers(
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/h2-console/**"
+                    )
+            );
+        } else {
+            // Disable CSRF for development/testing
+            http.csrf(csrf -> csrf.disable());
+        }
         
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
         
@@ -58,7 +90,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(Arrays.asList("X-XSRF-TOKEN"));
+        configuration.setAllowCredentials(true);  // Required for cookies
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
