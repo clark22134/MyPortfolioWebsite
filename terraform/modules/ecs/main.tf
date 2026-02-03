@@ -300,6 +300,15 @@ resource "aws_ecs_service" "backend" {
   desired_count   = 1
   launch_type     = "FARGATE"
 
+  # Allow time for Java Spring Boot to start before health checks fail the deployment
+  health_check_grace_period_seconds = 120
+
+  # Automatic rollback if deployment fails
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
   network_configuration {
     subnets          = var.public_subnet_ids
     security_groups  = [aws_security_group.ecs_tasks.id]
@@ -333,6 +342,12 @@ resource "aws_ecs_service" "frontend" {
   task_definition = aws_ecs_task_definition.frontend.arn
   desired_count   = 1
   launch_type     = "FARGATE"
+
+  # Automatic rollback if deployment fails
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
 
   network_configuration {
     subnets          = var.public_subnet_ids

@@ -283,223 +283,45 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy backend and frontend to ECS (parallel)
-        run: |
-          # Get current task definition and update with new image
-          BACKEND_TASK_DEF=$(aws ecs describe-task-definition \
-            --task-definition prod-portfolio-backend \
-            --region ${{ env.AWS_REGION }})
-          
-          FRONTEND_TASK_DEF=$(aws ecs describe-task-definition \
-            --task-definition prod-portfolio-frontend \
-            --region ${{ env.AWS_REGION }})
-          
-          # Update backend task definition with new image
-          NEW_BACKEND_TASK_DEF=$(echo $BACKEND_TASK_DEF | jq --arg IMAGE "${{ needs.build-and-push-images.outputs.backend-image }}" \
-            '.taskDefinition | .containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
-          
-          BACKEND_REVISION=$(aws ecs register-task-definition \
-            --cli-input-json "$NEW_BACKEND_TASK_DEF" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'taskDefinition.revision' \
-            --output text)
-          
-          # Update frontend task definition with new image
-          NEW_FRONTEND_TASK_DEF=$(echo $FRONTEND_TASK_DEF | jq --arg IMAGE "${{ needs.build-and-push-images.outputs.frontend-image }}" \
-            '.taskDefinition | .containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
-          
-          FRONTEND_REVISION=$(aws ecs register-task-definition \
-            --cli-input-json "$NEW_FRONTEND_TASK_DEF" \
-            --region ${{ env.AWS_REGION }} \
-            --query 'taskDefinition.revision' \
-            --output text)
-          
-          echo "Registered backend task definition revision: $BACKEND_REVISION"
-          echo "Registered frontend task definition revision: $FRONTEND_REVISION"
-          
-          # Verify the task definitions have the correct images
-          BACKEND_IMAGE_CHECK=$(aws ecs describe-task-definition \
-            --task-definition prod-portfolio-backend:$BACKEND_REVISION \
-            --region ${{ env.AWS_REGION }} \
-            --query 'taskDefinition.containerDefinitions[0].image' \
-            --output text)
-          
-          FRONTEND_IMAGE_CHECK=$(aws ecs describe-task-definition \
-            --task-definition prod-portfolio-frontend:$FRONTEND_REVISION \
-            --region ${{ env.AWS_REGION }} \
-            --query 'taskDefinition.containerDefinitions[0].image' \
-            --output text)
-          
-          echo "Backend task definition is using image: $BACKEND_IMAGE_CHECK"
-          echo "Frontend task definition is using image: $FRONTEND_IMAGE_CHECK"
-          
-          # Deploy both services in parallel with new task definitions
-          aws ecs update-service \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --service ${{ env.ECS_BACKEND_SERVICE }} \
-            --task-definition prod-portfolio-backend:$BACKEND_REVISION \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }} &
-          
-          aws ecs update-service \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --service ${{ env.ECS_FRONTEND_SERVICE }} \
-            --task-definition prod-portfolio-frontend:$FRONTEND_REVISION \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }} &
-          
-          wait
-          echo "Both deployments initiated with new images"
+      # ============================================================
+      # BACKEND DEPLOYMENT - Using official AWS ECS Deploy Action
+      # ============================================================
+      - name: Update backend task definition with new image
+        id: backend-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ecs-task-definitions/backend.json
+          container-name: backend
+          image: ${{ needs.build-and-push-images.outputs.backend-image }}
 
-      - name: Wait for backend with correct image
-        env:
-          EXPECTED_IMAGE: ${{ needs.build-and-push-images.outputs.backend-image }}
-        run: |
-          echo "Waiting for backend to run image: $EXPECTED_IMAGE"
-          echo "Timeout: 15 minutes"
-          
-          SECONDS=0
-          MAX_WAIT=900
-          
-          while [ $SECONDS -lt $MAX_WAIT ]; do
-            # Get all running tasks
-            TASK_ARNS=$(aws ecs list-tasks \
-              --cluster ${{ env.ECS_CLUSTER }} \
-              --service-name ${{ env.ECS_BACKEND_SERVICE }} \
-              --desired-status RUNNING \
-              --region ${{ env.AWS_REGION }} \
-              --query 'taskArns' \
-              --output json)
-            
-            TASK_COUNT=$(echo $TASK_ARNS | jq 'length')
-            
-            if [ "$TASK_COUNT" = "0" ]; then
-              echo "⏳ No running tasks yet... (${SECONDS}s elapsed)"
-              sleep 15
-              continue
-            fi
-            
-            # Check images of running tasks
-            IMAGES=$(aws ecs describe-tasks \
-              --cluster ${{ env.ECS_CLUSTER }} \
-              --tasks $(echo $TASK_ARNS | jq -r '.[]') \
-              --region ${{ env.AWS_REGION }} \
-              --query 'tasks[].containers[0].image' \
-              --output json)
-            
-            CORRECT_COUNT=$(echo $IMAGES | jq --arg expected "$EXPECTED_IMAGE" '[.[] | select(. == $expected)] | length')
-            WRONG_COUNT=$((TASK_COUNT - CORRECT_COUNT))
-            
-            echo "Tasks: $TASK_COUNT total | $CORRECT_COUNT correct | $WRONG_COUNT draining (${SECONDS}s elapsed)"
-            
-            if [ "$CORRECT_COUNT" -gt 0 ] && [ "$WRONG_COUNT" = "0" ]; then
-              echo "✅ All $TASK_COUNT backend task(s) running correct image!"
-              exit 0
-            elif [ "$CORRECT_COUNT" -gt 0 ]; then
-              echo "⏳ Waiting for $WRONG_COUNT old task(s) to drain..."
-            fi
-            
-            # Check for deployment failures
-            FAILED=$(aws ecs describe-services \
-              --cluster ${{ env.ECS_CLUSTER }} \
-              --services ${{ env.ECS_BACKEND_SERVICE }} \
-              --region ${{ env.AWS_REGION }} \
-              --query "services[0].deployments[?rolloutState=='FAILED']" \
-              --output text)
-            
-            if [ -n "$FAILED" ] && [ "$FAILED" != "None" ]; then
-              echo "❌ Backend deployment failed!"
-              aws ecs describe-services \
-                --cluster ${{ env.ECS_CLUSTER }} \
-                --services ${{ env.ECS_BACKEND_SERVICE }} \
-                --region ${{ env.AWS_REGION }} \
-                --query 'services[0].events[0:5]' \
-                --output table
-              exit 1
-            fi
-            
-            sleep 15
-          done
-          
-          echo "❌ Timeout waiting for backend deployment"
-          echo "Expected: $EXPECTED_IMAGE"
-          echo "Running: $IMAGES"
-          exit 1
+      - name: Deploy backend to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.backend-task-def.outputs.task-definition }}
+          service: ${{ env.ECS_BACKEND_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 10
 
-      - name: Wait for frontend with correct image
-        env:
-          EXPECTED_IMAGE: ${{ needs.build-and-push-images.outputs.frontend-image }}
-        run: |
-          echo "Waiting for frontend to run image: $EXPECTED_IMAGE"
-          echo "Timeout: 15 minutes"
-          
-          SECONDS=0
-          MAX_WAIT=900
-          
-          while [ $SECONDS -lt $MAX_WAIT ]; do
-            # Get all running tasks
-            TASK_ARNS=$(aws ecs list-tasks \
-              --cluster ${{ env.ECS_CLUSTER }} \
-              --service-name ${{ env.ECS_FRONTEND_SERVICE }} \
-              --desired-status RUNNING \
-              --region ${{ env.AWS_REGION }} \
-              --query 'taskArns' \
-              --output json)
-            
-            TASK_COUNT=$(echo $TASK_ARNS | jq 'length')
-            
-            if [ "$TASK_COUNT" = "0" ]; then
-              echo "⏳ No running tasks yet... (${SECONDS}s elapsed)"
-              sleep 15
-              continue
-            fi
-            
-            # Check images of running tasks
-            IMAGES=$(aws ecs describe-tasks \
-              --cluster ${{ env.ECS_CLUSTER }} \
-              --tasks $(echo $TASK_ARNS | jq -r '.[]') \
-              --region ${{ env.AWS_REGION }} \
-              --query 'tasks[].containers[0].image' \
-              --output json)
-            
-            CORRECT_COUNT=$(echo $IMAGES | jq --arg expected "$EXPECTED_IMAGE" '[.[] | select(. == $expected)] | length')
-            WRONG_COUNT=$((TASK_COUNT - CORRECT_COUNT))
-            
-            echo "Tasks: $TASK_COUNT total | $CORRECT_COUNT correct | $WRONG_COUNT draining (${SECONDS}s elapsed)"
-            
-            if [ "$CORRECT_COUNT" -gt 0 ] && [ "$WRONG_COUNT" = "0" ]; then
-              echo "✅ All $TASK_COUNT frontend task(s) running correct image!"
-              exit 0
-            elif [ "$CORRECT_COUNT" -gt 0 ]; then
-              echo "⏳ Waiting for $WRONG_COUNT old task(s) to drain..."
-            fi
-            
-            # Check for deployment failures
-            FAILED=$(aws ecs describe-services \
-              --cluster ${{ env.ECS_CLUSTER }} \
-              --services ${{ env.ECS_FRONTEND_SERVICE }} \
-              --region ${{ env.AWS_REGION }} \
-              --query "services[0].deployments[?rolloutState=='FAILED']" \
-              --output text)
-            
-            if [ -n "$FAILED" ] && [ "$FAILED" != "None" ]; then
-              echo "❌ Frontend deployment failed!"
-              aws ecs describe-services \
-                --cluster ${{ env.ECS_CLUSTER }} \
-                --services ${{ env.ECS_FRONTEND_SERVICE }} \
-                --region ${{ env.AWS_REGION }} \
-                --query 'services[0].events[0:5]' \
-                --output table
-              exit 1
-            fi
-            
-            sleep 15
-          done
-          
-          echo "❌ Timeout waiting for frontend deployment"
-          echo "Expected: $EXPECTED_IMAGE"
-          echo "Running: $IMAGES"
-          exit 1
+      # ============================================================
+      # FRONTEND DEPLOYMENT - Using official AWS ECS Deploy Action
+      # ============================================================
+      - name: Update frontend task definition with new image
+        id: frontend-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ecs-task-definitions/frontend.json
+          container-name: frontend
+          image: ${{ needs.build-and-push-images.outputs.frontend-image }}
+
+      - name: Deploy frontend to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.frontend-task-def.outputs.task-definition }}
+          service: ${{ env.ECS_FRONTEND_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 5
 
       - name: Final health check
         run: |
