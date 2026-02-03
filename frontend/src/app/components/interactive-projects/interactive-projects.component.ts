@@ -577,30 +577,30 @@ export class InteractiveProjectsComponent implements OnInit {
     {
       id: 'rag-chatbot',
       title: 'RAG-Powered Chatbot',
-      description: 'Upload documents to build a knowledge base for LLM-powered Q&A using Retrieval Augmented Generation',
+      description: 'Upload documents to build a knowledge base for LLM-powered Q&A using Retrieval Augmented Generation with LangChain & vector databases',
       uploadTypes: ['.pdf', '.txt', '.doc', '.docx', '.md'],
       maxFileSize: 20 * 1024 * 1024 // 20MB
     },
     {
-      id: 'document-intelligence',
-      title: 'Intelligent Document Processing',
-      description: 'AI-powered document extraction and classification using HuggingFace transformers and LangChain',
-      uploadTypes: ['.pdf', '.png', '.jpg', '.jpeg', '.tiff'],
-      maxFileSize: 15 * 1024 * 1024 // 15MB
-    },
-    {
-      id: 'llm-summarizer',
-      title: 'LLM Document Summarizer',
-      description: 'Generate concise summaries of long documents using advanced language models',
-      uploadTypes: ['.pdf', '.txt', '.doc', '.docx'],
+      id: 'multimodal-search',
+      title: 'Multimodal Search Engine',
+      description: 'Search across images and text using CLIP embeddings - query with text to find images or vice versa using OpenAI CLIP & FAISS',
+      uploadTypes: ['.png', '.jpg', '.jpeg', '.webp', '.txt', '.json'],
       maxFileSize: 10 * 1024 * 1024 // 10MB
     },
     {
-      id: 'semantic-search',
-      title: 'Semantic Search Engine',
-      description: 'Upload text files to create vector embeddings for intelligent semantic search using Python & LangChain',
-      uploadTypes: ['.txt', '.md', '.json', '.csv'],
-      maxFileSize: 5 * 1024 * 1024 // 5MB
+      id: 'ml-pipeline',
+      title: 'ML Pipeline with MLOps',
+      description: 'End-to-end machine learning pipeline with feature engineering, model training, versioning with MLflow, and automated deployment',
+      uploadTypes: ['.csv', '.json', '.parquet', '.xlsx'],
+      maxFileSize: 50 * 1024 * 1024 // 50MB
+    },
+    {
+      id: 'fine-tuned-llm',
+      title: 'Fine-Tuned LLM',
+      description: 'Custom fine-tuned language model using LoRA/QLoRA on Hugging Face transformers - upload training data to create domain-specific models',
+      uploadTypes: ['.jsonl', '.json', '.csv', '.txt'],
+      maxFileSize: 25 * 1024 * 1024 // 25MB
     }
   ];
 

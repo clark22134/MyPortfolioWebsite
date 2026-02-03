@@ -14,12 +14,12 @@ describe('AuthService', () => {
     });
     service = TestBed.inject(AuthService);
     httpMock = TestBed.inject(HttpTestingController);
-    localStorage.clear();
+    sessionStorage.clear();
   });
 
   afterEach(() => {
     httpMock.verify();
-    localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('should be created', () => {
@@ -42,8 +42,7 @@ describe('AuthService', () => {
 
       service.login(loginRequest).subscribe(response => {
         expect(response).toEqual(mockResponse);
-        expect(localStorage.getItem('token')).toBe('mock-jwt-token');
-        expect(localStorage.getItem('currentUser')).toBe(JSON.stringify(mockResponse));
+        expect(sessionStorage.getItem('currentUser')).toBe(JSON.stringify(mockResponse));
       });
 
       const req = httpMock.expectOne('/api/auth/login');
@@ -138,14 +137,12 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('should clear localStorage and reset currentUser$', (done) => {
-      localStorage.setItem('token', 'mock-token');
-      localStorage.setItem('currentUser', JSON.stringify({ token: 'mock-token' }));
+    it('should clear sessionStorage and reset currentUser$', (done) => {
+      sessionStorage.setItem('currentUser', JSON.stringify({ token: 'mock-token' }));
 
       service.logout();
 
-      expect(localStorage.getItem('token')).toBeNull();
-      expect(localStorage.getItem('currentUser')).toBeNull();
+      expect(sessionStorage.getItem('currentUser')).toBeNull();
 
       service.currentUser$.subscribe(user => {
         expect(user).toBeNull();
@@ -162,9 +159,9 @@ describe('AuthService', () => {
         email: 'test@example.com',
         fullName: 'Test User'
       };
-      localStorage.setItem('currentUser', JSON.stringify(mockResponse));
+      sessionStorage.setItem('currentUser', JSON.stringify(mockResponse));
       
-      // Recreate service to load from localStorage
+      // Recreate service to load from sessionStorage
       service = new AuthService(TestBed.inject(HttpClientTestingModule) as any);
       
       // Manually set the current user
@@ -179,8 +176,10 @@ describe('AuthService', () => {
   });
 
   describe('getToken', () => {
-    it('should return token from localStorage', () => {
-      localStorage.setItem('token', 'mock-token');
+    it('should return token from sessionStorage', () => {
+      sessionStorage.setItem('currentUser', JSON.stringify({ token: 'mock-token' }));
+      // Need to reload the service to pick up sessionStorage
+      service = new AuthService(TestBed.inject(HttpClientTestingModule) as any);
       expect(service.getToken()).toBe('mock-token');
     });
 
@@ -190,14 +189,14 @@ describe('AuthService', () => {
   });
 
   describe('initialization', () => {
-    it('should load user from localStorage on init', () => {
+    it('should load user from sessionStorage on init', () => {
       const mockUser: LoginResponse = { 
         token: 'stored-token',
         username: 'testuser',
         email: 'test@example.com',
         fullName: 'Test User'
       };
-      localStorage.setItem('currentUser', JSON.stringify(mockUser));
+      sessionStorage.setItem('currentUser', JSON.stringify(mockUser));
 
       const newService = new AuthService(TestBed.inject(HttpClientTestingModule) as any);
 

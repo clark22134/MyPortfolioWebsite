@@ -111,9 +111,9 @@ describe('InteractiveProjectsComponent', () => {
       }
     } as any;
 
-    component.onFileSelected(event, 'semantic-search');
+    component.onFileSelected(event, 'ml-pipeline');
 
-    expect(component.selectedFiles['semantic-search']).toBe(file);
+    expect(component.selectedFiles['ml-pipeline']).toBe(file);
   });
 
   it('should handle drag over event', () => {
@@ -159,12 +159,12 @@ describe('InteractiveProjectsComponent', () => {
     spyOn(event, 'preventDefault');
     spyOn(event, 'stopPropagation');
 
-    component.onDrop(event, 'semantic-search');
+    component.onDrop(event, 'ml-pipeline');
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(event.stopPropagation).toHaveBeenCalled();
     expect(mockElement.classList.contains('drag-over')).toBe(false);
-    expect(component.selectedFiles['semantic-search']).toBe(file);
+    expect(component.selectedFiles['ml-pipeline']).toBe(file);
   });
 
   it('should disable upload button when no file selected', () => {
