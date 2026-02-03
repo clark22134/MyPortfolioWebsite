@@ -193,8 +193,8 @@ interface InteractiveProject {
     }
 
     .logo-icon {
-      width: 25px;
-      height: 25px;
+      width: 38px;
+      height: 38px;
       color: #00cc33;
       animation: pulse 3s ease-in-out infinite;
       filter: drop-shadow(0 0 8px rgba(0, 204, 51, 0.5));
@@ -218,7 +218,7 @@ interface InteractiveProject {
 
     .logo-text {
       font-family: 'Courier New', monospace;
-      font-size: 0.45rem;
+      font-size: 0.68rem;
       color: #00cc33;
       text-shadow: 0 0 5px rgba(0, 204, 51, 0.5);
       letter-spacing: 1px;
