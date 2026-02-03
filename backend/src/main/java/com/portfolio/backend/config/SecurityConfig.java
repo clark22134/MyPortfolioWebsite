@@ -1,7 +1,6 @@
 package com.portfolio.backend.config;
 
 import com.portfolio.backend.security.JwtRequestFilter;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,86 +22,111 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Security configuration for the application.
+ * Configures JWT authentication, CORS, CSRF, and authorization rules.
+ */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-    
-    @Autowired
-    private JwtRequestFilter jwtRequestFilter;
-    
-    @Value("${cors.allowed.origins}")
-    private String allowedOrigins;
-    
-    @Value("${csrf.enabled:true}")
-    private boolean csrfEnabled;
-    
+
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/refresh",
+            "/api/projects/**",
+            "/api/contact/**",
+            "/h2-console/**",
+            "/actuator/health/**"
+    };
+
+    private static final String[] CSRF_IGNORED_ENDPOINTS = {
+            "/api/auth/login",
+            "/api/auth/register",
+            "/h2-console/**"
+    };
+
+    private static final List<String> ALLOWED_METHODS = List.of(
+            "GET", "POST", "PUT", "DELETE", "OPTIONS"
+    );
+
+    private final JwtRequestFilter jwtRequestFilter;
+    private final String allowedOrigins;
+    private final boolean csrfEnabled;
+
+    public SecurityConfig(
+            JwtRequestFilter jwtRequestFilter,
+            @Value("${cors.allowed.origins}") String allowedOrigins,
+            @Value("${csrf.enabled:true}") boolean csrfEnabled) {
+        this.jwtRequestFilter = jwtRequestFilter;
+        this.allowedOrigins = allowedOrigins;
+        this.csrfEnabled = csrfEnabled;
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        // Configure CSRF with cookie-based token for SPA
-        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
-        // Don't defer loading the CSRF token
-        requestHandler.setCsrfRequestAttributeName(null);
-        
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        configureAuthorization(http);
+        configureSession(http);
+        configureCsrf(http);
+        configureHeaders(http);
+
+        http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    private void configureAuthorization(HttpSecurity http) throws Exception {
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                            "/api/auth/login", 
-                            "/api/auth/register", 
-                            "/api/auth/refresh",
-                            "/api/projects/**", 
-                            "/api/contact/**", 
-                            "/h2-console/**", 
-                            "/actuator/health/**"
-                        ).permitAll()
+                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated()
-                )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .headers(headers -> headers.frameOptions(frame -> frame.disable()));
-        
-        // Configure CSRF protection
+                );
+    }
+
+    private void configureSession(HttpSecurity http) throws Exception {
+        http.sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        );
+    }
+
+    private void configureCsrf(HttpSecurity http) throws Exception {
         if (csrfEnabled) {
+            CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+            requestHandler.setCsrfRequestAttributeName(null);
+
             http.csrf(csrf -> csrf
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(requestHandler)
-                    // Exclude auth endpoints that need to work before CSRF token is set
-                    .ignoringRequestMatchers(
-                        "/api/auth/login",
-                        "/api/auth/register",
-                        "/h2-console/**"
-                    )
+                    .ignoringRequestMatchers(CSRF_IGNORED_ENDPOINTS)
             );
         } else {
-            // Disable CSRF for development/testing
             http.csrf(csrf -> csrf.disable());
         }
-        
-        http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
-        
-        return http.build();
     }
-    
+
+    private void configureHeaders(HttpSecurity http) throws Exception {
+        http.headers(headers -> headers.frameOptions(frame -> frame.disable()));
+    }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList("X-XSRF-TOKEN"));
-        configuration.setAllowCredentials(true);  // Required for cookies
-        
+        configuration.setAllowedMethods(ALLOWED_METHODS);
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("X-XSRF-TOKEN"));
+        configuration.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-    
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-    
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();

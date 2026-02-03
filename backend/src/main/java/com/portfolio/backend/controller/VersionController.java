@@ -5,25 +5,33 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
+import java.time.Instant;
 import java.util.Map;
 
+/**
+ * REST controller for application version information.
+ * Provides build and deployment metadata for monitoring and debugging.
+ */
 @RestController
 @RequestMapping("/api/version")
 public class VersionController {
 
-    @Value("${app.version:unknown}")
-    private String appVersion;
+    private final String appVersion;
+    private final String gitCommit;
 
-    @Value("${app.commit:unknown}")
-    private String gitCommit;
+    public VersionController(
+            @Value("${app.version:unknown}") String appVersion,
+            @Value("${app.commit:unknown}") String gitCommit) {
+        this.appVersion = appVersion;
+        this.gitCommit = gitCommit;
+    }
 
     @GetMapping
     public Map<String, String> getVersion() {
-        Map<String, String> version = new HashMap<>();
-        version.put("version", appVersion);
-        version.put("commit", gitCommit);
-        version.put("timestamp", String.valueOf(System.currentTimeMillis()));
-        return version;
+        return Map.of(
+                "version", appVersion,
+                "commit", gitCommit,
+                "timestamp", Instant.now().toString()
+        );
     }
 }

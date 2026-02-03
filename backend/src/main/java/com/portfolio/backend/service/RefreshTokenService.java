@@ -4,11 +4,10 @@ import com.portfolio.backend.entity.RefreshToken;
 import com.portfolio.backend.entity.User;
 import com.portfolio.backend.repository.RefreshTokenRepository;
 import com.portfolio.backend.repository.UserRepository;
-import com.portfolio.backend.security.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,35 +15,37 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Service for managing refresh tokens.
+ * Handles token creation, validation, rotation, and cleanup.
+ */
 @Service
 public class RefreshTokenService {
 
-    @Value("${jwt.refresh.expiration:604800000}")
-    private Long refreshTokenExpirationMs;
+    private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
 
-    @Value("${jwt.refresh.max-per-user:5}")
-    private int maxTokensPerUser;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final UserRepository userRepository;
+    private final long refreshTokenExpirationMs;
+    private final int maxTokensPerUser;
 
-    @Autowired
-    private RefreshTokenRepository refreshTokenRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private JwtUtil jwtUtil;
+    public RefreshTokenService(
+            RefreshTokenRepository refreshTokenRepository,
+            UserRepository userRepository,
+            @Value("${jwt.refresh.expiration:604800000}") long refreshTokenExpirationMs,
+            @Value("${jwt.refresh.max-per-user:5}") int maxTokensPerUser) {
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.userRepository = userRepository;
+        this.refreshTokenExpirationMs = refreshTokenExpirationMs;
+        this.maxTokensPerUser = maxTokensPerUser;
+    }
 
     /**
      * Create a new refresh token for a user.
      */
     @Transactional
     public RefreshToken createRefreshToken(User user, String userAgent, String ipAddress) {
-        // Limit number of active refresh tokens per user
-        long activeTokenCount = refreshTokenRepository.countByUserAndRevokedFalse(user);
-        if (activeTokenCount >= maxTokensPerUser) {
-            // Revoke all existing tokens if limit reached
-            refreshTokenRepository.revokeAllByUser(user);
-        }
+        enforceMaxTokensPerUser(user);
 
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUser(user);
@@ -54,6 +55,14 @@ public class RefreshTokenService {
         refreshToken.setIpAddress(ipAddress);
 
         return refreshTokenRepository.save(refreshToken);
+    }
+
+    private void enforceMaxTokensPerUser(User user) {
+        long activeTokenCount = refreshTokenRepository.countByUserAndRevokedFalse(user);
+        if (activeTokenCount >= maxTokensPerUser) {
+            log.debug("Max tokens reached for user {}, revoking all", user.getUsername());
+            refreshTokenRepository.revokeAllByUser(user);
+        }
     }
 
     /**
