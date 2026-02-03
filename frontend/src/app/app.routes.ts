@@ -11,5 +11,14 @@ export const routes: Routes = [
   { path: 'projects', component: ProjectsComponent },
   { path: 'contact', component: ContactComponent },
   { path: 'admin/interactive-projects', component: InteractiveProjectsComponent },
+
+  // Interactive portfolio projects (lazy-loaded)
+  {
+    path: 'interactive',
+    loadChildren: () => import('./projects/projects.routes')
+      .then(m => m.projectRoutes),
+    title: 'Interactive Projects'
+  },
+
   { path: '**', redirectTo: '' }
 ];
