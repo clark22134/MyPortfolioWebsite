@@ -290,7 +290,7 @@ jobs:
         id: backend-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: .aws/task-definitions/backend.json
+          task-definition: ecs-task-definitions/backend.json
           container-name: backend
           image: ${{ needs.build-and-push-images.outputs.backend-image }}
 
@@ -310,7 +310,7 @@ jobs:
         id: frontend-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: .aws/task-definitions/frontend.json
+          task-definition: ecs-task-definitions/frontend.json
           container-name: frontend
           image: ${{ needs.build-and-push-images.outputs.frontend-image }}
 
