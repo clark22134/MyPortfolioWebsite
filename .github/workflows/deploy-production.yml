@@ -351,232 +351,160 @@ jobs:
           wait
           echo "Both deployments initiated with new images"
 
-      - name: Wait for backend deployment
+      - name: Wait for backend with correct image
+        env:
+          EXPECTED_IMAGE: ${{ needs.build-and-push-images.outputs.backend-image }}
         run: |
-          echo "Waiting for backend service to stabilize (max 15 minutes)..."
-          STABLE_COUNT=0
-          timeout 900 bash -c '
-            while true; do
-              RUNNING=$(aws ecs describe-services \
+          echo "Waiting for backend to run image: $EXPECTED_IMAGE"
+          echo "Timeout: 15 minutes"
+          
+          SECONDS=0
+          MAX_WAIT=900
+          
+          while [ $SECONDS -lt $MAX_WAIT ]; do
+            # Get all running tasks
+            TASK_ARNS=$(aws ecs list-tasks \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --service-name ${{ env.ECS_BACKEND_SERVICE }} \
+              --desired-status RUNNING \
+              --region ${{ env.AWS_REGION }} \
+              --query 'taskArns' \
+              --output json)
+            
+            TASK_COUNT=$(echo $TASK_ARNS | jq 'length')
+            
+            if [ "$TASK_COUNT" = "0" ]; then
+              echo "⏳ No running tasks yet... (${SECONDS}s elapsed)"
+              sleep 15
+              continue
+            fi
+            
+            # Check images of running tasks
+            IMAGES=$(aws ecs describe-tasks \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --tasks $(echo $TASK_ARNS | jq -r '.[]') \
+              --region ${{ env.AWS_REGION }} \
+              --query 'tasks[].containers[0].image' \
+              --output json)
+            
+            CORRECT_COUNT=$(echo $IMAGES | jq --arg expected "$EXPECTED_IMAGE" '[.[] | select(. == $expected)] | length')
+            WRONG_COUNT=$((TASK_COUNT - CORRECT_COUNT))
+            
+            echo "Tasks: $TASK_COUNT total | $CORRECT_COUNT correct | $WRONG_COUNT draining (${SECONDS}s elapsed)"
+            
+            if [ "$CORRECT_COUNT" -gt 0 ] && [ "$WRONG_COUNT" = "0" ]; then
+              echo "✅ All $TASK_COUNT backend task(s) running correct image!"
+              exit 0
+            elif [ "$CORRECT_COUNT" -gt 0 ]; then
+              echo "⏳ Waiting for $WRONG_COUNT old task(s) to drain..."
+            fi
+            
+            # Check for deployment failures
+            FAILED=$(aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services ${{ env.ECS_BACKEND_SERVICE }} \
+              --region ${{ env.AWS_REGION }} \
+              --query "services[0].deployments[?rolloutState=='FAILED']" \
+              --output text)
+            
+            if [ -n "$FAILED" ] && [ "$FAILED" != "None" ]; then
+              echo "❌ Backend deployment failed!"
+              aws ecs describe-services \
                 --cluster ${{ env.ECS_CLUSTER }} \
                 --services ${{ env.ECS_BACKEND_SERVICE }} \
                 --region ${{ env.AWS_REGION }} \
-                --query "services[0].runningCount" \
-                --output text)
-              
-              DESIRED=$(aws ecs describe-services \
-                --cluster ${{ env.ECS_CLUSTER }} \
-                --services ${{ env.ECS_BACKEND_SERVICE }} \
-                --region ${{ env.AWS_REGION }} \
-                --query "services[0].desiredCount" \
-                --output text)
-              
-              DEPLOYMENT_COUNT=$(aws ecs describe-services \
-                --cluster ${{ env.ECS_CLUSTER }} \
-                --services ${{ env.ECS_BACKEND_SERVICE }} \
-                --region ${{ env.AWS_REGION }} \
-                --query "length(services[0].deployments)" \
-                --output text)
-              
-              echo "Running: $RUNNING/$DESIRED tasks | Active deployments: $DEPLOYMENT_COUNT"
-              
-              # Check if running count matches desired (deployment is functionally complete)
-              if [ "$RUNNING" = "$DESIRED" ] && [ "$RUNNING" != "0" ]; then
-                STABLE_COUNT=$((STABLE_COUNT + 1))
-                echo "✓ Stable for ${STABLE_COUNT} checks (need 3)"
-                
-                # Exit if stable for 3 consecutive checks (30 seconds)
-                if [ $STABLE_COUNT -ge 3 ]; then
-                  echo "Backend deployment completed successfully!"
-                  exit 0
-                fi
-              else
-                STABLE_COUNT=0
-              fi
-              
-              # Check for failures
-              FAILED=$(aws ecs describe-services \
-                --cluster ${{ env.ECS_CLUSTER }} \
-                --services ${{ env.ECS_BACKEND_SERVICE }} \
-                --region ${{ env.AWS_REGION }} \
-                --query "services[0].deployments[?rolloutState=='\''FAILED'\'']" \
-                --output text)
-              
-              if [ -n "$FAILED" ]; then
-                echo "Backend deployment failed!"
-                exit 1
-              fi
-              
-              sleep 10
-            done
-          ' || (echo "Backend deployment timed out or failed. Recent events:" && \
-               aws ecs describe-services \
-                 --cluster ${{ env.ECS_CLUSTER }} \
-                 --services ${{ env.ECS_BACKEND_SERVICE }} \
-                 --region ${{ env.AWS_REGION }} \
-                 --query 'services[0].events[0:5]' \
-                 --output table && exit 1)
+                --query 'services[0].events[0:5]' \
+                --output table
+              exit 1
+            fi
+            
+            sleep 15
+          done
+          
+          echo "❌ Timeout waiting for backend deployment"
+          echo "Expected: $EXPECTED_IMAGE"
+          echo "Running: $IMAGES"
+          exit 1
 
-      - name: Wait for frontend deployment
+      - name: Wait for frontend with correct image
+        env:
+          EXPECTED_IMAGE: ${{ needs.build-and-push-images.outputs.frontend-image }}
         run: |
-          echo "Waiting for frontend service to stabilize (max 15 minutes)..."
-          STABLE_COUNT=0
-          timeout 900 bash -c '
-            while true; do
-              RUNNING=$(aws ecs describe-services \
+          echo "Waiting for frontend to run image: $EXPECTED_IMAGE"
+          echo "Timeout: 15 minutes"
+          
+          SECONDS=0
+          MAX_WAIT=900
+          
+          while [ $SECONDS -lt $MAX_WAIT ]; do
+            # Get all running tasks
+            TASK_ARNS=$(aws ecs list-tasks \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --service-name ${{ env.ECS_FRONTEND_SERVICE }} \
+              --desired-status RUNNING \
+              --region ${{ env.AWS_REGION }} \
+              --query 'taskArns' \
+              --output json)
+            
+            TASK_COUNT=$(echo $TASK_ARNS | jq 'length')
+            
+            if [ "$TASK_COUNT" = "0" ]; then
+              echo "⏳ No running tasks yet... (${SECONDS}s elapsed)"
+              sleep 15
+              continue
+            fi
+            
+            # Check images of running tasks
+            IMAGES=$(aws ecs describe-tasks \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --tasks $(echo $TASK_ARNS | jq -r '.[]') \
+              --region ${{ env.AWS_REGION }} \
+              --query 'tasks[].containers[0].image' \
+              --output json)
+            
+            CORRECT_COUNT=$(echo $IMAGES | jq --arg expected "$EXPECTED_IMAGE" '[.[] | select(. == $expected)] | length')
+            WRONG_COUNT=$((TASK_COUNT - CORRECT_COUNT))
+            
+            echo "Tasks: $TASK_COUNT total | $CORRECT_COUNT correct | $WRONG_COUNT draining (${SECONDS}s elapsed)"
+            
+            if [ "$CORRECT_COUNT" -gt 0 ] && [ "$WRONG_COUNT" = "0" ]; then
+              echo "✅ All $TASK_COUNT frontend task(s) running correct image!"
+              exit 0
+            elif [ "$CORRECT_COUNT" -gt 0 ]; then
+              echo "⏳ Waiting for $WRONG_COUNT old task(s) to drain..."
+            fi
+            
+            # Check for deployment failures
+            FAILED=$(aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services ${{ env.ECS_FRONTEND_SERVICE }} \
+              --region ${{ env.AWS_REGION }} \
+              --query "services[0].deployments[?rolloutState=='FAILED']" \
+              --output text)
+            
+            if [ -n "$FAILED" ] && [ "$FAILED" != "None" ]; then
+              echo "❌ Frontend deployment failed!"
+              aws ecs describe-services \
                 --cluster ${{ env.ECS_CLUSTER }} \
                 --services ${{ env.ECS_FRONTEND_SERVICE }} \
                 --region ${{ env.AWS_REGION }} \
-                --query "services[0].runningCount" \
-                --output text)
-              
-              DESIRED=$(aws ecs describe-services \
-                --cluster ${{ env.ECS_CLUSTER }} \
-                --services ${{ env.ECS_FRONTEND_SERVICE }} \
-                --region ${{ env.AWS_REGION }} \
-                --query "services[0].desiredCount" \
-                --output text)
-              
-              DEPLOYMENT_COUNT=$(aws ecs describe-services \
-                --cluster ${{ env.ECS_CLUSTER }} \
-                --services ${{ env.ECS_FRONTEND_SERVICE }} \
-                --region ${{ env.AWS_REGION }} \
-                --query "length(services[0].deployments)" \
-                --output text)
-              
-              echo "Running: $RUNNING/$DESIRED tasks | Active deployments: $DEPLOYMENT_COUNT"
-              
-              # Check if running count matches desired (deployment is functionally complete)
-              if [ "$RUNNING" = "$DESIRED" ] && [ "$RUNNING" != "0" ]; then
-                STABLE_COUNT=$((STABLE_COUNT + 1))
-                echo "✓ Stable for ${STABLE_COUNT} checks (need 3)"
-                
-                # Exit if stable for 3 consecutive checks (30 seconds)
-                if [ $STABLE_COUNT -ge 3 ]; then
-                  echo "Frontend deployment completed successfully!"
-                  exit 0
-                fi
-              else
-                STABLE_COUNT=0
-              fi
-              
-              # Check for failures
-              FAILED=$(aws ecs describe-services \
-                --cluster ${{ env.ECS_CLUSTER }} \
-                --services ${{ env.ECS_FRONTEND_SERVICE }} \
-                --region ${{ env.AWS_REGION }} \
-                --query "services[0].deployments[?rolloutState=='\''FAILED'\'']" \
-                --output text)
-              
-              if [ -n "$FAILED" ]; then
-                echo "Frontend deployment failed!"
-                exit 1
-              fi
-              
-              sleep 10
-            done
-          ' || (echo "Frontend deployment timed out or failed. Recent events:" && \
-               aws ecs describe-services \
-                 --cluster ${{ env.ECS_CLUSTER }} \
-                 --services ${{ env.ECS_FRONTEND_SERVICE }} \
-                 --region ${{ env.AWS_REGION }} \
-                 --query 'services[0].events[0:5]' \
-                 --output table && exit 1)
+                --query 'services[0].events[0:5]' \
+                --output table
+              exit 1
+            fi
+            
+            sleep 15
+          done
+          
+          echo "❌ Timeout waiting for frontend deployment"
+          echo "Expected: $EXPECTED_IMAGE"
+          echo "Running: $IMAGES"
+          exit 1
 
-      - name: Verify deployment and container images
+      - name: Final health check
         run: |
-          EXPECTED_BACKEND_IMAGE="${{ needs.build-and-push-images.outputs.backend-image }}"
-          EXPECTED_FRONTEND_IMAGE="${{ needs.build-and-push-images.outputs.frontend-image }}"
-          
-          echo "Expected backend image: $EXPECTED_BACKEND_IMAGE"
-          echo "Expected frontend image: $EXPECTED_FRONTEND_IMAGE"
-          
-          # Verify backend has at least one task with correct image
-          echo "Verifying backend deployment..."
-          BACKEND_TASK_ARNS=$(aws ecs list-tasks \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --service-name ${{ env.ECS_BACKEND_SERVICE }} \
-            --desired-status RUNNING \
-            --region ${{ env.AWS_REGION }} \
-            --query 'taskArns' \
-            --output json)
-          
-          BACKEND_TASK_COUNT=$(echo $BACKEND_TASK_ARNS | jq 'length')
-          echo "Found $BACKEND_TASK_COUNT backend tasks"
-          
-          if [ "$BACKEND_TASK_COUNT" = "0" ]; then
-            echo "❌ No backend tasks running!"
-            exit 1
-          fi
-          
-          BACKEND_IMAGES=$(aws ecs describe-tasks \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --tasks $(echo $BACKEND_TASK_ARNS | jq -r '.[]') \
-            --region ${{ env.AWS_REGION }} \
-            --query 'tasks[].containers[0].image' \
-            --output json)
-          
-          echo "Backend images running: $BACKEND_IMAGES"
-          
-          # Check if AT LEAST ONE backend task has the correct image (new deployment succeeded)
-          # Old tasks draining is normal ECS behavior - they'll be removed eventually
-          BACKEND_MATCH=$(echo $BACKEND_IMAGES | jq --arg expected "$EXPECTED_BACKEND_IMAGE" '[.[] | select(. == $expected)] | length')
-          if [ "$BACKEND_MATCH" = "0" ]; then
-            echo "❌ Backend deployment failed! No tasks running expected image"
-            echo "Expected: $EXPECTED_BACKEND_IMAGE"
-            echo "Running: $BACKEND_IMAGES"
-            exit 1
-          fi
-          BACKEND_OTHERS=$((BACKEND_TASK_COUNT - BACKEND_MATCH))
-          if [ "$BACKEND_OTHERS" -gt 0 ]; then
-            echo "⏳ $BACKEND_MATCH task(s) running new image, $BACKEND_OTHERS old task(s) still draining (normal)"
-          fi
-          echo "✅ Backend deployment verified ($BACKEND_MATCH task(s) with correct image)"
-          
-          # Verify frontend has at least one task with correct image
-          echo "Verifying frontend deployment..."
-          FRONTEND_TASK_ARNS=$(aws ecs list-tasks \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --service-name ${{ env.ECS_FRONTEND_SERVICE }} \
-            --desired-status RUNNING \
-            --region ${{ env.AWS_REGION }} \
-            --query 'taskArns' \
-            --output json)
-          
-          FRONTEND_TASK_COUNT=$(echo $FRONTEND_TASK_ARNS | jq 'length')
-          echo "Found $FRONTEND_TASK_COUNT frontend tasks"
-          
-          if [ "$FRONTEND_TASK_COUNT" = "0" ]; then
-            echo "❌ No frontend tasks running!"
-            exit 1
-          fi
-          
-          FRONTEND_IMAGES=$(aws ecs describe-tasks \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --tasks $(echo $FRONTEND_TASK_ARNS | jq -r '.[]') \
-            --region ${{ env.AWS_REGION }} \
-            --query 'tasks[].containers[0].image' \
-            --output json)
-          
-          echo "Frontend images running: $FRONTEND_IMAGES"
-          
-          # Check if AT LEAST ONE frontend task has the correct image
-          FRONTEND_MATCH=$(echo $FRONTEND_IMAGES | jq --arg expected "$EXPECTED_FRONTEND_IMAGE" '[.[] | select(. == $expected)] | length')
-          if [ "$FRONTEND_MATCH" = "0" ]; then
-            echo "❌ Frontend deployment failed! No tasks running expected image"
-            echo "Expected: $EXPECTED_FRONTEND_IMAGE"
-            echo "Running: $FRONTEND_IMAGES"
-            exit 1
-          fi
-          FRONTEND_OTHERS=$((FRONTEND_TASK_COUNT - FRONTEND_MATCH))
-          if [ "$FRONTEND_OTHERS" -gt 0 ]; then
-            echo "⏳ $FRONTEND_MATCH task(s) running new image, $FRONTEND_OTHERS old task(s) still draining (normal)"
-          fi
-          echo "✅ Frontend deployment verified ($FRONTEND_MATCH task(s) with correct image)"
-          
-          echo "Checking website health..."
+          echo "Verifying website is accessible..."
           curl -f https://clarkfoster.com || exit 1
-          
           echo "✅ Deployment successful and website is healthy!"
 
   post-deployment-tests:
