@@ -89,6 +89,48 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
+      - name: Clear stale Terraform locks
+        run: |
+          # Check if there's a stale lock older than 30 minutes
+          LOCK_INFO=$(aws dynamodb get-item \
+            --table-name portfolio-terraform-locks \
+            --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
+            --region eu-west-2 \
+            --output json 2>/dev/null || echo '{}')
+          
+          if [ "$LOCK_INFO" != "{}" ] && [ "$(echo $LOCK_INFO | jq -r '.Item')" != "null" ]; then
+            LOCK_CREATED=$(echo $LOCK_INFO | jq -r '.Item.Info.S' | jq -r '.Created' 2>/dev/null || echo "")
+            
+            if [ -n "$LOCK_CREATED" ]; then
+              LOCK_TIMESTAMP=$(date -d "$LOCK_CREATED" +%s 2>/dev/null || echo "0")
+              CURRENT_TIMESTAMP=$(date +%s)
+              LOCK_AGE=$((CURRENT_TIMESTAMP - LOCK_TIMESTAMP))
+              
+              echo "Found existing lock, age: ${LOCK_AGE} seconds"
+              
+              # If lock is older than 30 minutes (1800 seconds), clear it
+              if [ $LOCK_AGE -gt 1800 ]; then
+                echo "Lock is stale (>30 min), clearing..."
+                aws dynamodb delete-item \
+                  --table-name portfolio-terraform-locks \
+                  --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
+                  --region eu-west-2
+                echo "Stale lock cleared"
+              else
+                echo "Lock is recent, will attempt to acquire normally"
+              fi
+            else
+              echo "Could not parse lock timestamp, clearing lock as precaution..."
+              aws dynamodb delete-item \
+                --table-name portfolio-terraform-locks \
+                --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
+                --region eu-west-2
+              echo "Lock cleared"
+            fi
+          else
+            echo "No existing lock found"
+          fi
+
       - name: Terraform Validate
         run: terraform validate
 
