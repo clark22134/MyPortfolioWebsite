@@ -153,17 +153,17 @@ describe('AuthService', () => {
 
   describe('isAuthenticated', () => {
     it('should return true when user is logged in', () => {
-      const mockResponse: LoginResponse = { 
+      const mockResponse: LoginResponse = {
         token: 'mock-token',
         username: 'testuser',
         email: 'test@example.com',
         fullName: 'Test User'
       };
       sessionStorage.setItem('currentUser', JSON.stringify(mockResponse));
-      
+
       // Recreate service to load from sessionStorage
       service = new AuthService(TestBed.inject(HttpClientTestingModule) as any);
-      
+
       // Manually set the current user
       (service as any).currentUserSubject.next(mockResponse);
 
@@ -190,7 +190,7 @@ describe('AuthService', () => {
 
   describe('initialization', () => {
     it('should load user from sessionStorage on init', () => {
-      const mockUser: LoginResponse = { 
+      const mockUser: LoginResponse = {
         token: 'stored-token',
         username: 'testuser',
         email: 'test@example.com',

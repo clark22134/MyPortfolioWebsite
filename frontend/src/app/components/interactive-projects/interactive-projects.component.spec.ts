@@ -38,7 +38,7 @@ describe('InteractiveProjectsComponent', () => {
     spyOn(router, 'navigate');
     // Set up default return value for isAuthenticated
     authService.isAuthenticated.and.returnValue(true);
-    
+
     fixture = TestBed.createComponent(InteractiveProjectsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -77,7 +77,7 @@ describe('InteractiveProjectsComponent', () => {
 
   it('should call logout when logout button is clicked', () => {
     component.logout();
-    
+
     expect(authService.logout).toHaveBeenCalled();
     expect(router.navigate).toHaveBeenCalledWith(['/']);
   });
@@ -149,7 +149,7 @@ describe('InteractiveProjectsComponent', () => {
     const file = new File(['content'], 'test.csv', { type: 'text/csv' });
     const mockElement = document.createElement('div');
     mockElement.classList.add('drag-over');
-    
+
     const event = new DragEvent('drop');
     Object.defineProperty(event, 'currentTarget', { value: mockElement, configurable: true });
     Object.defineProperty(event, 'dataTransfer', {
@@ -221,7 +221,7 @@ describe('InteractiveProjectsComponent', () => {
 
   it('should display max file size', () => {
     const fileInfo = fixture.nativeElement.querySelectorAll('.file-info');
-    const maxSizeInfo = Array.from(fileInfo).find((el: any) => 
+    const maxSizeInfo = Array.from(fileInfo).find((el: any) =>
       el.textContent.includes('Max size:')
     );
     expect(maxSizeInfo).toBeTruthy();
