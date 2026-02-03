@@ -5,18 +5,21 @@ import { FormsModule } from '@angular/forms';
 import { LoginComponent } from './login.component';
 import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, throwError, BehaviorSubject } from 'rxjs';
 import { LoginResponse } from '../../models/user.model';
 
 describe('LoginComponent', () => {
   let component: LoginComponent;
   let fixture: ComponentFixture<LoginComponent>;
   let authService: jasmine.SpyObj<AuthService>;
-  let router: jasmine.SpyObj<Router>;
+  let router: Router;
+  let currentUserSubject: BehaviorSubject<LoginResponse | null>;
 
   beforeEach(async () => {
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['login']);
-    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
+    currentUserSubject = new BehaviorSubject<LoginResponse | null>(null);
+    const authServiceSpy = jasmine.createSpyObj('AuthService', ['login', 'isAuthenticated'], {
+      currentUser$: currentUserSubject.asObservable()
+    });
 
     await TestBed.configureTestingModule({
       imports: [
@@ -26,13 +29,14 @@ describe('LoginComponent', () => {
         FormsModule
       ],
       providers: [
-        { provide: AuthService, useValue: authServiceSpy },
-        { provide: Router, useValue: routerSpy }
+        { provide: AuthService, useValue: authServiceSpy }
       ]
     }).compileComponents();
 
     authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
-    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+    authService.isAuthenticated.and.returnValue(false);
+    router = TestBed.inject(Router);
+    spyOn(router, 'navigate');
     fixture = TestBed.createComponent(LoginComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

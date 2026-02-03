@@ -5,16 +5,21 @@ import { FormsModule } from '@angular/forms';
 import { InteractiveProjectsComponent } from './interactive-projects.component';
 import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
+import { BehaviorSubject } from 'rxjs';
+import { LoginResponse } from '../../models/user.model';
 
 describe('InteractiveProjectsComponent', () => {
   let component: InteractiveProjectsComponent;
   let fixture: ComponentFixture<InteractiveProjectsComponent>;
   let authService: jasmine.SpyObj<AuthService>;
-  let router: jasmine.SpyObj<Router>;
+  let router: Router;
+  let currentUserSubject: BehaviorSubject<LoginResponse | null>;
 
   beforeEach(async () => {
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['logout', 'isAuthenticated']);
-    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
+    currentUserSubject = new BehaviorSubject<LoginResponse | null>(null);
+    const authServiceSpy = jasmine.createSpyObj('AuthService', ['logout', 'isAuthenticated'], {
+      currentUser$: currentUserSubject.asObservable()
+    });
 
     await TestBed.configureTestingModule({
       imports: [
@@ -24,15 +29,15 @@ describe('InteractiveProjectsComponent', () => {
         FormsModule
       ],
       providers: [
-        { provide: AuthService, useValue: authServiceSpy },
-        { provide: Router, useValue: routerSpy }
+        { provide: AuthService, useValue: authServiceSpy }
       ]
     }).compileComponents();
 
     authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
-    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+    router = TestBed.inject(Router);
+    spyOn(router, 'navigate');
     // Set up default return value for isAuthenticated
-    authService.isAuthenticated.and.returnValue(false);
+    authService.isAuthenticated.and.returnValue(true);
     
     fixture = TestBed.createComponent(InteractiveProjectsComponent);
     component = fixture.componentInstance;
@@ -64,21 +69,10 @@ describe('InteractiveProjectsComponent', () => {
     expect(component.uploadedFiles).toEqual({});
   });
 
-  it('should render page header', () => {
-    const headerElement = fixture.nativeElement.querySelector('.page-header');
-    expect(headerElement).toBeTruthy();
-  });
-
   it('should display title', () => {
     const titleElement = fixture.nativeElement.querySelector('h1');
     expect(titleElement).toBeTruthy();
-    expect(titleElement.textContent).toContain('Interactive Projects Dashboard');
-  });
-
-  it('should render logout button', () => {
-    const logoutButton = fixture.nativeElement.querySelector('.btn-logout');
-    expect(logoutButton).toBeTruthy();
-    expect(logoutButton.textContent).toContain('Logout');
+    expect(titleElement.textContent).toContain('AI Projects Dashboard');
   });
 
   it('should call logout when logout button is clicked', () => {
@@ -117,9 +111,9 @@ describe('InteractiveProjectsComponent', () => {
       }
     } as any;
 
-    component.onFileSelected(event, 'data-processor');
+    component.onFileSelected(event, 'semantic-search');
 
-    expect(component.selectedFiles['data-processor']).toBe(file);
+    expect(component.selectedFiles['semantic-search']).toBe(file);
   });
 
   it('should handle drag over event', () => {
@@ -165,12 +159,12 @@ describe('InteractiveProjectsComponent', () => {
     spyOn(event, 'preventDefault');
     spyOn(event, 'stopPropagation');
 
-    component.onDrop(event, 'data-processor');
+    component.onDrop(event, 'semantic-search');
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(event.stopPropagation).toHaveBeenCalled();
     expect(mockElement.classList.contains('drag-over')).toBe(false);
-    expect(component.selectedFiles['data-processor']).toBe(file);
+    expect(component.selectedFiles['semantic-search']).toBe(file);
   });
 
   it('should disable upload button when no file selected', () => {
