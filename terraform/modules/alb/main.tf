@@ -87,7 +87,7 @@ resource "aws_lb_target_group" "frontend" {
     path                = "/"
     port                = "traffic-port"
     protocol            = "HTTP"
-    timeout             = 5
+    timeout             = 10
     unhealthy_threshold = 2
   }
 
@@ -115,7 +115,7 @@ resource "aws_lb_target_group" "backend" {
     path                = "/actuator/health"
     port                = "traffic-port"
     protocol            = "HTTP"
-    timeout             = 10
+    timeout             = 15
     # Allow 5 failed checks (150 seconds) for Java Spring Boot to start
     # The backend takes ~50 seconds to initialize, plus container startup time
     unhealthy_threshold = 5
