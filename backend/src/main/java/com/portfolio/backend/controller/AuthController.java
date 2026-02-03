@@ -1,8 +1,9 @@
 package com.portfolio.backend.controller;
 
+import com.portfolio.backend.dto.AuthErrorResponse;
 import com.portfolio.backend.dto.LoginRequest;
-import com.portfolio.backend.dto.LoginResponse;
 import com.portfolio.backend.dto.RegisterRequest;
+import com.portfolio.backend.dto.UserInfoResponse;
 import com.portfolio.backend.entity.RefreshToken;
 import com.portfolio.backend.entity.User;
 import com.portfolio.backend.security.CookieUtil;
@@ -15,7 +16,6 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,223 +25,260 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * REST controller for authentication operations.
+ * Handles login, logout, token refresh, and user registration.
+ *
+ * Security features:
+ * - HTTP-only cookies for token storage (prevents XSS)
+ * - SameSite=Strict cookies (prevents CSRF)
+ * - Rate limiting on login attempts
+ * - Refresh token rotation
+ */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-    
-    @Autowired
-    private AuthService authService;
-    
-    @Autowired
-    private RateLimitingService rateLimitingService;
-    
-    @Autowired
-    private JwtUtil jwtUtil;
-    
-    @Autowired
-    private CookieUtil cookieUtil;
-    
-    @Autowired
-    private RefreshTokenService refreshTokenService;
-    
-    @Autowired
-    private CustomUserDetailsService userDetailsService;
-    
+
+    private static final String SAME_SITE_STRICT = "Strict";
+
+    private final AuthService authService;
+    private final RateLimitingService rateLimitingService;
+    private final JwtUtil jwtUtil;
+    private final CookieUtil cookieUtil;
+    private final RefreshTokenService refreshTokenService;
+    private final CustomUserDetailsService userDetailsService;
+
+    public AuthController(
+            AuthService authService,
+            RateLimitingService rateLimitingService,
+            JwtUtil jwtUtil,
+            CookieUtil cookieUtil,
+            RefreshTokenService refreshTokenService,
+            CustomUserDetailsService userDetailsService) {
+        this.authService = authService;
+        this.rateLimitingService = rateLimitingService;
+        this.jwtUtil = jwtUtil;
+        this.cookieUtil = cookieUtil;
+        this.refreshTokenService = refreshTokenService;
+        this.userDetailsService = userDetailsService;
+    }
+
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, 
-                                   HttpServletRequest httpRequest,
-                                   HttpServletResponse httpResponse) {
-        String clientIp = getClientIp(httpRequest);
-        String rateLimitKey = clientIp + ":" + request.getUsername();
-        
-        // Check if rate limited
+    public ResponseEntity<?> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+
+        String rateLimitKey = createRateLimitKey(httpRequest, request.getUsername());
+
         if (rateLimitingService.isRateLimited(rateLimitKey)) {
-            long secondsUntilUnlock = rateLimitingService.getSecondsUntilUnlock(rateLimitKey);
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(Map.of(
-                            "error", "Too many failed login attempts",
-                            "message", "Account temporarily locked. Try again in " + (secondsUntilUnlock / 60) + " minutes.",
-                            "retryAfterSeconds", secondsUntilUnlock
-                    ));
+            return createRateLimitResponse(rateLimitKey);
         }
-        
+
         try {
-            LoginResponse response = authService.login(request);
-            // Clear failed attempts on successful login
-            rateLimitingService.clearAttempts(rateLimitKey);
-            
-            // Generate access token (short-lived, 15 min)
-            UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
-            String accessToken = jwtUtil.generateAccessToken(userDetails);
-            
-            // Create refresh token and store in database
-            User user = authService.findByUsername(request.getUsername());
-            String userAgent = httpRequest.getHeader("User-Agent");
-            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, userAgent, clientIp);
-            
-            // Set tokens in HTTP-only cookies
-            Cookie accessCookie = cookieUtil.createAccessTokenCookie(accessToken);
-            Cookie refreshCookie = cookieUtil.createRefreshTokenCookie(refreshToken.getToken());
-            
-            // Add cookies with SameSite=Strict for CSRF protection
-            cookieUtil.addCookieWithSameSite(httpResponse, accessCookie, "Strict");
-            cookieUtil.addCookieWithSameSite(httpResponse, refreshCookie, "Strict");
-            
-            // Return user info (but NOT the tokens - they're in cookies)
-            return ResponseEntity.ok(Map.of(
-                    "username", response.getUsername(),
-                    "email", response.getEmail(),
-                    "fullName", response.getFullName(),
-                    "message", "Login successful"
-            ));
+            return processLogin(request, httpRequest, httpResponse, rateLimitKey);
         } catch (Exception e) {
-            // Record failed attempt
-            rateLimitingService.recordFailedAttempt(rateLimitKey);
-            int remaining = rateLimitingService.getRemainingAttempts(rateLimitKey);
-            
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of(
-                            "error", "Invalid credentials",
-                            "remainingAttempts", remaining
-                    ));
+            return handleFailedLogin(rateLimitKey);
         }
     }
-    
+
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(HttpServletRequest httpRequest, 
-                                          HttpServletResponse httpResponse) {
+    public ResponseEntity<?> refreshToken(
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+
         Optional<String> refreshTokenOpt = cookieUtil.getRefreshTokenFromCookies(httpRequest);
-        
+
         if (refreshTokenOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Refresh token not found"));
+                    .body(AuthErrorResponse.of("Refresh token not found"));
         }
-        
-        String refreshTokenValue = refreshTokenOpt.get();
-        Optional<RefreshToken> tokenOpt = refreshTokenService.findByToken(refreshTokenValue);
-        
-        if (tokenOpt.isEmpty() || !refreshTokenService.validateRefreshToken(tokenOpt.get())) {
-            // Clear invalid cookies
-            httpResponse.addCookie(cookieUtil.createClearAccessTokenCookie());
-            httpResponse.addCookie(cookieUtil.createClearRefreshTokenCookie());
-            
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Invalid or expired refresh token"));
-        }
-        
-        RefreshToken storedToken = tokenOpt.get();
-        User user = storedToken.getUser();
-        
-        // Generate new access token
-        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
-        String newAccessToken = jwtUtil.generateAccessToken(userDetails);
-        
-        // Rotate refresh token for security
-        String clientIp = getClientIp(httpRequest);
-        String userAgent = httpRequest.getHeader("User-Agent");
-        RefreshToken newRefreshToken = refreshTokenService.rotateRefreshToken(storedToken, userAgent, clientIp);
-        
-        // Set new tokens in cookies
-        Cookie accessCookie = cookieUtil.createAccessTokenCookie(newAccessToken);
-        Cookie refreshCookie = cookieUtil.createRefreshTokenCookie(newRefreshToken.getToken());
-        
-        cookieUtil.addCookieWithSameSite(httpResponse, accessCookie, "Strict");
-        cookieUtil.addCookieWithSameSite(httpResponse, refreshCookie, "Strict");
-        
-        return ResponseEntity.ok(Map.of("message", "Token refreshed successfully"));
+
+        return processTokenRefresh(refreshTokenOpt.get(), httpRequest, httpResponse);
     }
-    
+
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest httpRequest, 
-                                    HttpServletResponse httpResponse) {
-        // Revoke refresh token if present
-        Optional<String> refreshTokenOpt = cookieUtil.getRefreshTokenFromCookies(httpRequest);
-        refreshTokenOpt.flatMap(refreshTokenService::findByToken)
-                .ifPresent(refreshTokenService::revokeToken);
-        
-        // Clear cookies
-        Cookie clearAccess = cookieUtil.createClearAccessTokenCookie();
-        Cookie clearRefresh = cookieUtil.createClearRefreshTokenCookie();
-        
-        cookieUtil.addCookieWithSameSite(httpResponse, clearAccess, "Strict");
-        cookieUtil.addCookieWithSameSite(httpResponse, clearRefresh, "Strict");
-        
+    public ResponseEntity<?> logout(
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+
+        revokeRefreshTokenIfPresent(httpRequest);
+        clearAuthCookies(httpResponse);
+
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
-    
+
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(@AuthenticationPrincipal UserDetails userDetails) {
         if (userDetails == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Not authenticated"));
+                    .body(AuthErrorResponse.of("Not authenticated"));
         }
-        
+
         User user = authService.findByUsername(userDetails.getUsername());
-        return ResponseEntity.ok(Map.of(
-                "username", user.getUsername(),
-                "email", user.getEmail(),
-                "fullName", user.getFullName()
+        return ResponseEntity.ok(UserInfoResponse.of(
+                user.getUsername(),
+                user.getEmail(),
+                user.getFullName()
         ));
     }
-    
+
     @PostMapping("/logout-all")
-    public ResponseEntity<?> logoutAllDevices(@AuthenticationPrincipal UserDetails userDetails,
-                                               HttpServletResponse httpResponse) {
+    public ResponseEntity<?> logoutAllDevices(
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletResponse httpResponse) {
+
         if (userDetails == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Not authenticated"));
+                    .body(AuthErrorResponse.of("Not authenticated"));
         }
-        
-        // Revoke all refresh tokens for this user
+
         refreshTokenService.revokeAllUserTokens(userDetails.getUsername());
-        
-        // Clear cookies on this device
-        cookieUtil.addCookieWithSameSite(httpResponse, cookieUtil.createClearAccessTokenCookie(), "Strict");
-        cookieUtil.addCookieWithSameSite(httpResponse, cookieUtil.createClearRefreshTokenCookie(), "Strict");
-        
+        clearAuthCookies(httpResponse);
+
         return ResponseEntity.ok(Map.of("message", "Logged out from all devices"));
     }
-    
+
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
-        String clientIp = getClientIp(httpRequest);
-        
-        // Rate limit registration attempts by IP
-        if (rateLimitingService.isRateLimited("register:" + clientIp)) {
-            long secondsUntilUnlock = rateLimitingService.getSecondsUntilUnlock("register:" + clientIp);
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(Map.of(
-                            "error", "Too many registration attempts",
-                            "message", "Please try again later.",
-                            "retryAfterSeconds", secondsUntilUnlock
-                    ));
+    public ResponseEntity<?> register(
+            @Valid @RequestBody RegisterRequest request,
+            HttpServletRequest httpRequest) {
+
+        String clientIp = extractClientIp(httpRequest);
+        String rateLimitKey = "register:" + clientIp;
+
+        if (rateLimitingService.isRateLimited(rateLimitKey)) {
+            return createRateLimitResponse(rateLimitKey);
         }
-        
+
         try {
             User user = authService.register(request);
-            return ResponseEntity.ok(user);
+            return ResponseEntity.ok(UserInfoResponse.of(
+                    user.getUsername(),
+                    user.getEmail(),
+                    user.getFullName()
+            ));
         } catch (Exception e) {
-            rateLimitingService.recordFailedAttempt("register:" + clientIp);
+            rateLimitingService.recordFailedAttempt(rateLimitKey);
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", e.getMessage()));
+                    .body(AuthErrorResponse.of(e.getMessage()));
         }
     }
-    
+
+    // ========== Private Helper Methods ==========
+
+    private ResponseEntity<?> processLogin(
+            LoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse,
+            String rateLimitKey) {
+
+        authService.login(request);
+        rateLimitingService.clearAttempts(rateLimitKey);
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
+        String accessToken = jwtUtil.generateAccessToken(userDetails);
+
+        User user = authService.findByUsername(request.getUsername());
+        RefreshToken refreshToken = createAndStoreRefreshToken(user, httpRequest);
+
+        setAuthCookies(httpResponse, accessToken, refreshToken.getToken());
+
+        return ResponseEntity.ok(UserInfoResponse.of(
+                user.getUsername(),
+                user.getEmail(),
+                user.getFullName()
+        ));
+    }
+
+    private ResponseEntity<?> processTokenRefresh(
+            String refreshTokenValue,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+
+        Optional<RefreshToken> tokenOpt = refreshTokenService.findByToken(refreshTokenValue);
+
+        if (tokenOpt.isEmpty() || !refreshTokenService.validateRefreshToken(tokenOpt.get())) {
+            clearAuthCookies(httpResponse);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(AuthErrorResponse.of("Invalid or expired refresh token"));
+        }
+
+        RefreshToken storedToken = tokenOpt.get();
+        User user = storedToken.getUser();
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
+        String newAccessToken = jwtUtil.generateAccessToken(userDetails);
+
+        RefreshToken newRefreshToken = refreshTokenService.rotateRefreshToken(
+                storedToken,
+                httpRequest.getHeader("User-Agent"),
+                extractClientIp(httpRequest)
+        );
+
+        setAuthCookies(httpResponse, newAccessToken, newRefreshToken.getToken());
+
+        return ResponseEntity.ok(Map.of("message", "Token refreshed successfully"));
+    }
+
+    private ResponseEntity<?> handleFailedLogin(String rateLimitKey) {
+        rateLimitingService.recordFailedAttempt(rateLimitKey);
+        int remaining = rateLimitingService.getRemainingAttempts(rateLimitKey);
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(AuthErrorResponse.withRemainingAttempts("Invalid credentials", remaining));
+    }
+
+    private ResponseEntity<?> createRateLimitResponse(String rateLimitKey) {
+        long secondsUntilUnlock = rateLimitingService.getSecondsUntilUnlock(rateLimitKey);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(AuthErrorResponse.rateLimited(secondsUntilUnlock));
+    }
+
+    private RefreshToken createAndStoreRefreshToken(User user, HttpServletRequest request) {
+        String userAgent = request.getHeader("User-Agent");
+        String clientIp = extractClientIp(request);
+        return refreshTokenService.createRefreshToken(user, userAgent, clientIp);
+    }
+
+    private void setAuthCookies(HttpServletResponse response, String accessToken, String refreshToken) {
+        Cookie accessCookie = cookieUtil.createAccessTokenCookie(accessToken);
+        Cookie refreshCookie = cookieUtil.createRefreshTokenCookie(refreshToken);
+
+        cookieUtil.addCookieWithSameSite(response, accessCookie, SAME_SITE_STRICT);
+        cookieUtil.addCookieWithSameSite(response, refreshCookie, SAME_SITE_STRICT);
+    }
+
+    private void clearAuthCookies(HttpServletResponse response) {
+        cookieUtil.addCookieWithSameSite(response, cookieUtil.createClearAccessTokenCookie(), SAME_SITE_STRICT);
+        cookieUtil.addCookieWithSameSite(response, cookieUtil.createClearRefreshTokenCookie(), SAME_SITE_STRICT);
+    }
+
+    private void revokeRefreshTokenIfPresent(HttpServletRequest request) {
+        cookieUtil.getRefreshTokenFromCookies(request)
+                .flatMap(refreshTokenService::findByToken)
+                .ifPresent(refreshTokenService::revokeToken);
+    }
+
+    private String createRateLimitKey(HttpServletRequest request, String username) {
+        return extractClientIp(request) + ":" + username;
+    }
+
     /**
      * Extract client IP address, handling proxy headers.
+     * Checks X-Forwarded-For and X-Real-IP headers for proxied requests.
      */
-    private String getClientIp(HttpServletRequest request) {
+    private String extractClientIp(HttpServletRequest request) {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            // Take the first IP in the chain (original client)
             return xForwardedFor.split(",")[0].trim();
         }
-        
+
         String xRealIp = request.getHeader("X-Real-IP");
         if (xRealIp != null && !xRealIp.isEmpty()) {
             return xRealIp;
         }
-        
+
         return request.getRemoteAddr();
     }
 }

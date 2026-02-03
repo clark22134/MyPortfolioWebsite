@@ -1,33 +1,30 @@
 package com.portfolio.backend.projects.taskmanager;
 
+import com.portfolio.backend.projects.ProjectStatusResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 /**
- * REST controller for the Task Manager project.
+ * REST controller for the Task Manager interactive project.
  * Handles task and board management operations.
  */
 @RestController
 @RequestMapping("/api/projects/tasks")
 public class TaskManagerController {
 
+    private static final String PROJECT_NAME = "Task Manager";
+
     @GetMapping("/status")
-    public ResponseEntity<Map<String, Object>> getStatus() {
-        return ResponseEntity.ok(Map.of(
-            "status", "coming-soon",
-            "project", "Task Manager",
-            "message", "This project is currently under development"
-        ));
+    public ResponseEntity<ProjectStatusResponse> getStatus() {
+        return ResponseEntity.ok(ProjectStatusResponse.comingSoon(PROJECT_NAME));
     }
 
     @GetMapping("/boards")
-    public ResponseEntity<Map<String, Object>> getBoards() {
-        // Placeholder - will return user's boards
-        return ResponseEntity.ok(Map.of(
-            "status", "coming-soon",
-            "message", "Board management will be available soon"
-        ));
+    public ResponseEntity<ProjectStatusResponse> getBoards() {
+        return ResponseEntity.ok(
+            ProjectStatusResponse.of(PROJECT_NAME,
+                ProjectStatusResponse.ProjectStatus.COMING_SOON,
+                "Board management will be available soon")
+        );
     }
 }
