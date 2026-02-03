@@ -48,6 +48,7 @@ import { AuthService } from '../../services/auth.service';
 
       <div class="projects-grid" *ngIf="!loading && !error">
         <div *ngFor="let project of projects" class="project-card">
+          <span *ngIf="project.featured" class="featured-badge">Featured</span>
           <h3>{{ project.title }}</h3>
           <p class="description">{{ project.description }}</p>
           <div class="technologies">

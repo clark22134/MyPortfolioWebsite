@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 import { ProjectsComponent } from './projects.component';
 import { ProjectService } from '../../services/project.service';
 import { of, throwError } from 'rxjs';
@@ -36,7 +37,7 @@ describe('ProjectsComponent', () => {
     const projectServiceSpy = jasmine.createSpyObj('ProjectService', ['getAllProjects']);
 
     await TestBed.configureTestingModule({
-      imports: [ProjectsComponent, HttpClientTestingModule],
+      imports: [ProjectsComponent, HttpClientTestingModule, RouterTestingModule],
       providers: [
         { provide: ProjectService, useValue: projectServiceSpy }
       ]
