@@ -4,6 +4,7 @@ import com.portfolio.backend.dto.LoginRequest;
 import com.portfolio.backend.dto.LoginResponse;
 import com.portfolio.backend.dto.RegisterRequest;
 import com.portfolio.backend.entity.User;
+import com.portfolio.backend.exception.DuplicateResourceException;
 import com.portfolio.backend.repository.UserRepository;
 import com.portfolio.backend.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -74,7 +75,7 @@ class AuthServiceTest {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(authentication);
         when(userDetailsService.loadUserByUsername("testuser")).thenReturn(userDetails);
-        when(jwtUtil.generateToken(userDetails)).thenReturn("mock-jwt-token");
+        when(jwtUtil.generateAccessToken(userDetails)).thenReturn("mock-jwt-token");
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
 
         // Act
@@ -86,7 +87,7 @@ class AuthServiceTest {
         assertThat(response.getUsername()).isEqualTo("testuser");
         assertThat(response.getEmail()).isEqualTo("test@example.com");
         verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(jwtUtil, times(1)).generateToken(userDetails);
+        verify(jwtUtil, times(1)).generateAccessToken(userDetails);
     }
 
     @Test
@@ -149,8 +150,8 @@ class AuthServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() -> authService.register(registerRequest))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Username already exists");
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessageContaining("User already exists with username");
 
         verify(userRepository, times(1)).existsByUsername("existinguser");
         verify(userRepository, never()).save(any(User.class));
@@ -169,8 +170,8 @@ class AuthServiceTest {
 
         // Act & Assert
         assertThatThrownBy(() -> authService.register(registerRequest))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Email already exists");
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessageContaining("User already exists with email");
 
         verify(userRepository, times(1)).existsByEmail("existing@example.com");
         verify(userRepository, never()).save(any(User.class));
