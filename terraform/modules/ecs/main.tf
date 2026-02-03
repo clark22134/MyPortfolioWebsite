@@ -312,6 +312,12 @@ resource "aws_ecs_service" "backend" {
     container_port   = var.backend_port
   }
 
+  # CRITICAL: Ignore task_definition changes so Terraform doesn't overwrite
+  # GitHub Actions deployments. The workflow manages image versions.
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
+
   depends_on = [aws_iam_role_policy_attachment.ecs_task_execution]
 
   tags = {
@@ -338,6 +344,12 @@ resource "aws_ecs_service" "frontend" {
     target_group_arn = var.alb_target_group_frontend_arn
     container_name   = "frontend"
     container_port   = var.frontend_port
+  }
+
+  # CRITICAL: Ignore task_definition changes so Terraform doesn't overwrite
+  # GitHub Actions deployments. The workflow manages image versions.
+  lifecycle {
+    ignore_changes = [task_definition]
   }
 
   depends_on = [aws_iam_role_policy_attachment.ecs_task_execution]
