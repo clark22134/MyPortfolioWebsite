@@ -207,23 +207,35 @@ resource "aws_ecs_task_definition" "backend" {
       secrets = [
         {
           name      = "ADMIN_USERNAME"
-          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-username-unJLvx"
+          valueFrom = aws_secretsmanager_secret.admin_username.arn
         },
         {
           name      = "ADMIN_PASSWORD"
-          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-password-Md7Ysu"
+          valueFrom = aws_secretsmanager_secret.admin_password.arn
         },
         {
           name      = "ADMIN_EMAIL"
-          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-email-8zlHy8"
+          valueFrom = aws_secretsmanager_secret.admin_email.arn
         },
         {
           name      = "ADMIN_FULLNAME"
-          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-fullname-kse3cP"
+          valueFrom = aws_secretsmanager_secret.admin_fullname.arn
         },
         {
           name      = "JWT_SECRET"
-          valueFrom = "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/jwt-secret-OXGYxx"
+          valueFrom = aws_secretsmanager_secret.jwt_secret.arn
+        },
+        {
+          name      = "MAIL_USERNAME"
+          valueFrom = aws_secretsmanager_secret.mail_username.arn
+        },
+        {
+          name      = "MAIL_PASSWORD"
+          valueFrom = aws_secretsmanager_secret.mail_password.arn
+        },
+        {
+          name      = "CONTACT_EMAIL"
+          valueFrom = aws_secretsmanager_secret.contact_email.arn
         }
       ]
       logConfiguration = {
