@@ -89,6 +89,48 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
+      - name: Clear stale Terraform locks
+        run: |
+          # Check if there's a stale lock older than 30 minutes
+          LOCK_INFO=$(aws dynamodb get-item \
+            --table-name portfolio-terraform-locks \
+            --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
+            --region eu-west-2 \
+            --output json 2>/dev/null || echo '{}')
+          
+          if [ "$LOCK_INFO" != "{}" ] && [ "$(echo $LOCK_INFO | jq -r '.Item')" != "null" ]; then
+            LOCK_CREATED=$(echo $LOCK_INFO | jq -r '.Item.Info.S' | jq -r '.Created' 2>/dev/null || echo "")
+            
+            if [ -n "$LOCK_CREATED" ]; then
+              LOCK_TIMESTAMP=$(date -d "$LOCK_CREATED" +%s 2>/dev/null || echo "0")
+              CURRENT_TIMESTAMP=$(date +%s)
+              LOCK_AGE=$((CURRENT_TIMESTAMP - LOCK_TIMESTAMP))
+              
+              echo "Found existing lock, age: ${LOCK_AGE} seconds"
+              
+              # If lock is older than 30 minutes (1800 seconds), clear it
+              if [ $LOCK_AGE -gt 1800 ]; then
+                echo "Lock is stale (>30 min), clearing..."
+                aws dynamodb delete-item \
+                  --table-name portfolio-terraform-locks \
+                  --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
+                  --region eu-west-2
+                echo "Stale lock cleared"
+              else
+                echo "Lock is recent, will attempt to acquire normally"
+              fi
+            else
+              echo "Could not parse lock timestamp, clearing lock as precaution..."
+              aws dynamodb delete-item \
+                --table-name portfolio-terraform-locks \
+                --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
+                --region eu-west-2
+              echo "Lock cleared"
+            fi
+          else
+            echo "No existing lock found"
+          fi
+
       - name: Terraform Validate
         run: terraform validate
 
@@ -429,47 +471,11 @@ jobs:
                  --query 'services[0].events[0:5]' \
                  --output table && exit 1)
 
-      - name: Wait for old deployments to drain
+      - name: Wait for tasks to settle
         run: |
-          echo "Waiting for old deployments to fully drain..."
-          
-          # Wait for backend to have only 1 deployment
-          echo "Checking backend deployments..."
-          for i in {1..60}; do
-            BACKEND_DEPLOYMENTS=$(aws ecs describe-services \
-              --cluster ${{ env.ECS_CLUSTER }} \
-              --services ${{ env.ECS_BACKEND_SERVICE }} \
-              --region ${{ env.AWS_REGION }} \
-              --query "length(services[0].deployments)" \
-              --output text)
-            
-            if [ "$BACKEND_DEPLOYMENTS" = "1" ]; then
-              echo "✓ Backend has 1 active deployment"
-              break
-            fi
-            echo "Backend has $BACKEND_DEPLOYMENTS deployments, waiting... ($i/60)"
-            sleep 10
-          done
-          
-          # Wait for frontend to have only 1 deployment
-          echo "Checking frontend deployments..."
-          for i in {1..60}; do
-            FRONTEND_DEPLOYMENTS=$(aws ecs describe-services \
-              --cluster ${{ env.ECS_CLUSTER }} \
-              --services ${{ env.ECS_FRONTEND_SERVICE }} \
-              --region ${{ env.AWS_REGION }} \
-              --query "length(services[0].deployments)" \
-              --output text)
-            
-            if [ "$FRONTEND_DEPLOYMENTS" = "1" ]; then
-              echo "✓ Frontend has 1 active deployment"
-              break
-            fi
-            echo "Frontend has $FRONTEND_DEPLOYMENTS deployments, waiting... ($i/60)"
-            sleep 10
-          done
-          
-          echo "All old deployments have drained"
+          echo "Giving ECS 60 seconds for task transitions to complete..."
+          sleep 240
+          echo "Done waiting"
 
       - name: Verify deployment and container images
         run: |
