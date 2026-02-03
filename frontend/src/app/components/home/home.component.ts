@@ -348,8 +348,8 @@ import { AuthService } from '../../services/auth.service';
     }
 
     .logo-icon {
-      width: 25px;
-      height: 25px;
+      width: 38px;
+      height: 38px;
       color: #00cc33;
       animation: pulse 3s ease-in-out infinite;
       filter: drop-shadow(0 0 8px rgba(0, 204, 51, 0.5));
@@ -362,7 +362,7 @@ import { AuthService } from '../../services/auth.service';
 
     .logo-text {
       font-family: 'Courier New', monospace;
-      font-size: 0.45rem;
+      font-size: 0.68rem;
       color: #00cc33;
       text-shadow: 0 0 5px rgba(0, 204, 51, 0.5);
       letter-spacing: 1px;
@@ -543,13 +543,13 @@ import { AuthService } from '../../services/auth.service';
     .hero {
       background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
       color: white;
-      padding: 6rem 2rem 4rem;
+      padding: 160px 2rem 4rem;
       text-align: center;
       position: relative;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: flex-start;
       align-items: center;
       transition: transform 0.3s ease-out;
       border-bottom: 2px solid rgba(0, 255, 65, 0.3);
@@ -703,27 +703,43 @@ import { AuthService } from '../../services/auth.service';
     }
 
     .btn-primary {
-      background: white;
-      color: #1a1a1a;
-      box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.05);
+      color: #e0e0e0;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-primary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.5);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
     }
 
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-      border: 2px solid white;
+      background: rgba(255, 255, 255, 0.05);
+      color: #e0e0e0;
+      border: 2px solid rgba(255, 255, 255, 0.3);
       backdrop-filter: blur(10px);
     }
 
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
     .btn-outline {
-      background: transparent;
-      color: white;
-      border: 2px solid white;
+      background: rgba(255, 255, 255, 0.05);
+      color: #e0e0e0;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.5);
     }
 
     .btn:hover {
       transform: translateY(-3px);
-      box-shadow: 0 8px 20px rgba(255,255,255,0.4);
     }
 
     .btn svg {
@@ -1157,7 +1173,7 @@ import { AuthService } from '../../services/auth.service';
       }
 
       .hero {
-        padding: 4rem 1rem 3rem;
+        padding: 120px 1rem 3rem;
         min-height: 80vh;
       }
 

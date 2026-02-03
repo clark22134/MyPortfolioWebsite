@@ -32,14 +32,31 @@ public class DataInitializer implements CommandLineRunner {
         String adminEmail = System.getenv().getOrDefault("ADMIN_EMAIL", "admin@clarkfoster.com");
         String adminFullName = System.getenv().getOrDefault("ADMIN_FULLNAME", "Clark Foster");
         
-        if (!userRepository.existsByUsername(adminUsername)) {
+        userRepository.findByUsername(adminUsername).ifPresentOrElse(existingUser -> {
+            existingUser.setPassword(passwordEncoder.encode(adminPassword));
+            existingUser.setEmail(adminEmail);
+            existingUser.setFullName(adminFullName);
+            userRepository.save(existingUser);
+        }, () -> {
             User user = new User();
             user.setUsername(adminUsername);
             user.setPassword(passwordEncoder.encode(adminPassword));
             user.setEmail(adminEmail);
             user.setFullName(adminFullName);
             userRepository.save(user);
-        }
+        });
+
+        // Update legacy "Portfolio Website" project to "SecureCloud DevOps Platform"
+        projectRepository.findByTitle("Portfolio Website").ifPresent(existingProject -> {
+            existingProject.setTitle("SecureCloud DevOps Platform");
+            existingProject.setDescription("An enterprise-grade DevSecOps automation platform integrating AI-powered threat detection, automated CI/CD pipelines, and cloud infrastructure management. Features include real-time security scanning with Trivy, automated Terraform deployments to AWS ECS/Lambda, GitHub Actions workflows, and LLM-powered incident response analysis using Python and HuggingFace transformers.");
+            existingProject.setTechnologies(Arrays.asList("Angular", "Spring Boot", "Python", "AWS (ECS, Lambda, S3, CloudWatch)", "Terraform", "GitHub Actions", "Docker", "SonarQube", "PostgreSQL", "LLMs", "HuggingFace"));
+            existingProject.setGithubUrl("https://github.com/clark22134");
+            existingProject.setStartDate(LocalDate.of(2024, 1, 1));
+            existingProject.setEndDate(LocalDate.of(2024, 6, 30));
+            existingProject.setFeatured(true);
+            projectRepository.save(existingProject);
+        });
         
         // Create sample projects
         if (projectRepository.count() == 0) {
