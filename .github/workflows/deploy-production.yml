@@ -471,47 +471,11 @@ jobs:
                  --query 'services[0].events[0:5]' \
                  --output table && exit 1)
 
-      - name: Wait for old deployments to drain
+      - name: Wait for tasks to settle
         run: |
-          echo "Waiting for old deployments to fully drain..."
-          
-          # Wait for backend to have only 1 deployment
-          echo "Checking backend deployments..."
-          for i in {1..60}; do
-            BACKEND_DEPLOYMENTS=$(aws ecs describe-services \
-              --cluster ${{ env.ECS_CLUSTER }} \
-              --services ${{ env.ECS_BACKEND_SERVICE }} \
-              --region ${{ env.AWS_REGION }} \
-              --query "length(services[0].deployments)" \
-              --output text)
-            
-            if [ "$BACKEND_DEPLOYMENTS" = "1" ]; then
-              echo "✓ Backend has 1 active deployment"
-              break
-            fi
-            echo "Backend has $BACKEND_DEPLOYMENTS deployments, waiting... ($i/60)"
-            sleep 10
-          done
-          
-          # Wait for frontend to have only 1 deployment
-          echo "Checking frontend deployments..."
-          for i in {1..60}; do
-            FRONTEND_DEPLOYMENTS=$(aws ecs describe-services \
-              --cluster ${{ env.ECS_CLUSTER }} \
-              --services ${{ env.ECS_FRONTEND_SERVICE }} \
-              --region ${{ env.AWS_REGION }} \
-              --query "length(services[0].deployments)" \
-              --output text)
-            
-            if [ "$FRONTEND_DEPLOYMENTS" = "1" ]; then
-              echo "✓ Frontend has 1 active deployment"
-              break
-            fi
-            echo "Frontend has $FRONTEND_DEPLOYMENTS deployments, waiting... ($i/60)"
-            sleep 10
-          done
-          
-          echo "All old deployments have drained"
+          echo "Giving ECS 60 seconds for task transitions to complete..."
+          sleep 240
+          echo "Done waiting"
 
       - name: Verify deployment and container images
         run: |
