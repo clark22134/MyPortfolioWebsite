@@ -8,12 +8,14 @@ terraform {
     }
   }
 
-  # Uncomment to use S3 backend for state management
-  # backend "s3" {
-  #   bucket = "portfolio-terraform-state"
-  #   key    = "portfolio/terraform.tfstate"
-  #   region = "us-east-1"
-  # }
+  # S3 backend for remote state management with DynamoDB locking
+  backend "s3" {
+    bucket         = "clarkfoster-portfolio-tf-state"
+    key            = "portfolio/terraform.tfstate"
+    region         = "eu-west-2"
+    encrypt        = true
+    dynamodb_table = "portfolio-terraform-locks"
+  }
 }
 
 provider "aws" {
@@ -147,6 +149,49 @@ resource "aws_iam_role_policy" "github_actions" {
           "ecs:RegisterTaskDefinition",
           "ecs:ListTasks",
           "ecs:DescribeTasks"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "TerraformStateS3"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::clarkfoster-portfolio-tf-state",
+          "arn:aws:s3:::clarkfoster-portfolio-tf-state/*"
+        ]
+      },
+      {
+        Sid    = "TerraformStateLocking"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem"
+        ]
+        Resource = "arn:aws:dynamodb:eu-west-2:010438493245:table/portfolio-terraform-locks"
+      },
+      {
+        Sid    = "TerraformInfrastructure"
+        Effect = "Allow"
+        Action = [
+          "ec2:*",
+          "elasticloadbalancing:*",
+          "ecs:*",
+          "wafv2:*",
+          "route53:*",
+          "acm:*",
+          "logs:*",
+          "iam:GetRole",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:GetOpenIDConnectProvider"
         ]
         Resource = "*"
       },

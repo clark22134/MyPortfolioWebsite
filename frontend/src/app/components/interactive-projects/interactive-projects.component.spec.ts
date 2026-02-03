@@ -38,7 +38,7 @@ describe('InteractiveProjectsComponent', () => {
     spyOn(router, 'navigate');
     // Set up default return value for isAuthenticated
     authService.isAuthenticated.and.returnValue(true);
-    
+
     fixture = TestBed.createComponent(InteractiveProjectsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -77,7 +77,7 @@ describe('InteractiveProjectsComponent', () => {
 
   it('should call logout when logout button is clicked', () => {
     component.logout();
-    
+
     expect(authService.logout).toHaveBeenCalled();
     expect(router.navigate).toHaveBeenCalledWith(['/']);
   });
@@ -111,9 +111,9 @@ describe('InteractiveProjectsComponent', () => {
       }
     } as any;
 
-    component.onFileSelected(event, 'semantic-search');
+    component.onFileSelected(event, 'ml-pipeline');
 
-    expect(component.selectedFiles['semantic-search']).toBe(file);
+    expect(component.selectedFiles['ml-pipeline']).toBe(file);
   });
 
   it('should handle drag over event', () => {
@@ -149,7 +149,7 @@ describe('InteractiveProjectsComponent', () => {
     const file = new File(['content'], 'test.csv', { type: 'text/csv' });
     const mockElement = document.createElement('div');
     mockElement.classList.add('drag-over');
-    
+
     const event = new DragEvent('drop');
     Object.defineProperty(event, 'currentTarget', { value: mockElement, configurable: true });
     Object.defineProperty(event, 'dataTransfer', {
@@ -159,12 +159,12 @@ describe('InteractiveProjectsComponent', () => {
     spyOn(event, 'preventDefault');
     spyOn(event, 'stopPropagation');
 
-    component.onDrop(event, 'semantic-search');
+    component.onDrop(event, 'ml-pipeline');
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(event.stopPropagation).toHaveBeenCalled();
     expect(mockElement.classList.contains('drag-over')).toBe(false);
-    expect(component.selectedFiles['semantic-search']).toBe(file);
+    expect(component.selectedFiles['ml-pipeline']).toBe(file);
   });
 
   it('should disable upload button when no file selected', () => {
@@ -221,7 +221,7 @@ describe('InteractiveProjectsComponent', () => {
 
   it('should display max file size', () => {
     const fileInfo = fixture.nativeElement.querySelectorAll('.file-info');
-    const maxSizeInfo = Array.from(fileInfo).find((el: any) => 
+    const maxSizeInfo = Array.from(fileInfo).find((el: any) =>
       el.textContent.includes('Max size:')
     );
     expect(maxSizeInfo).toBeTruthy();
