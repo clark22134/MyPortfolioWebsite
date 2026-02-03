@@ -11,10 +11,6 @@ services:
       - .env
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - ADMIN_USERNAME=clark98516
-      - ADMIN_PASSWORD=Herethenbrownnew1!
-      - ADMIN_EMAIL=clark@clarkfoster.com
-      - ADMIN_FULLNAME=Clark Foster
       - CONTACT_EMAIL=clark@clarkfoster.com
     networks:
       - portfolio-network
