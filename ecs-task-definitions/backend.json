@@ -1,0 +1,69 @@
+{
+  "family": "prod-portfolio-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::010438493245:role/prod-portfolio-ecs-task-execution",
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "IMAGE_PLACEHOLDER",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "SPRING_PROFILES_ACTIVE",
+          "value": "prod"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "ADMIN_USERNAME",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-username-unJLvx"
+        },
+        {
+          "name": "ADMIN_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-password-Md7Ysu"
+        },
+        {
+          "name": "ADMIN_EMAIL",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-email-8zlHy8"
+        },
+        {
+          "name": "ADMIN_FULLNAME",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/admin-fullname-kse3cP"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/jwt-secret-OXGYxx"
+        },
+        {
+          "name": "MAIL_USERNAME",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/mail-username-cTJvn3"
+        },
+        {
+          "name": "MAIL_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/mail-password-rVZzd5"
+        },
+        {
+          "name": "CONTACT_EMAIL",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:010438493245:secret:portfolio/contact-email-nTGIW3"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/prod/portfolio-backend",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

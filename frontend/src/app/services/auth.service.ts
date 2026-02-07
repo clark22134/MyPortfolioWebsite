@@ -1,100 +1,89 @@
-import { Injectable } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, tap, catchError, of, switchMap } from 'rxjs';
+import { Observable, BehaviorSubject, tap, catchError, of } from 'rxjs';
 import { LoginRequest, RegisterRequest } from '../models/user.model';
 
 /**
- * Authentication service using HTTP-only cookies for JWT storage.
- *
- * Security features:
- * - Access tokens stored in HTTP-only cookies (not accessible to JavaScript)
- * - Refresh tokens with automatic rotation
- * - CSRF protection via X-XSRF-TOKEN header
- * - Short-lived access tokens (15 min) with silent refresh
+ * User information returned from authentication endpoints.
  */
-
 export interface UserInfo {
   username: string;
   email: string;
   fullName: string;
 }
 
+/**
+ * Authentication service using HTTP-only cookies for secure JWT storage.
+ *
+ * Security features:
+ * - Access tokens stored in HTTP-only cookies (prevents XSS attacks)
+ * - Refresh tokens with automatic rotation
+ * - CSRF protection via X-XSRF-TOKEN header
+ * - Short-lived access tokens (15 min) with silent refresh
+ * - Automatic token refresh before expiration
+ */
 @Injectable({
   providedIn: 'root'
 })
-export class AuthService {
-  private apiUrl = '/api/auth';
-  private currentUserSubject = new BehaviorSubject<UserInfo | null>(null);
-  public currentUser$ = this.currentUserSubject.asObservable();
+export class AuthService implements OnDestroy {
+  private static readonly API_URL = '/api/auth';
+  private static readonly ACCESS_TOKEN_LIFETIME_MS = 900000; // 15 minutes
+  private static readonly REFRESH_BUFFER_MS = 60000; // 1 minute before expiry
 
-  // Timer for automatic token refresh
+  private readonly currentUserSubject = new BehaviorSubject<UserInfo | null>(null);
+  public readonly currentUser$ = this.currentUserSubject.asObservable();
+
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Access token lifetime in ms (should match backend: 15 min)
-  private readonly ACCESS_TOKEN_LIFETIME_MS = 900000;
-  // Refresh 1 minute before expiry
-  private readonly REFRESH_BUFFER_MS = 60000;
-
-  constructor(private http: HttpClient) {
-    // On app initialization, check if user is authenticated via /me endpoint
-    this.checkAuthentication();
+  constructor(private readonly http: HttpClient) {
+    this.initializeAuthState();
   }
 
-  /**
-   * Check if user is authenticated by calling the /me endpoint.
-   * This works because cookies are sent automatically.
-   */
-  private checkAuthentication(): void {
-    this.http.get<UserInfo>(`${this.apiUrl}/me`, { withCredentials: true }).pipe(
-      tap(user => {
-        this.currentUserSubject.next(user);
-        this.scheduleTokenRefresh();
-      }),
-      catchError(() => {
-        this.currentUserSubject.next(null);
-        return of(null);
-      })
-    ).subscribe();
+  ngOnDestroy(): void {
+    this.cancelTokenRefresh();
   }
 
+  // ========== Public API ==========
+
   /**
-   * Login with username and password.
-   * Tokens are set as HTTP-only cookies by the backend.
+   * Authenticate user with username and password.
+   * Tokens are automatically stored in HTTP-only cookies by the backend.
    */
   login(credentials: LoginRequest): Observable<UserInfo> {
-    return this.http.post<UserInfo>(`${this.apiUrl}/login`, credentials, {
-      withCredentials: true
-    }).pipe(
-      tap(user => {
-        this.currentUserSubject.next(user);
-        this.scheduleTokenRefresh();
-      })
+    return this.http.post<UserInfo>(
+      `${AuthService.API_URL}/login`,
+      credentials,
+      { withCredentials: true }
+    ).pipe(
+      tap(user => this.handleSuccessfulAuth(user))
     );
   }
 
   /**
-   * Register a new user.
+   * Register a new user account.
    */
-  register(user: RegisterRequest): Observable<any> {
-    return this.http.post(`${this.apiUrl}/register`, user, {
-      withCredentials: true
-    });
+  register(user: RegisterRequest): Observable<unknown> {
+    return this.http.post(
+      `${AuthService.API_URL}/register`,
+      user,
+      { withCredentials: true }
+    );
   }
 
   /**
-   * Logout from current device.
-   * Clears cookies via backend response.
+   * Logout from the current device.
+   * Clears authentication cookies via backend response.
    */
-  logout(): Observable<any> {
+  logout(): Observable<unknown> {
     this.cancelTokenRefresh();
-    return this.http.post(`${this.apiUrl}/logout`, {}, {
-      withCredentials: true
-    }).pipe(
-      tap(() => {
-        this.currentUserSubject.next(null);
-      }),
+    return this.http.post(
+      `${AuthService.API_URL}/logout`,
+      {},
+      { withCredentials: true }
+    ).pipe(
+      tap(() => this.clearAuthState()),
       catchError(() => {
-        this.currentUserSubject.next(null);
+        this.clearAuthState();
         return of(null);
       })
     );
@@ -102,45 +91,45 @@ export class AuthService {
 
   /**
    * Logout from all devices.
-   * Revokes all refresh tokens for this user.
+   * Revokes all refresh tokens associated with this user.
    */
-  logoutAllDevices(): Observable<any> {
+  logoutAllDevices(): Observable<unknown> {
     this.cancelTokenRefresh();
-    return this.http.post(`${this.apiUrl}/logout-all`, {}, {
-      withCredentials: true
-    }).pipe(
-      tap(() => {
-        this.currentUserSubject.next(null);
-      })
+    return this.http.post(
+      `${AuthService.API_URL}/logout-all`,
+      {},
+      { withCredentials: true }
+    ).pipe(
+      tap(() => this.clearAuthState())
     );
   }
 
   /**
    * Refresh the access token using the refresh token cookie.
+   * Called automatically before token expiration.
    */
-  refreshToken(): Observable<any> {
-    return this.http.post(`${this.apiUrl}/refresh`, {}, {
-      withCredentials: true
-    }).pipe(
-      tap(() => {
-        this.scheduleTokenRefresh();
-      }),
-      catchError(error => {
-        // Refresh failed - user needs to login again
-        this.currentUserSubject.next(null);
-        this.cancelTokenRefresh();
+  refreshToken(): Observable<unknown> {
+    return this.http.post(
+      `${AuthService.API_URL}/refresh`,
+      {},
+      { withCredentials: true }
+    ).pipe(
+      tap(() => this.scheduleTokenRefresh()),
+      catchError(() => {
+        this.clearAuthState();
         return of(null);
       })
     );
   }
 
   /**
-   * Get current user info from the server.
+   * Get current authenticated user information from the server.
    */
   getCurrentUser(): Observable<UserInfo | null> {
-    return this.http.get<UserInfo>(`${this.apiUrl}/me`, {
-      withCredentials: true
-    }).pipe(
+    return this.http.get<UserInfo>(
+      `${AuthService.API_URL}/me`,
+      { withCredentials: true }
+    ).pipe(
       tap(user => this.currentUserSubject.next(user)),
       catchError(() => {
         this.currentUserSubject.next(null);
@@ -150,29 +139,46 @@ export class AuthService {
   }
 
   /**
-   * Check if user is currently authenticated.
+   * Check if a user is currently authenticated.
    */
   isAuthenticated(): boolean {
-    return !!this.currentUserSubject.value;
+    return this.currentUserSubject.value !== null;
   }
 
-  /**
-   * Schedule automatic token refresh before expiry.
-   */
+  // ========== Private Methods ==========
+
+  private initializeAuthState(): void {
+    this.http.get<UserInfo>(
+      `${AuthService.API_URL}/me`,
+      { withCredentials: true }
+    ).pipe(
+      tap(user => this.handleSuccessfulAuth(user)),
+      catchError(() => {
+        this.currentUserSubject.next(null);
+        return of(null);
+      })
+    ).subscribe();
+  }
+
+  private handleSuccessfulAuth(user: UserInfo): void {
+    this.currentUserSubject.next(user);
+    this.scheduleTokenRefresh();
+  }
+
+  private clearAuthState(): void {
+    this.currentUserSubject.next(null);
+    this.cancelTokenRefresh();
+  }
+
   private scheduleTokenRefresh(): void {
     this.cancelTokenRefresh();
 
-    // Refresh 1 minute before the access token expires
-    const refreshTime = this.ACCESS_TOKEN_LIFETIME_MS - this.REFRESH_BUFFER_MS;
-
+    const refreshTime = AuthService.ACCESS_TOKEN_LIFETIME_MS - AuthService.REFRESH_BUFFER_MS;
     this.refreshTimer = setTimeout(() => {
       this.refreshToken().subscribe();
     }, refreshTime);
   }
 
-  /**
-   * Cancel the scheduled token refresh.
-   */
   private cancelTokenRefresh(): void {
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);

@@ -300,6 +300,15 @@ resource "aws_ecs_service" "backend" {
   desired_count   = 1
   launch_type     = "FARGATE"
 
+  # Allow time for Java Spring Boot to start before health checks fail the deployment
+  health_check_grace_period_seconds = 120
+
+  # Automatic rollback if deployment fails
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
   network_configuration {
     subnets          = var.public_subnet_ids
     security_groups  = [aws_security_group.ecs_tasks.id]
@@ -310,6 +319,12 @@ resource "aws_ecs_service" "backend" {
     target_group_arn = var.alb_target_group_backend_arn
     container_name   = "backend"
     container_port   = var.backend_port
+  }
+
+  # CRITICAL: Ignore task_definition changes so Terraform doesn't overwrite
+  # GitHub Actions deployments. The workflow manages image versions.
+  lifecycle {
+    ignore_changes = [task_definition]
   }
 
   depends_on = [aws_iam_role_policy_attachment.ecs_task_execution]
@@ -328,6 +343,12 @@ resource "aws_ecs_service" "frontend" {
   desired_count   = 1
   launch_type     = "FARGATE"
 
+  # Automatic rollback if deployment fails
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
   network_configuration {
     subnets          = var.public_subnet_ids
     security_groups  = [aws_security_group.ecs_tasks.id]
@@ -338,6 +359,12 @@ resource "aws_ecs_service" "frontend" {
     target_group_arn = var.alb_target_group_frontend_arn
     container_name   = "frontend"
     container_port   = var.frontend_port
+  }
+
+  # CRITICAL: Ignore task_definition changes so Terraform doesn't overwrite
+  # GitHub Actions deployments. The workflow manages image versions.
+  lifecycle {
+    ignore_changes = [task_definition]
   }
 
   depends_on = [aws_iam_role_policy_attachment.ecs_task_execution]

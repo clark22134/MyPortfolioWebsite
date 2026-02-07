@@ -187,6 +187,7 @@ resource "aws_iam_role_policy" "github_actions" {
           "route53:*",
           "acm:*",
           "logs:*",
+          "secretsmanager:*",
           "iam:GetRole",
           "iam:GetRolePolicy",
           "iam:ListRolePolicies",
