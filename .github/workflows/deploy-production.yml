@@ -301,7 +301,7 @@ jobs:
           service: ${{ env.ECS_BACKEND_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
-          wait-for-minutes: 10
+          wait-for-minutes: 15
 
       # ============================================================
       # FRONTEND DEPLOYMENT - Using official AWS ECS Deploy Action
@@ -321,7 +321,7 @@ jobs:
           service: ${{ env.ECS_FRONTEND_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
-          wait-for-minutes: 5
+          wait-for-minutes: 15
 
       - name: Final health check
         run: |
