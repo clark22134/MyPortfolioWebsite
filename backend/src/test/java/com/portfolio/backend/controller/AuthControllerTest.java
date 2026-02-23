@@ -16,9 +16,9 @@ import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.context.ActiveProfiles;
@@ -42,25 +42,24 @@ class AuthControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @MockBean
+    @MockitoBean
     private AuthService authService;
     
-    @MockBean
+    @MockitoBean
     private RateLimitingService rateLimitingService;
     
-    @MockBean
+    @MockitoBean
     private RefreshTokenService refreshTokenService;
     
-    @MockBean
+    @MockitoBean
     private JwtUtil jwtUtil;
     
-    @MockBean
+    @MockitoBean
     private CookieUtil cookieUtil;
     
-    @MockBean
+    @MockitoBean
     private CustomUserDetailsService userDetailsService;
     
     private User mockUser;

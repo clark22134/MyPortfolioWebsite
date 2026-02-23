@@ -107,6 +107,20 @@
             <scope>test</scope>
         </dependency>
         
+        <!-- Spring Boot WebMvc Test (AutoConfigureMockMvc, WebMvcTest) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- Spring Boot Data JPA Test (DataJpaTest, TestEntityManager) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        
         <!-- Spring Security Test -->
         <dependency>
             <groupId>org.springframework.security</groupId>
