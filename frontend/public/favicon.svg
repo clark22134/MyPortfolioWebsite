@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#111111"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </radialGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="32" height="32" rx="6" fill="url(#bg)"/>
+  <!-- Border glow -->
+  <rect x="1" y="1" width="30" height="30" rx="5" fill="none" stroke="#00cc33" stroke-width="1.5" opacity="0.6"/>
+  <!-- Terminal prompt: >_ -->
+  <text x="5.5" y="23" font-family="Courier New, monospace" font-size="18" font-weight="bold" fill="#00cc33">
+    &gt;_
+  </text>
+</svg>

@@ -11,7 +11,7 @@ import { AuthService } from '../../services/auth.service';
   imports: [CommonModule, NavComponent],
   template: `
     <app-nav></app-nav>
-    
+
     <div class="projects-container">
       <!-- Cyber Logo -->
       <div class="cyber-logo">
@@ -35,7 +35,7 @@ import { AuthService } from '../../services/auth.service';
       </div>
 
       <h1>Angular/Java Projects</h1>
-      
+
       <div *ngIf="loading" class="loading-container">
         <div class="loading-spinner"></div>
         <p>Loading projects...</p>
@@ -55,10 +55,13 @@ import { AuthService } from '../../services/auth.service';
             <span *ngFor="let tech of project.technologies" class="tech-badge">{{ tech }}</span>
           </div>
           <div class="project-meta">
-            <div *ngIf="project.startDate" class="dates">
-              <strong>Duration:</strong> 
-              {{ formatDate(project.startDate) }} - 
-              {{ project.endDate ? formatDate(project.endDate) : 'Present' }}
+            <div class="dates">
+              <span *ngIf="project.startDate">
+                <strong>Duration:</strong>
+                {{ formatDate(project.startDate) }} -
+                {{ project.endDate ? formatDate(project.endDate) : 'Present' }}
+              </span>
+              <span *ngIf="!project.endDate" class="in-dev-badge">In Development</span>
             </div>
           </div>
           <div class="project-links">
@@ -130,7 +133,7 @@ import { AuthService } from '../../services/auth.service';
       border: 2px solid rgba(0, 204, 51, 0.4);
       border-radius: 8px;
       backdrop-filter: blur(10px);
-      box-shadow: 
+      box-shadow:
         0 0 20px rgba(0, 204, 51, 0.2),
         inset 0 0 20px rgba(0, 204, 51, 0.05);
       transition: all 0.3s ease;
@@ -139,7 +142,7 @@ import { AuthService } from '../../services/auth.service';
 
     .cyber-logo:hover {
       border-color: rgba(0, 204, 51, 0.7);
-      box-shadow: 
+      box-shadow:
         0 0 30px rgba(0, 204, 51, 0.4),
         inset 0 0 20px rgba(0, 204, 51, 0.1);
       transform: translateY(-2px);
@@ -218,7 +221,7 @@ import { AuthService } from '../../services/auth.service';
       margin-top: 160px;
       font-family: 'Courier New', 'Space Grotesk', monospace;
       letter-spacing: 2px;
-      text-shadow: 
+      text-shadow:
         0 0 8px rgba(0, 204, 51, 0.4),
         0 0 15px rgba(0, 204, 51, 0.3);
     }
@@ -322,6 +325,20 @@ import { AuthService } from '../../services/auth.service';
       margin-top: 0.5rem;
     }
 
+    .in-dev-badge {
+      display: inline-block;
+      margin-left: 0.5rem;
+      padding: 0.15rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #00cc33;
+      background: rgba(0, 204, 51, 0.1);
+      border: 1px solid rgba(0, 204, 51, 0.4);
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
     .project-links {
       display: flex;
       gap: 1rem;
@@ -361,7 +378,7 @@ import { AuthService } from '../../services/auth.service';
         grid-template-columns: 1fr;
         gap: 1.5rem;
       }
-      
+
       h1 {
         font-size: 2rem;
         margin-bottom: 2rem;
@@ -484,7 +501,7 @@ export class ProjectsComponent implements OnInit {
   loadProjects(): void {
     this.loading = true;
     this.error = '';
-    
+
     this.projectService.getAllProjects().subscribe({
       next: (projects) => {
         this.projects = projects;

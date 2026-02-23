@@ -18,6 +18,9 @@ import { AuthService } from '../../services/auth.service';
       <div class="nav-menu" [class.open]="isMenuOpen">
         <div class="nav-overlay" (click)="closeMenu()"></div>
         <div class="nav-content">
+          <button class="close-button" (click)="closeMenu()" aria-label="Close menu">
+            <span>&times;</span>
+          </button>
           <a routerLink="/" (click)="closeMenu()" class="nav-link">
             <span class="nav-icon">🏠</span>
             <span class="nav-text">Home</span>
@@ -153,6 +156,34 @@ import { AuthService } from '../../services/auth.service';
       overflow-y: auto;
     }
 
+    .close-button {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 40px;
+      height: 40px;
+      background: rgba(20, 20, 20, 0.9);
+      border: 2px solid rgba(0, 204, 51, 0.4);
+      border-radius: 8px;
+      color: #00cc33;
+      font-size: 1.5rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      z-index: 10;
+      box-shadow: 0 0 10px rgba(0, 204, 51, 0.2);
+    }
+
+    .close-button:hover {
+      border-color: #00cc33;
+      background: rgba(0, 204, 51, 0.15);
+      box-shadow: 0 0 20px rgba(0, 204, 51, 0.4);
+      transform: scale(1.1);
+    }
+
     .nav-menu.open .nav-content {
       right: 0;
     }
@@ -276,7 +307,7 @@ export class NavComponent implements OnInit {
   ngOnInit(): void {
     // Initialize with current auth state
     this.isAuthenticated = this.authService.isAuthenticated();
-    
+
     // Subscribe to auth changes
     this.authService.currentUser$.subscribe(user => {
       this.isAuthenticated = !!user;

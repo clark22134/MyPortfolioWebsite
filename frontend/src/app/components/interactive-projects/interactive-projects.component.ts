@@ -618,7 +618,7 @@ export class InteractiveProjectsComponent implements OnInit {
       this.isAuthenticated = !!user;
       // If on this page and not authenticated, redirect
       if (!this.isAuthenticated && this.router.url.includes('/admin/interactive-projects')) {
-        this.router.navigate(['/login']);
+        this.router.navigate(['/login'], { replaceUrl: true });
       }
     });
   }
@@ -626,7 +626,7 @@ export class InteractiveProjectsComponent implements OnInit {
   ngOnInit(): void {
     // Only redirect if not authenticated
     if (!this.authService.isAuthenticated()) {
-      this.router.navigate(['/login']);
+      this.router.navigate(['/login'], { replaceUrl: true });
     }
   }
 
