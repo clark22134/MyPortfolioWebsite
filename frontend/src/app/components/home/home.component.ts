@@ -1,3 +1,4 @@
+import { environment } from './../../environments/environment.prod';
 import { Component, OnInit, AfterViewInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -21,7 +22,7 @@ import { AuthService } from '../../services/auth.service';
   ],
   template: `
     <app-nav></app-nav>
-    
+
     <!-- Terminal Loading Screen -->
     <div class="terminal-loader" *ngIf="showTerminal" [@terminalFade]>
       <div class="terminal-network-bg"></div>
@@ -79,8 +80,8 @@ import { AuthService } from '../../services/auth.service';
           </h1>
           <p class="hero-subtitle">Full Stack Developer & Security Engineer</p>
           <p class="hero-intro">
-            Building secure, scalable applications with modern technologies. 
-            Passionate about cloud architecture, DevSecOps practices, and creating 
+            Building secure, scalable applications with modern technologies.
+            Passionate about cloud architecture, DevSecOps practices, and creating
             seamless user experiences. Let's connect and build something amazing together.
           </p>
           <div class="hero-buttons">
@@ -118,20 +119,23 @@ import { AuthService } from '../../services/auth.service';
         <h2 class="section-title">About Me</h2>
         <div class="about-me-content">
           <p>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
-            Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure 
-            dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non 
-            proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+            Clark is a passionate software developer with nine years of experience delivering secure, accessible, and scalable applications
+            in enterprise and federal environments. He specializes in full-stack development using Java/Spring Boot, .NET/C#, Python,
+            and modern frontend frameworks including Angular and React. His expertise includes RESTful API development, SQL-based data
+            systems, and implementation of automated CI/CD pipelines leveraging GitHub Actions, containerization, and modern DevSecOps
+            practices. Clark incorporates automated testing, continuous integration, and secure coding standards to ensure high reliability
+            and maintainability. He brings strong experience in system observability and performance monitoring using Splunk and the
+            ELK stack, enabling proactive system reliability and operational insight. Moreover, his capabilities further extend to cloud
+            architecture and IaC, utilizing Terraform to deploy AWS services like ECS Fargate, ALB, Route 53, ACM, ECR, and CloudWatch.
           </p>
           <p>
-            Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque 
-            ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia 
-            voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
-          </p>
-          <p>
-            Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi 
-            tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem 
-            ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur.
+            Complementing his technical background, Clark served more than 10 years in the U.S. Marine Corps, including 8 years in leadership
+            roles both as an enlisted NCO and commissioned officer. He led cross-functional teams and managed multi-million-dollar
+            operations in high-stakes environments, cultivating strong leadership, strategic planning, and problem-solving skills.
+            His military service instilled a deep commitment to integrity, accountability, and mission success—values he carries into
+            every project. Clark thrives in collaborative, team-oriented settings and actively engages with stakeholders across technical
+            and business domains to align solutions with organizational goals. This combination of technical depth, principled leadership,
+            and stakeholder partnership drives his detail-oriented, mission-focused delivery of high-quality software solutions.
           </p>
         </div>
       </section>
@@ -193,7 +197,7 @@ import { AuthService } from '../../services/auth.service';
       left: 0;
       width: 100%;
       height: 100%;
-      background-image: 
+      background-image:
         linear-gradient(rgba(0, 204, 51, 0.05) 1px, transparent 1px),
         linear-gradient(90deg, rgba(0, 204, 51, 0.05) 1px, transparent 1px),
         radial-gradient(circle at 20% 30%, rgba(0, 204, 51, 0.1) 0%, transparent 50%),
@@ -218,7 +222,7 @@ import { AuthService } from '../../services/auth.service';
       max-width: 800px;
       background: rgba(20, 20, 20, 0.95);
       border-radius: 8px;
-      box-shadow: 
+      box-shadow:
         0 0 30px rgba(0, 204, 51, 0.3),
         0 0 60px rgba(0, 204, 51, 0.2);
       border: 2px solid rgba(0, 204, 51, 0.4);
@@ -332,7 +336,7 @@ import { AuthService } from '../../services/auth.service';
       border: 2px solid rgba(0, 204, 51, 0.4);
       border-radius: 8px;
       backdrop-filter: blur(10px);
-      box-shadow: 
+      box-shadow:
         0 0 20px rgba(0, 204, 51, 0.2),
         inset 0 0 20px rgba(0, 204, 51, 0.05);
       transition: all 0.3s ease;
@@ -341,7 +345,7 @@ import { AuthService } from '../../services/auth.service';
 
     .cyber-logo:hover {
       border-color: rgba(0, 204, 51, 0.7);
-      box-shadow: 
+      box-shadow:
         0 0 30px rgba(0, 204, 51, 0.4),
         inset 0 0 20px rgba(0, 204, 51, 0.1);
       transform: translateY(-2px);
@@ -421,7 +425,7 @@ import { AuthService } from '../../services/auth.service';
       left: 0;
       width: 100%;
       height: 100%;
-      background-image: 
+      background-image:
         linear-gradient(rgba(0, 255, 65, 0.05) 1px, transparent 1px),
         linear-gradient(90deg, rgba(0, 255, 65, 0.05) 1px, transparent 1px);
       background-size: 50px 50px;
@@ -598,7 +602,7 @@ import { AuthService } from '../../services/auth.service';
       margin-bottom: 1.5rem;
       font-weight: 700;
       color: #00cc33;
-      text-shadow: 
+      text-shadow:
         0 0 8px rgba(0, 204, 51, 0.4),
         0 0 15px rgba(0, 204, 51, 0.3);
       letter-spacing: 3px;
@@ -1382,7 +1386,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
       } else {
         clearInterval(typeInterval);
         this.showCursor = false;
-        
+
         // Hide terminal and show main site after a delay
         setTimeout(() => {
           this.showTerminal = false;
@@ -1439,7 +1443,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
       const projectsSection = document.querySelector('.about-me');
       const skillsSection = document.querySelector('.skills');
       const aboutSection = document.querySelector('.about');
-      
+
       if (projectsSection) observer.observe(projectsSection);
       if (skillsSection) observer.observe(skillsSection);
       if (aboutSection) observer.observe(aboutSection);

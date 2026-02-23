@@ -83,8 +83,8 @@ public class DataInitializer implements CommandLineRunner {
                 "LLMs", "HuggingFace"
         ));
         project.setGithubUrl("https://github.com/clark22134");
-        project.setStartDate(LocalDate.of(2024, 1, 1));
-        project.setEndDate(LocalDate.of(2024, 6, 30));
+        project.setStartDate(null);
+        project.setEndDate(null);
         project.setFeatured(true);
         projectRepository.save(project);
         log.debug("Updated legacy project to SecureCloud DevOps Platform");
@@ -101,16 +101,16 @@ public class DataInitializer implements CommandLineRunner {
                 "E-Commerce Platform",
                 "A full-stack e-commerce application built with Angular and Spring Boot, featuring user authentication, product management, shopping cart, and payment integration.",
                 List.of("Angular", "Spring Boot", "PostgreSQL", "JWT", "Stripe API"),
-                LocalDate.of(2023, 1, 1),
-                LocalDate.of(2023, 6, 30)
+                null,
+                null
         );
 
         createProject(
                 "Task Management System",
                 "A modern task management application with real-time updates, team collaboration features, and advanced filtering capabilities.",
                 List.of("Angular", "Spring Boot", "WebSocket", "MongoDB", "Docker"),
-                LocalDate.of(2023, 7, 1),
-                LocalDate.of(2023, 12, 31)
+                null,
+                null
         );
 
         createProject(
@@ -119,8 +119,8 @@ public class DataInitializer implements CommandLineRunner {
                 List.of("Angular", "Spring Boot", "Python", "AWS (ECS, Lambda, S3, CloudWatch)",
                         "Terraform", "GitHub Actions", "Docker", "SonarQube", "PostgreSQL",
                         "LLMs", "HuggingFace"),
-                LocalDate.of(2024, 1, 1),
-                LocalDate.of(2024, 6, 30)
+                null,
+                null
         );
     }
 
