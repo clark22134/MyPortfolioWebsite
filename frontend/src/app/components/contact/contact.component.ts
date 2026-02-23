@@ -12,18 +12,16 @@ import { AuthService } from '../../services/auth.service';
   imports: [CommonModule, FormsModule, NavComponent],
   template: `
     <app-nav></app-nav>
-    
+
     <div class="contact-container">
       <!-- Cyber Logo -->
-      <div class="cyber-logo">
+      <div class="cyber-logo" role="img" aria-label="Clark Foster Portfolio Logo">
         <div class="logo-icon">
-          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <!-- Terminal window -->
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"
+               aria-hidden="true" focusable="false">
             <rect x="10" y="20" width="80" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
             <line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="2"/>
-            <!-- Terminal prompt -->
             <text x="18" y="48" font-family="monospace" font-size="12" fill="currentColor">&gt;_</text>
-            <!-- Code lines -->
             <line x1="35" y1="45" x2="70" y2="45" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             <line x1="35" y1="55" x2="60" y2="55" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             <line x1="35" y1="65" x2="75" y2="65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -32,42 +30,42 @@ import { AuthService } from '../../services/auth.service';
         <div class="logo-text">
           <span class="logo-prefix">{{ isAuthenticated ? 'root' : 'user' }}&#64;</span><span class="logo-host">portfolio</span>
         </div>
-        <div class="scan-line"></div>
+        <div class="scan-line" aria-hidden="true"></div>
       </div>
-      
+
       <div class="contact-content">
         <div class="contact-header">
-          <h1>Get In Touch</h1>
+          <h1 id="contact-page-title">Get In Touch</h1>
           <p class="subtitle">Have a question or want to work together? Drop me a message!</p>
         </div>
 
         <div class="contact-main">
           <div class="contact-info">
             <div class="info-card">
-              <div class="icon">🔗</div>
+              <div class="icon" aria-hidden="true">🔗</div>
               <h3>LinkedIn</h3>
-              <a href="/linkedin.html" target="_blank">Connect with me</a>
+              <a href="/linkedin.html" target="_blank" rel="noopener noreferrer" aria-label="Connect with me on LinkedIn (opens in new tab)">Connect with me</a>
             </div>
 
             <div class="info-card">
-              <div class="icon">💻</div>
+              <div class="icon" aria-hidden="true">💻</div>
               <h3>GitHub</h3>
-              <a href="https://github.com/clark22134" target="_blank">Check out my work</a>
+              <a href="https://github.com/clark22134" target="_blank" rel="noopener noreferrer" aria-label="Check out my work on GitHub (opens in new tab)">Check out my work</a>
             </div>
 
             <div class="info-card">
-              <div class="icon">📧</div>
+              <div class="icon" aria-hidden="true">📧</div>
               <h3>Email</h3>
-              <a href="mailto:clark&#64;clarkfoster.com">clark&#64;clarkfoster.com</a>
+              <a href="mailto:clark&#64;clarkfoster.com" aria-label="Send email to clark at clarkfoster.com">clark&#64;clarkfoster.com</a>
             </div>
           </div>
 
-          <form class="contact-form" (ngSubmit)="onSubmit()" #contactForm="ngForm">
+          <form class="contact-form" (ngSubmit)="onSubmit()" #contactForm="ngForm" aria-label="Contact form">
             <div class="form-group">
               <label for="name">Name *</label>
-              <input 
-                type="text" 
-                id="name" 
+              <input
+                type="text"
+                id="name"
                 name="name"
                 [(ngModel)]="formData.name"
                 required
@@ -77,16 +75,16 @@ import { AuthService } from '../../services/auth.service';
                 class="form-control"
                 [class.error]="submitted && contactForm.controls['name']?.invalid"
               >
-              <span class="error-text" *ngIf="submitted && contactForm.controls['name']?.invalid">
+              <span class="error-text" *ngIf="submitted && contactForm.controls['name']?.invalid" role="alert" id="name-error">
                 Name is required (2-100 characters)
               </span>
             </div>
 
             <div class="form-group">
               <label for="email">Email *</label>
-              <input 
-                type="email" 
-                id="email" 
+              <input
+                type="email"
+                id="email"
                 name="email"
                 [(ngModel)]="formData.email"
                 required
@@ -95,16 +93,16 @@ import { AuthService } from '../../services/auth.service';
                 class="form-control"
                 [class.error]="submitted && contactForm.controls['email']?.invalid"
               >
-              <span class="error-text" *ngIf="submitted && contactForm.controls['email']?.invalid">
+              <span class="error-text" *ngIf="submitted && contactForm.controls['email']?.invalid" role="alert" id="email-error">
                 Please enter a valid email address
               </span>
             </div>
 
             <div class="form-group">
               <label for="subject">Subject *</label>
-              <input 
-                type="text" 
-                id="subject" 
+              <input
+                type="text"
+                id="subject"
                 name="subject"
                 [(ngModel)]="formData.subject"
                 required
@@ -114,15 +112,15 @@ import { AuthService } from '../../services/auth.service';
                 class="form-control"
                 [class.error]="submitted && contactForm.controls['subject']?.invalid"
               >
-              <span class="error-text" *ngIf="submitted && contactForm.controls['subject']?.invalid">
+              <span class="error-text" *ngIf="submitted && contactForm.controls['subject']?.invalid" role="alert" id="subject-error">
                 Subject is required (5-200 characters)
               </span>
             </div>
 
             <div class="form-group">
               <label for="message">Message *</label>
-              <textarea 
-                id="message" 
+              <textarea
+                id="message"
                 name="message"
                 [(ngModel)]="formData.message"
                 required
@@ -133,22 +131,22 @@ import { AuthService } from '../../services/auth.service';
                 class="form-control"
                 [class.error]="submitted && contactForm.controls['message']?.invalid"
               ></textarea>
-              <span class="error-text" *ngIf="submitted && contactForm.controls['message']?.invalid">
+              <span class="error-text" *ngIf="submitted && contactForm.controls['message']?.invalid" role="alert" id="message-error">
                 Message is required (10-2000 characters)
               </span>
             </div>
 
-            <div *ngIf="successMessage" class="success-message">
+            <div *ngIf="successMessage" class="success-message" role="status" aria-live="polite">
               {{ successMessage }}
             </div>
 
-            <div *ngIf="errorMessage" class="error-message">
+            <div *ngIf="errorMessage" class="error-message" role="alert" aria-live="assertive">
               {{ errorMessage }}
             </div>
 
-            <button 
-              type="submit" 
-              class="btn-submit" 
+            <button
+              type="submit"
+              class="btn-submit"
               [disabled]="loading"
             >
               {{ loading ? 'Sending...' : 'Send Message' }}
@@ -173,7 +171,7 @@ import { AuthService } from '../../services/auth.service';
       left: 0;
       width: 100%;
       height: 100%;
-      background: 
+      background:
         repeating-linear-gradient(
           0deg,
           rgba(0, 204, 51, 0.03) 0px,
@@ -204,7 +202,7 @@ import { AuthService } from '../../services/auth.service';
       margin-bottom: 1rem;
       font-family: 'Courier New', monospace;
       letter-spacing: 2px;
-      text-shadow: 
+      text-shadow:
         0 0 8px rgba(0, 204, 51, 0.4),
         0 0 15px rgba(0, 204, 51, 0.3);
     }
@@ -429,7 +427,7 @@ import { AuthService } from '../../services/auth.service';
       border: 2px solid rgba(0, 204, 51, 0.4);
       border-radius: 8px;
       backdrop-filter: blur(10px);
-      box-shadow: 
+      box-shadow:
         0 0 20px rgba(0, 204, 51, 0.2),
         inset 0 0 20px rgba(0, 204, 51, 0.05);
       transition: all 0.3s ease;
@@ -438,7 +436,7 @@ import { AuthService } from '../../services/auth.service';
 
     .cyber-logo:hover {
       border-color: rgba(0, 204, 51, 0.7);
-      box-shadow: 
+      box-shadow:
         0 0 30px rgba(0, 204, 51, 0.4),
         inset 0 0 20px rgba(0, 204, 51, 0.1);
       transform: translateY(-2px);

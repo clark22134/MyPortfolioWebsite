@@ -1,2 +1,10 @@
-<router-outlet></router-outlet>
+<!-- Main Content Landmark (WCAG 1.3.1 / 2.4.1) -->
+<main id="main-content" role="main" tabindex="-1" aria-label="Main content">
+  <router-outlet></router-outlet>
+</main>
+
+<!-- Footer with contentinfo landmark -->
 <app-footer></app-footer>
+
+<!-- Accessibility Toolbar (persistent across all pages) -->
+<app-accessibility-toolbar></app-accessibility-toolbar>

@@ -1,53 +1,89 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { AccessibilityService } from '../../services/accessibility.service';
 
 @Component({
   selector: 'app-nav',
   standalone: true,
   imports: [CommonModule, RouterModule],
   template: `
-    <nav class="hamburger-nav">
-      <button class="hamburger-button" (click)="toggleMenu()" [class.active]="isMenuOpen">
-        <span class="line"></span>
-        <span class="line"></span>
-        <span class="line"></span>
+    <nav class="hamburger-nav" role="navigation" aria-label="Main navigation">
+      <button
+        class="hamburger-button"
+        (click)="toggleMenu()"
+        [class.active]="isMenuOpen"
+        [attr.aria-expanded]="isMenuOpen"
+        aria-controls="main-nav-menu"
+        aria-label="Toggle navigation menu"
+        #menuToggleBtn>
+        <span class="line" aria-hidden="true"></span>
+        <span class="line" aria-hidden="true"></span>
+        <span class="line" aria-hidden="true"></span>
       </button>
 
-      <div class="nav-menu" [class.open]="isMenuOpen">
-        <div class="nav-overlay" (click)="closeMenu()"></div>
-        <div class="nav-content">
-          <button class="close-button" (click)="closeMenu()" aria-label="Close menu">
-            <span>&times;</span>
+      <div class="nav-menu"
+           id="main-nav-menu"
+           [class.open]="isMenuOpen"
+           role="dialog"
+           aria-label="Navigation menu"
+           [attr.aria-hidden]="!isMenuOpen">
+        <div class="nav-overlay" (click)="closeMenu()" aria-hidden="true"></div>
+        <div class="nav-content" #navContent>
+          <button
+            class="close-button"
+            (click)="closeMenu()"
+            aria-label="Close navigation menu"
+            #closeBtn>
+            <span aria-hidden="true">&times;</span>
           </button>
-          <a routerLink="/" (click)="closeMenu()" class="nav-link">
-            <span class="nav-icon">🏠</span>
-            <span class="nav-text">Home</span>
-          </a>
-          <a routerLink="/projects" (click)="closeMenu()" class="nav-link">
-            <span class="nav-icon">💼</span>
-            <span class="nav-text">Angular/Java Projects</span>
-          </a>
-          <a routerLink="/admin/interactive-projects" (click)="closeMenu()" class="nav-link">
-            <span class="nav-icon">🤖</span>
-            <span class="nav-text">AI Projects</span>
-          </a>
-          <a routerLink="/contact" (click)="closeMenu()" class="nav-link">
-            <span class="nav-icon">📧</span>
-            <span class="nav-text">Contact</span>
-          </a>
-          <a href="/resume.html" target="_blank" (click)="closeMenu()" class="nav-link">
-            <span class="nav-icon">📄</span>
-            <span class="nav-text">Resume</span>
-          </a>
-          <div class="nav-divider"></div>
+          <ul role="list" class="nav-list">
+            <li>
+              <a routerLink="/" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Home')">
+                <span class="nav-icon" aria-hidden="true">🏠</span>
+                <span class="nav-text">Home</span>
+              </a>
+            </li>
+            <li>
+              <a routerLink="/projects" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Angular Java Projects')">
+                <span class="nav-icon" aria-hidden="true">💼</span>
+                <span class="nav-text">Angular/Java Projects</span>
+              </a>
+            </li>
+            <li>
+              <a routerLink="/admin/interactive-projects" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('AI Projects')">
+                <span class="nav-icon" aria-hidden="true">🤖</span>
+                <span class="nav-text">AI Projects</span>
+              </a>
+            </li>
+            <li>
+              <a routerLink="/contact" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Contact')">
+                <span class="nav-icon" aria-hidden="true">📧</span>
+                <span class="nav-text">Contact</span>
+              </a>
+            </li>
+            <li>
+              <a routerLink="/accessibility" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Accessibility Statement')">
+                <span class="nav-icon" aria-hidden="true">♿</span>
+                <span class="nav-text">Accessibility</span>
+              </a>
+            </li>
+            <li>
+              <a href="/resume.html" target="_blank" rel="noopener noreferrer" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Resume, opens in new tab')">
+                <span class="nav-icon" aria-hidden="true">📄</span>
+                <span class="nav-text">Resume<span class="sr-only"> (opens in new tab)</span></span>
+              </a>
+            </li>
+          </ul>
+          <div class="nav-divider" role="separator" aria-hidden="true"></div>
           <a *ngIf="!isAuthenticated" routerLink="/login" (click)="closeMenu()" class="nav-link auth-link">
-            <span class="nav-icon">🔐</span>
+            <span class="nav-icon" aria-hidden="true">🔐</span>
             <span class="nav-text">Login</span>
           </a>
-          <a *ngIf="isAuthenticated" (click)="handleLogout()" class="nav-link auth-link">
-            <span class="nav-icon">🚪</span>
+          <a *ngIf="isAuthenticated" (click)="handleLogout()" class="nav-link auth-link" role="button" tabindex="0"
+             (keydown.enter)="handleLogout()" (keydown.space)="handleLogout()">
+            <span class="nav-icon" aria-hidden="true">🚪</span>
             <span class="nav-text">Logout</span>
           </a>
         </div>
@@ -55,6 +91,25 @@ import { AuthService } from '../../services/auth.service';
     </nav>
   `,
   styles: [`
+    /* Screen-reader-only utility */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .nav-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
     .hamburger-nav {
       position: fixed;
       top: 20px;
@@ -80,10 +135,13 @@ import { AuthService } from '../../services/auth.service';
       backdrop-filter: blur(10px);
     }
 
-    .hamburger-button:hover {
+    .hamburger-button:hover,
+    .hamburger-button:focus-visible {
       border-color: #00cc33;
       box-shadow: 0 0 30px rgba(0, 204, 51, 0.4);
       transform: translateY(-2px);
+      outline: 3px solid #00ff41;
+      outline-offset: 2px;
     }
 
     .hamburger-button.active {
@@ -177,11 +235,14 @@ import { AuthService } from '../../services/auth.service';
       box-shadow: 0 0 10px rgba(0, 204, 51, 0.2);
     }
 
-    .close-button:hover {
+    .close-button:hover,
+    .close-button:focus-visible {
       border-color: #00cc33;
       background: rgba(0, 204, 51, 0.15);
       box-shadow: 0 0 20px rgba(0, 204, 51, 0.4);
       transform: scale(1.1);
+      outline: 3px solid #00ff41;
+      outline-offset: 2px;
     }
 
     .nav-menu.open .nav-content {
@@ -233,14 +294,18 @@ import { AuthService } from '../../services/auth.service';
       transition: transform 0.3s ease;
     }
 
-    .nav-link:hover {
+    .nav-link:hover,
+    .nav-link:focus-visible {
       background: rgba(0, 204, 51, 0.15);
       border-color: #00cc33;
       transform: translateX(5px);
       box-shadow: 0 0 15px rgba(0, 204, 51, 0.3);
+      outline: 3px solid #00ff41;
+      outline-offset: 2px;
     }
 
-    .nav-link:hover::before {
+    .nav-link:hover::before,
+    .nav-link:focus-visible::before {
       transform: translateX(0);
     }
 
@@ -250,7 +315,8 @@ import { AuthService } from '../../services/auth.service';
       transition: filter 0.3s ease;
     }
 
-    .nav-link:hover .nav-icon {
+    .nav-link:hover .nav-icon,
+    .nav-link:focus-visible .nav-icon {
       filter: grayscale(0);
     }
 
@@ -295,13 +361,18 @@ import { AuthService } from '../../services/auth.service';
     }
   `]
 })
-export class NavComponent implements OnInit {
+export class NavComponent implements OnInit, AfterViewInit {
   isMenuOpen = false;
   isAuthenticated = false;
 
+  @ViewChild('menuToggleBtn') menuToggleBtn!: ElementRef;
+  @ViewChild('closeBtn') closeBtn!: ElementRef;
+  @ViewChild('navContent') navContent!: ElementRef;
+
   constructor(
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private a11yService: AccessibilityService
   ) {}
 
   ngOnInit(): void {
@@ -314,17 +385,69 @@ export class NavComponent implements OnInit {
     });
   }
 
+  ngAfterViewInit(): void {
+    // Keyboard trap: keep focus within the nav when open
+  }
+
   toggleMenu(): void {
     this.isMenuOpen = !this.isMenuOpen;
+    if (this.isMenuOpen) {
+      this.a11yService.announceToScreenReader('Navigation menu opened');
+      // Focus the close button after menu opens
+      setTimeout(() => {
+        this.closeBtn?.nativeElement?.focus();
+      }, 350);
+    } else {
+      this.a11yService.announceToScreenReader('Navigation menu closed');
+    }
   }
 
   closeMenu(): void {
     this.isMenuOpen = false;
+    this.a11yService.announceToScreenReader('Navigation menu closed');
+    // Return focus to the toggle button
+    setTimeout(() => {
+      this.menuToggleBtn?.nativeElement?.focus();
+    }, 100);
   }
 
   handleLogout(): void {
     this.authService.logout();
     this.closeMenu();
     this.router.navigate(['/']);
+    this.a11yService.announceToScreenReader('Logged out successfully');
+  }
+
+  speakLink(text: string): void {
+    this.a11yService.speak(text);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    if (this.isMenuOpen) {
+      this.closeMenu();
+    }
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    if (!this.isMenuOpen || !this.navContent) return;
+
+    if (event.key === 'Tab') {
+      // Focus trap within the navigation menu
+      const focusableElements = this.navContent.nativeElement.querySelectorAll(
+        'a[href], button, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstFocusable = focusableElements[0] as HTMLElement;
+      const lastFocusable = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+      if (event.shiftKey && document.activeElement === firstFocusable) {
+        event.preventDefault();
+        lastFocusable.focus();
+      } else if (!event.shiftKey && document.activeElement === lastFocusable) {
+        event.preventDefault();
+        firstFocusable.focus();
+      }
+    }
   }
 }

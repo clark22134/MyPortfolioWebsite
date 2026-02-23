@@ -24,9 +24,10 @@ import { AuthService } from '../../services/auth.service';
     <app-nav></app-nav>
 
     <!-- Terminal Loading Screen -->
-    <div class="terminal-loader" *ngIf="showTerminal" [@terminalFade]>
-      <div class="terminal-network-bg"></div>
-      <div class="terminal-window">
+    <div class="terminal-loader" *ngIf="showTerminal" [@terminalFade]
+         role="status" aria-label="Loading portfolio" aria-live="polite">
+      <div class="terminal-network-bg" aria-hidden="true"></div>
+      <div class="terminal-window" aria-hidden="true">
         <div class="terminal-header">
           <div class="terminal-buttons">
             <span class="btn-close"></span>
@@ -42,13 +43,15 @@ import { AuthService } from '../../services/auth.service';
           <div class="terminal-cursor" *ngIf="showCursor">█</div>
         </div>
       </div>
+      <span class="sr-only">Portfolio is loading, please wait.</span>
     </div>
 
     <div class="home-container" *ngIf="!showTerminal">
       <!-- Cyber Logo -->
-      <div class="cyber-logo">
+      <div class="cyber-logo" role="img" aria-label="Clark Foster Portfolio Logo - Terminal icon">
         <div class="logo-icon">
-          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"
+               aria-hidden="true" focusable="false" role="img">
             <!-- Terminal window -->
             <rect x="10" y="20" width="80" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
             <line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="2"/>
@@ -63,20 +66,20 @@ import { AuthService } from '../../services/auth.service';
         <div class="logo-text">
           <span class="logo-prefix">{{ isAuthenticated ? 'root' : 'user' }}&#64;</span><span class="logo-host">portfolio</span>
         </div>
-        <div class="scan-line"></div>
+        <div class="scan-line" aria-hidden="true"></div>
       </div>
 
-      <!-- Animated Background -->
-      <div class="animated-bg">
+      <!-- Animated Background (decorative) -->
+      <div class="animated-bg" aria-hidden="true" role="presentation">
         <div class="circle circle-1"></div>
         <div class="circle circle-2"></div>
         <div class="circle circle-3"></div>
       </div>
 
-      <section class="hero" [class.scrolled]="scrolled">
+      <section class="hero" [class.scrolled]="scrolled" aria-label="Welcome banner">
         <div class="hero-content fade-in">
           <h1 class="hero-title">
-            <span class="typed-text">{{ typedText }}</span><span class="cursor" [class.typing]="isTyping">|</span>
+            <span class="typed-text" aria-label="Welcome">{{ typedText }}</span><span class="cursor" [class.typing]="isTyping" aria-hidden="true">|</span>
           </h1>
           <p class="hero-subtitle">Full Stack Developer & Security Engineer</p>
           <p class="hero-intro">
@@ -84,15 +87,19 @@ import { AuthService } from '../../services/auth.service';
             Passionate about cloud architecture, DevSecOps practices, and creating
             seamless user experiences. Let's connect and build something amazing together.
           </p>
-          <div class="hero-buttons">
+          <div class="hero-buttons" role="group" aria-label="Quick navigation links">
             <div class="button-row">
               <a routerLink="/projects" class="btn btn-primary">Angular/Java Projects</a>
               <a routerLink="/admin/interactive-projects" class="btn btn-outline">AI Projects</a>
             </div>
             <div class="button-row">
               <a routerLink="/contact" class="btn btn-primary">Contact Me</a>
-              <a href="/resume.html" target="_blank" class="btn btn-secondary">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <a routerLink="/accessibility" class="btn btn-outline">♿ Accessibility</a>
+            </div>
+            <div class="button-row">
+              <a href="/resume.html" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" aria-label="Resume (opens in new tab)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     aria-hidden="true" focusable="false">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
                   <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -101,8 +108,9 @@ import { AuthService } from '../../services/auth.service';
                 </svg>
                 Resume
               </a>
-              <a href="https://github.com/clark22134" target="_blank" class="btn btn-outline">
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+              <a href="https://github.com/clark22134" target="_blank" rel="noopener noreferrer" class="btn btn-outline" aria-label="GitHub profile (opens in new tab)">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"
+                     aria-hidden="true" focusable="false">
                   <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
                 </svg>
                 GitHub
@@ -110,12 +118,12 @@ import { AuthService } from '../../services/auth.service';
             </div>
           </div>
         </div>
-        <div class="scroll-indicator">
+        <div class="scroll-indicator" aria-hidden="true">
           <div class="mouse"></div>
         </div>
       </section>
 
-      <section class="about-me" #aboutMeSection [class.visible]="projectsVisible">
+      <section class="about-me" #aboutMeSection [class.visible]="projectsVisible" aria-label="About Me">
         <h2 class="section-title">About Me</h2>
         <div class="about-me-content">
           <p>
@@ -140,11 +148,11 @@ import { AuthService } from '../../services/auth.service';
         </div>
       </section>
 
-      <section class="skills" #skillsSection [class.visible]="skillsVisible">
+      <section class="skills" #skillsSection [class.visible]="skillsVisible" aria-label="Skills and expertise">
         <h2 class="section-title">Skills & Expertise</h2>
-        <div class="skills-grid">
-          <div class="skill-category" *ngFor="let category of skillCategories; let i = index" [style.animation-delay]="i * 0.1 + 's'">
-            <div class="skill-icon">{{ category.icon }}</div>
+        <div class="skills-grid" role="list" aria-label="Skill categories">
+          <div class="skill-category" *ngFor="let category of skillCategories; let i = index" [style.animation-delay]="i * 0.1 + 's'" role="listitem">
+            <div class="skill-icon" aria-hidden="true">{{ category.icon }}</div>
             <h3>{{ category.title }}</h3>
             <div class="skill-items">
               <span *ngFor="let skill of category.skills" class="skill-tag">{{ skill }}</span>
@@ -153,16 +161,20 @@ import { AuthService } from '../../services/auth.service';
         </div>
       </section>
 
-      <section class="about" #aboutSection [class.visible]="aboutVisible">
+      <section class="about" #aboutSection [class.visible]="aboutVisible" aria-label="About this portfolio">
         <h2 class="section-title">About This Portfolio</h2>
         <p>
           This portfolio website was built using the following technologies:
         </p>
         <ul>
-          <li>Angular 19 with TypeScript</li>
+          <li>Angular 21 with TypeScript 5.9</li>
           <li>Spring Boot 3.2.1 with Java 21 (LTS)</li>
           <li>RESTful API architecture</li>
           <li>JWT Authentication & Spring Security</li>
+          <li>WCAG 2.1 AA Compliance & Section 508</li>
+          <li>WAI-ARIA 1.2 Landmarks, Roles & Live Regions</li>
+          <li>Automated Accessibility Testing (axe-core & Puppeteer)</li>
+          <li>Web Speech API (Text-to-Speech)</li>
           <li>AWS ECS Fargate (Serverless Containers)</li>
           <li>AWS Application Load Balancer (ALB)</li>
           <li>AWS Route 53 (DNS Management)</li>
@@ -1302,7 +1314,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     {
       icon: '💻',
       title: 'Frontend Development',
-      skills: ['Angular', 'TypeScript', 'HTML/CSS', 'SCSS', 'Responsive Design']
+      skills: ['Angular', 'TypeScript', 'HTML/CSS', 'SCSS', 'Responsive Design', 'WAI-ARIA 1.2']
     },
     {
       icon: '⚙️',
@@ -1317,7 +1329,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     {
       icon: '🔧',
       title: 'DevSecOps & CI/CD',
-      skills: ['GitHub Actions', 'SonarQube', 'Trivy', 'Docker', 'Linux/Windows', 'GitHub', 'Agile']
+      skills: ['GitHub Actions', 'SonarQube', 'Trivy', 'Docker', 'Linux/Windows', 'GitHub', 'Agile', 'axe-core']
     },
     {
       icon: '🤖',
@@ -1333,6 +1345,11 @@ export class HomeComponent implements OnInit, AfterViewInit {
       icon: '🔒',
       title: 'Cyber Security',
       skills: ['Network Penetration Testing', 'Host Penetration Testing', 'Threat Hunting', 'Incident Response', 'Digital Forensics']
+    },
+    {
+      icon: '♿',
+      title: 'Accessibility & Testing',
+      skills: ['WCAG 2.1 AA', 'Section 508', 'Screen Reader Testing', 'axe-core / Puppeteer', 'Keyboard Navigation', 'ARIA Landmarks & Roles', 'Color Contrast Analysis', 'Web Speech API (TTS)']
     }
   ];
 

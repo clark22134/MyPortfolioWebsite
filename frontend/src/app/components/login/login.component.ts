@@ -12,18 +12,16 @@ import { NavComponent } from '../nav/nav.component';
   imports: [CommonModule, FormsModule, NavComponent],
   template: `
     <app-nav></app-nav>
-    
+
     <div class="login-container">
       <!-- Cyber Logo -->
-      <div class="cyber-logo">
+      <div class="cyber-logo" role="img" aria-label="Clark Foster Portfolio Logo">
         <div class="logo-icon">
-          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <!-- Terminal window -->
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"
+               aria-hidden="true" focusable="false">
             <rect x="10" y="20" width="80" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
             <line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="2"/>
-            <!-- Terminal prompt -->
             <text x="18" y="48" font-family="monospace" font-size="12" fill="currentColor">&gt;_</text>
-            <!-- Code lines -->
             <line x1="35" y1="45" x2="70" y2="45" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             <line x1="35" y1="55" x2="60" y2="55" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             <line x1="35" y1="65" x2="75" y2="65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -32,40 +30,45 @@ import { NavComponent } from '../nav/nav.component';
         <div class="logo-text">
           <span class="logo-prefix">{{ isAuthenticated ? 'root' : 'user' }}&#64;</span><span class="logo-host">portfolio</span>
         </div>
-        <div class="scan-line"></div>
+        <div class="scan-line" aria-hidden="true"></div>
       </div>
 
       <div class="login-card">
-        <h2>Login for Interactive Projects</h2>
-        <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+        <h2 id="login-heading">Login for Interactive Projects</h2>
+        <form (ngSubmit)="onSubmit()" #loginForm="ngForm" aria-labelledby="login-heading">
           <div class="form-group">
             <label for="username">Username</label>
-            <input 
-              type="text" 
-              id="username" 
-              name="username" 
-              [(ngModel)]="credentials.username" 
+            <input
+              type="text"
+              id="username"
+              name="username"
+              [(ngModel)]="credentials.username"
               required
               placeholder="Enter your username"
               class="form-control"
+              autocomplete="username"
+              aria-required="true"
             >
           </div>
           <div class="form-group">
             <label for="password">Password</label>
-            <input 
-              type="password" 
-              id="password" 
-              name="password" 
-              [(ngModel)]="credentials.password" 
+            <input
+              type="password"
+              id="password"
+              name="password"
+              [(ngModel)]="credentials.password"
               required
               placeholder="Enter your password"
               class="form-control"
+              autocomplete="current-password"
+              aria-required="true"
             >
           </div>
-          <div *ngIf="errorMessage" class="error-message">
+          <div *ngIf="errorMessage" class="error-message" role="alert" aria-live="assertive">
             {{ errorMessage }}
           </div>
-          <button type="submit" class="btn-submit" [disabled]="!loginForm.valid || loading">
+          <button type="submit" class="btn-submit" [disabled]="!loginForm.valid || loading"
+                  [attr.aria-busy]="loading">
             {{ loading ? 'Logging in...' : 'Login' }}
           </button>
         </form>
@@ -203,7 +206,7 @@ import { NavComponent } from '../nav/nav.component';
       border: 2px solid rgba(0, 204, 51, 0.4);
       border-radius: 8px;
       backdrop-filter: blur(10px);
-      box-shadow: 
+      box-shadow:
         0 0 20px rgba(0, 204, 51, 0.2),
         inset 0 0 20px rgba(0, 204, 51, 0.05);
       transition: all 0.3s ease;
@@ -212,7 +215,7 @@ import { NavComponent } from '../nav/nav.component';
 
     .cyber-logo:hover {
       border-color: rgba(0, 204, 51, 0.7);
-      box-shadow: 
+      box-shadow:
         0 0 30px rgba(0, 204, 51, 0.4),
         inset 0 0 20px rgba(0, 204, 51, 0.1);
       transform: translateY(-2px);
