@@ -50,13 +50,13 @@ public class AuthService {
      */
     public LoginResponse login(LoginRequest request) {
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(request.username(), request.password())
         );
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
+        UserDetails userDetails = userDetailsService.loadUserByUsername(request.username());
         String token = jwtUtil.generateAccessToken(userDetails);
 
-        User user = findByUsername(request.getUsername());
+        User user = findByUsername(request.username());
 
         return new LoginResponse(token, user.getUsername(), user.getEmail(), user.getFullName());
     }
@@ -73,10 +73,10 @@ public class AuthService {
         validateUniqueCredentials(request);
 
         User user = new User();
-        user.setUsername(request.getUsername());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setEmail(request.getEmail());
-        user.setFullName(request.getFullName());
+        user.setUsername(request.username());
+        user.setPassword(passwordEncoder.encode(request.password()));
+        user.setEmail(request.email());
+        user.setFullName(request.fullName());
 
         return userRepository.save(user);
     }
@@ -94,12 +94,12 @@ public class AuthService {
     }
 
     private void validateUniqueCredentials(RegisterRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new DuplicateResourceException("User", "username", request.getUsername());
+        if (userRepository.existsByUsername(request.username())) {
+            throw new DuplicateResourceException("User", "username", request.username());
         }
 
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new DuplicateResourceException("User", "email", request.getEmail());
+        if (userRepository.existsByEmail(request.email())) {
+            throw new DuplicateResourceException("User", "email", request.email());
         }
     }
 }

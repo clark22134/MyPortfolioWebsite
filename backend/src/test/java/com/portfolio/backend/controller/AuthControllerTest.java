@@ -121,9 +121,7 @@ class AuthControllerTest {
 
     @Test
     void login_WithValidCredentials_ShouldReturnUserInfoAndSetCookies() throws Exception {
-        LoginRequest loginRequest = new LoginRequest();
-        loginRequest.setUsername("testuser");
-        loginRequest.setPassword("Password123!");
+        LoginRequest loginRequest = new LoginRequest("testuser", "Password123!");
 
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -136,9 +134,7 @@ class AuthControllerTest {
 
     @Test
     void login_WithInvalidCredentials_ShouldReturnUnauthorized() throws Exception {
-        LoginRequest loginRequest = new LoginRequest();
-        loginRequest.setUsername("wronguser");
-        loginRequest.setPassword("WrongPassword123!");
+        LoginRequest loginRequest = new LoginRequest("wronguser", "WrongPassword123!");
 
         when(authService.login(any(LoginRequest.class)))
                 .thenThrow(new RuntimeException("Invalid credentials"));
@@ -152,9 +148,7 @@ class AuthControllerTest {
     
     @Test
     void login_WhenRateLimited_ShouldReturnTooManyRequests() throws Exception {
-        LoginRequest loginRequest = new LoginRequest();
-        loginRequest.setUsername("testuser");
-        loginRequest.setPassword("Password123!");
+        LoginRequest loginRequest = new LoginRequest("testuser", "Password123!");
 
         when(rateLimitingService.isRateLimited(anyString())).thenReturn(true);
         when(rateLimitingService.getSecondsUntilUnlock(anyString())).thenReturn(1800L);
@@ -168,11 +162,7 @@ class AuthControllerTest {
 
     @Test
     void register_WithValidData_ShouldReturnSuccess() throws Exception {
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("newuser");
-        registerRequest.setPassword("Password123!");
-        registerRequest.setEmail("newuser@example.com");
-        registerRequest.setFullName("New User");
+        RegisterRequest registerRequest = new RegisterRequest("newuser", "Password123!", "newuser@example.com", "New User");
 
         User newUser = new User();
         newUser.setId(1L);
@@ -191,8 +181,7 @@ class AuthControllerTest {
 
     @Test
     void register_WithMissingFields_ShouldReturnBadRequest() throws Exception {
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("newuser");
+        RegisterRequest registerRequest = new RegisterRequest("newuser", null, null, null);
         // Missing password and email - validation should fail
 
         mockMvc.perform(post("/api/auth/register")
@@ -203,11 +192,8 @@ class AuthControllerTest {
     
     @Test
     void register_WithWeakPassword_ShouldReturnBadRequest() throws Exception {
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("newuser");
-        registerRequest.setPassword("weak"); // Too short and missing requirements
-        registerRequest.setEmail("newuser@example.com");
-        registerRequest.setFullName("New User");
+        RegisterRequest registerRequest = new RegisterRequest("newuser", "weak", "newuser@example.com", "New User");
+        // Too short and missing requirements
 
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -217,11 +203,8 @@ class AuthControllerTest {
     
     @Test
     void register_WithInvalidEmail_ShouldReturnBadRequest() throws Exception {
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("newuser");
-        registerRequest.setPassword("Password123!");
-        registerRequest.setEmail("not-an-email"); // Invalid email format
-        registerRequest.setFullName("New User");
+        RegisterRequest registerRequest = new RegisterRequest("newuser", "Password123!", "not-an-email", "New User");
+        // Invalid email format
 
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
