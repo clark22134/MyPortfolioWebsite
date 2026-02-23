@@ -42,9 +42,9 @@ public class EmailService {
         try {
             SimpleMailMessage message = createContactMessage(request);
             mailSender.send(message);
-            log.info("Contact email sent successfully from: {}", request.getEmail());
+            log.info("Contact email sent successfully from: {}", request.email());
         } catch (Exception e) {
-            log.error("Failed to send contact email from: {}", request.getEmail(), e);
+            log.error("Failed to send contact email from: {}", request.email(), e);
             throw new EmailSendException("Failed to send email", e);
         }
     }
@@ -53,9 +53,9 @@ public class EmailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(fromEmail);
         message.setTo(contactEmail);
-        message.setSubject(EMAIL_SUBJECT_PREFIX + request.getSubject());
+        message.setSubject(EMAIL_SUBJECT_PREFIX + request.subject());
         message.setText(buildEmailBody(request));
-        message.setReplyTo(request.getEmail());
+        message.setReplyTo(request.email());
         return message;
     }
 
@@ -70,10 +70,10 @@ public class EmailService {
                 
                 Message:
                 %s""",
-                request.getName(),
-                request.getEmail(),
-                request.getSubject(),
-                request.getMessage()
+                request.name(),
+                request.email(),
+                request.subject(),
+                request.message()
         );
     }
 }

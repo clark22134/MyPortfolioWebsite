@@ -1,15 +1,8 @@
 package com.portfolio.backend.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class LoginResponse {
-    private String token;
-    private String username;
-    private String email;
-    private String fullName;
-}
+public record LoginResponse(
+    String token,
+    String username,
+    String email,
+    String fullName
+) {}

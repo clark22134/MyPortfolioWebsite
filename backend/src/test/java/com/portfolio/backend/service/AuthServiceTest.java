@@ -62,9 +62,7 @@ class AuthServiceTest {
         testUser.setEmail("test@example.com");
         testUser.setFullName("Test User");
 
-        loginRequest = new LoginRequest();
-        loginRequest.setUsername("testuser");
-        loginRequest.setPassword("password123");
+        loginRequest = new LoginRequest("testuser", "password123");
     }
 
     @Test
@@ -83,9 +81,9 @@ class AuthServiceTest {
 
         // Assert
         assertThat(response).isNotNull();
-        assertThat(response.getToken()).isEqualTo("mock-jwt-token");
-        assertThat(response.getUsername()).isEqualTo("testuser");
-        assertThat(response.getEmail()).isEqualTo("test@example.com");
+        assertThat(response.token()).isEqualTo("mock-jwt-token");
+        assertThat(response.username()).isEqualTo("testuser");
+        assertThat(response.email()).isEqualTo("test@example.com");
         verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
         verify(jwtUtil, times(1)).generateAccessToken(userDetails);
     }
@@ -108,11 +106,7 @@ class AuthServiceTest {
     @Test
     void register_WithNewUsername_ShouldSaveUser() {
         // Arrange
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("newuser");
-        registerRequest.setPassword("password123");
-        registerRequest.setEmail("new@example.com");
-        registerRequest.setFullName("New User");
+        RegisterRequest registerRequest = new RegisterRequest("newuser", "password123", "new@example.com", "New User");
 
         User savedUser = new User();
         savedUser.setId(1L);
@@ -141,10 +135,7 @@ class AuthServiceTest {
     @Test
     void register_WithExistingUsername_ShouldThrowException() {
         // Arrange
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("existinguser");
-        registerRequest.setPassword("password123");
-        registerRequest.setEmail("new@example.com");
+        RegisterRequest registerRequest = new RegisterRequest("existinguser", "password123", "new@example.com", null);
 
         when(userRepository.existsByUsername("existinguser")).thenReturn(true);
 
@@ -160,10 +151,7 @@ class AuthServiceTest {
     @Test
     void register_WithExistingEmail_ShouldThrowException() {
         // Arrange
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("newuser");
-        registerRequest.setPassword("password123");
-        registerRequest.setEmail("existing@example.com");
+        RegisterRequest registerRequest = new RegisterRequest("newuser", "password123", "existing@example.com", null);
 
         when(userRepository.existsByUsername("newuser")).thenReturn(false);
         when(userRepository.existsByEmail("existing@example.com")).thenReturn(true);

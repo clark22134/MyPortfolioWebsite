@@ -69,7 +69,7 @@ public class AuthController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
 
-        String rateLimitKey = createRateLimitKey(httpRequest, request.getUsername());
+        String rateLimitKey = createRateLimitKey(httpRequest, request.username());
 
         if (rateLimitingService.isRateLimited(rateLimitKey)) {
             return createRateLimitResponse(rateLimitKey);
@@ -176,10 +176,10 @@ public class AuthController {
         authService.login(request);
         rateLimitingService.clearAttempts(rateLimitKey);
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
+        UserDetails userDetails = userDetailsService.loadUserByUsername(request.username());
         String accessToken = jwtUtil.generateAccessToken(userDetails);
 
-        User user = authService.findByUsername(request.getUsername());
+        User user = authService.findByUsername(request.username());
         RefreshToken refreshToken = createAndStoreRefreshToken(user, httpRequest);
 
         setAuthCookies(httpResponse, accessToken, refreshToken.getToken());
