@@ -34,7 +34,7 @@ import { RouterLink } from '@angular/router';
         <h3>Technology Stack</h3>
         <div class="tech-tags">
           <span>Angular 18</span>
-          <span>Spring Boot 3</span>
+          <span>Spring Boot 4</span>
           <span>Monaco Editor</span>
           <span>Docker</span>
           <span>Sandboxed Execution</span>

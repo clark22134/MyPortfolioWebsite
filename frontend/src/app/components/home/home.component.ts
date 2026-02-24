@@ -1,8 +1,8 @@
 import { environment } from './../../environments/environment.prod';
-import { Component, OnInit, AfterViewInit, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { trigger, state, style, transition, animate } from '@angular/animations';
+
 import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
 import { NavComponent } from '../nav/nav.component';
@@ -12,41 +12,11 @@ import { AuthService } from '../../services/auth.service';
   selector: 'app-home',
   standalone: true,
   imports: [CommonModule, RouterModule, NavComponent],
-  animations: [
-    trigger('terminalFade', [
-      state('void', style({ opacity: 1 })),
-      transition(':leave', [
-        animate('800ms ease-out', style({ opacity: 0 }))
-      ])
-    ])
-  ],
+
   template: `
     <app-nav></app-nav>
 
-    <!-- Terminal Loading Screen -->
-    <div class="terminal-loader" *ngIf="showTerminal" [@terminalFade]
-         role="status" aria-label="Loading portfolio" aria-live="polite">
-      <div class="terminal-network-bg" aria-hidden="true"></div>
-      <div class="terminal-window" aria-hidden="true">
-        <div class="terminal-header">
-          <div class="terminal-buttons">
-            <span class="btn-close"></span>
-            <span class="btn-minimize"></span>
-            <span class="btn-maximize"></span>
-          </div>
-          <div class="terminal-title">root&#64;kali:~</div>
-        </div>
-        <div class="terminal-body">
-          <div class="terminal-line" *ngFor="let line of terminalLines">
-            <span [innerHTML]="line"></span>
-          </div>
-          <div class="terminal-cursor" *ngIf="showCursor">█</div>
-        </div>
-      </div>
-      <span class="sr-only">Portfolio is loading, please wait.</span>
-    </div>
-
-    <div class="home-container" *ngIf="!showTerminal">
+    <div class="home-container">
       <!-- Cyber Logo -->
       <div class="cyber-logo" role="img" aria-label="Clark Foster Portfolio Logo - Terminal icon">
         <div class="logo-icon">
@@ -168,7 +138,7 @@ import { AuthService } from '../../services/auth.service';
         </p>
         <ul>
           <li>Angular 21 with TypeScript 5.9</li>
-          <li>Spring Boot 3.2.1 with Java 21 (LTS)</li>
+          <li>Spring Boot 4.0 with Java 25 (LTS)</li>
           <li>RESTful API architecture</li>
           <li>JWT Authentication & Spring Security</li>
           <li>WCAG 2.1 AA Compliance & Section 508</li>
@@ -189,142 +159,8 @@ import { AuthService } from '../../services/auth.service';
     </div>
   `,
   styles: [`
-    /* Terminal Loader Styles */
-    .terminal-loader {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #0a0a0a;
-      z-index: 9999;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .terminal-network-bg {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image:
-        linear-gradient(rgba(0, 204, 51, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 204, 51, 0.05) 1px, transparent 1px),
-        radial-gradient(circle at 20% 30%, rgba(0, 204, 51, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(0, 204, 51, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, rgba(0, 204, 51, 0.05) 0%, transparent 70%);
-      background-size: 50px 50px, 50px 50px, 100% 100%, 100% 100%, 100% 100%;
-      animation: networkPulse 4s ease-in-out infinite;
-      opacity: 0.6;
-    }
-
-    @keyframes networkPulse {
-      0%, 100% {
-        opacity: 0.4;
-      }
-      50% {
-        opacity: 0.8;
-      }
-    }
-
-    .terminal-window {
-      width: 90%;
-      max-width: 800px;
-      background: rgba(20, 20, 20, 0.95);
-      border-radius: 8px;
-      box-shadow:
-        0 0 30px rgba(0, 204, 51, 0.3),
-        0 0 60px rgba(0, 204, 51, 0.2);
-      border: 2px solid rgba(0, 204, 51, 0.4);
-      overflow: hidden;
-      backdrop-filter: blur(10px);
-      position: relative;
-      z-index: 1;
-    }
-
-    .terminal-header {
-      background: rgba(40, 40, 40, 0.9);
-      padding: 0.75rem 1rem;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      border-bottom: 1px solid rgba(0, 204, 51, 0.3);
-    }
-
-    .terminal-buttons {
-      display: flex;
-      gap: 0.5rem;
-    }
-
-    .terminal-buttons span {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-
-    .btn-close {
-      background: #ff5f56;
-      box-shadow: 0 0 5px rgba(255, 95, 86, 0.5);
-    }
-
-    .btn-minimize {
-      background: #ffbd2e;
-      box-shadow: 0 0 5px rgba(255, 189, 46, 0.5);
-    }
-
-    .btn-maximize {
-      background: #27c93f;
-      box-shadow: 0 0 5px rgba(39, 201, 63, 0.5);
-    }
-
-    .terminal-title {
-      color: #00cc33;
-      font-family: 'Courier New', monospace;
-      font-size: 0.9rem;
-      font-weight: 600;
-      text-shadow: 0 0 5px rgba(0, 204, 51, 0.5);
-    }
-
-    .terminal-body {
-      padding: 1.5rem;
-      font-family: 'Courier New', monospace;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      min-height: 400px;
-      color: #00cc33;
-    }
-
-    .terminal-line {
-      margin-bottom: 0.5rem;
-      animation: terminalTyping 0.1s ease-in;
-    }
-
-    @keyframes terminalTyping {
-      from {
-        opacity: 0;
-      }
-      to {
-        opacity: 1;
-      }
-    }
-
-    .terminal-cursor {
-      display: inline-block;
-      animation: cursorBlink 0.8s infinite;
-      color: #00cc33;
-      margin-left: 4px;
-    }
-
-    @keyframes cursorBlink {
-      0%, 50% {
-        opacity: 1;
-      }
-      51%, 100% {
-        opacity: 0;
-      }
+    :host {
+      display: block;
     }
 
     .home-container {
@@ -1294,7 +1130,7 @@ import { AuthService } from '../../services/auth.service';
     }
   `]
 })
-export class HomeComponent implements OnInit, AfterViewInit {
+export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   featuredProjects: Project[] = [];
   scrolled = false;
   projectsVisible = false;
@@ -1304,11 +1140,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
   isTyping = true;
   private fullText = 'WELCOME';
   private typingSpeed = 150;
-
-  // Terminal loading screen properties
-  showTerminal = true;
-  showCursor = true;
-  terminalLines: string[] = [];
+  private terminalListener: (() => void) | null = null;
 
   skillCategories = [
     {
@@ -1370,52 +1202,39 @@ export class HomeComponent implements OnInit, AfterViewInit {
       error: (err: Error) => console.error('Error loading featured projects', err)
     });
 
-    // Always start terminal boot sequence on page load
-    this.startTerminalSequence();
+    // Listen for the index.html terminal animation to complete
+    this.waitForTerminalComplete();
   }
 
-  private startTerminalSequence(): void {
-    const lines = [
-      '<span style="color: #808080;">root@kali</span>:<span style="color: #5555ff;">~</span>$ <span style="color: #fff;">./welcome.sh --init --security-mode=enhanced</span>',
-      '',
-      '<span style="color: #00cc33;">[✓]</span> Initializing security protocols...',
-      '<span style="color: #00cc33;">[✓]</span> Loading network modules...',
-      '<span style="color: #00cc33;">[✓]</span> Establishing secure connection...',
-      '<span style="color: #00cc33;">[✓]</span> Scanning for vulnerabilities... <span style="color: #808080;">0 threats detected</span>',
-      '<span style="color: #00cc33;">[✓]</span> Configuring firewall rules...',
-      '<span style="color: #00cc33;">[✓]</span> Starting web services...',
-      '',
-      '<span style="color: #00cc33;">╔═══════════════════════════════════════╗</span>',
-      '<span style="color: #00cc33;">║</span>  <span style="color: #fff;">PORTFOLIO SYSTEM v3.0</span>           <span style="color: #00cc33;">║</span>',
-      '<span style="color: #00cc33;">║</span>  Status: <span style="color: #00cc33;">ONLINE</span>                   <span style="color: #00cc33;">║</span>',
-      '<span style="color: #00cc33;">║</span>  Security: <span style="color: #00cc33;">ENABLED</span>                <span style="color: #00cc33;">║</span>',
-      '<span style="color: #00cc33;">╚═══════════════════════════════════════╝</span>',
-      '',
-      '<span style="color: #ffbd2e;">⚡</span> <span style="color: #fff;">Launching interface...</span>',
-      ''
-    ];
+  /**
+   * Wait for the vanilla JS terminal animation in index.html to finish,
+   * then reveal content and start the welcome typing animation.
+   */
+  private waitForTerminalComplete(): void {
+    const onComplete = () => {
+      this.projectsVisible = true;
+      this.skillsVisible = true;
+      this.aboutVisible = true;
+      setTimeout(() => this.typeText(), 100);
+    };
 
-    let currentIndex = 0;
-    const typeInterval = setInterval(() => {
-      if (currentIndex < lines.length) {
-        this.terminalLines.push(lines[currentIndex]);
-        currentIndex++;
-      } else {
-        clearInterval(typeInterval);
-        this.showCursor = false;
+    // Check if terminal already finished (e.g., Angular bootstrapped after terminal)
+    if ((window as any).__terminalComplete) {
+      onComplete();
+    } else {
+      const handler = () => {
+        onComplete();
+        window.removeEventListener('terminal-complete', handler);
+      };
+      this.terminalListener = handler;
+      window.addEventListener('terminal-complete', handler);
+    }
+  }
 
-        // Hide terminal and show main site after a delay
-        setTimeout(() => {
-          this.showTerminal = false;
-          // Make all sections visible immediately after terminal
-          this.projectsVisible = true;
-          this.skillsVisible = true;
-          this.aboutVisible = true;
-          // Start typing animation for welcome text
-          setTimeout(() => this.typeText(), 100);
-        }, 800);
-      }
-    }, 200);
+  ngOnDestroy(): void {
+    if (this.terminalListener) {
+      window.removeEventListener('terminal-complete', this.terminalListener);
+    }
   }
 
   private typeText(): void {

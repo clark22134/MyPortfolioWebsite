@@ -213,8 +213,10 @@ html.screen-reader-mode {
 
 /* ============================================
    ARIA LIVE REGIONS (for screen reader announcements)
+   Only hide the dedicated announcement regions, not all aria-live elements
    ============================================ */
-[aria-live] {
+#aria-live-polite,
+#aria-live-assertive {
   position: absolute;
   width: 1px;
   height: 1px;
