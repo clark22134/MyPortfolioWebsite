@@ -94,9 +94,12 @@ html.high-contrast {
   }
 
   /* Text color overrides - ensure >= 4.5:1 contrast ratio */
-  p, span, li, td, th, label, div {
+  /* Scoped to app-root to avoid overriding the terminal loader colors */
+  app-root p, app-root span, app-root li, app-root td, app-root th, app-root label, app-root div {
     color: var(--a11y-text) !important;
   }
+
+
 
   /* Muted text gets brighter in high contrast */
   .description,
@@ -241,5 +244,39 @@ html.screen-reader-mode {
   body {
     color: #ffffff !important;
   }
+}
+
+/* ============================================
+   KALI TERMINAL LOADER COLOR PROTECTION
+   Ensures no global styles override the terminal's
+   color scheme (loaded in index.html before Angular)
+   ============================================ */
+#kali-terminal-loader,
+#kali-terminal-loader * {
+  color: inherit;
+}
+#kali-terminal-body {
+  color: #00cc33 !important;
+}
+#kali-terminal-body .line {
+  color: #00cc33 !important;
+}
+#kali-terminal-body .t-green {
+  color: #00cc33 !important;
+}
+#kali-terminal-body .t-white {
+  color: #ffffff !important;
+}
+#kali-terminal-body .t-grey {
+  color: #808080 !important;
+}
+#kali-terminal-body .t-blue {
+  color: #5555ff !important;
+}
+#kali-terminal-body .t-yellow {
+  color: #ffbd2e !important;
+}
+#kali-terminal-header .title {
+  color: #00cc33 !important;
 }
 

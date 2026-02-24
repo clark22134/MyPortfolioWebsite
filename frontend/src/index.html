@@ -116,6 +116,13 @@
     @media (max-width: 480px) {
       #kali-terminal-body { font-size: 0.65rem; line-height: 1.4; }
     }
+    /* Terminal color classes - use !important to override any global rules */
+    #kali-terminal-body .t-green { color: #00cc33 !important; }
+    #kali-terminal-body .t-white { color: #ffffff !important; }
+    #kali-terminal-body .t-grey { color: #808080 !important; }
+    #kali-terminal-body .t-blue { color: #5555ff !important; }
+    #kali-terminal-body .t-yellow { color: #ffbd2e !important; }
+    #kali-terminal-body .line { color: #00cc33 !important; }
     @media (prefers-reduced-motion: reduce) {
       #kali-terminal-loader { transition-duration: 0.01ms !important; }
       #kali-terminal-network-bg { animation: none !important; }
@@ -159,22 +166,22 @@
       if (!loader || !body) return;
 
       var lines = [
-        '<span style="color:#808080">root@kali</span>:<span style="color:#5555ff">~</span>$ <span style="color:#fff">./welcome.sh --init --security-mode=enhanced</span>',
+        'root@kali:~$ ./welcome.sh --init --security-mode=enhanced',
         '',
-        '<span style="color:#00cc33">[✓]</span> Initializing security protocols...',
-        '<span style="color:#00cc33">[✓]</span> Loading network modules...',
-        '<span style="color:#00cc33">[✓]</span> Establishing secure connection...',
-        '<span style="color:#00cc33">[✓]</span> Scanning for vulnerabilities... <span style="color:#808080">0 threats detected</span>',
-        '<span style="color:#00cc33">[✓]</span> Configuring firewall rules...',
-        '<span style="color:#00cc33">[✓]</span> Starting web services...',
+        '[✓] Initializing security protocols...',
+        '[✓] Loading network modules...',
+        '[✓] Establishing secure connection...',
+        '[✓] Scanning for vulnerabilities... 0 threats detected',
+        '[✓] Configuring firewall rules...',
+        '[✓] Starting web services...',
         '',
-        '<span style="color:#00cc33">╔═══════════════════════════════════════╗</span>',
-        '<span style="color:#00cc33">║</span>  <span style="color:#fff">PORTFOLIO SYSTEM v3.0</span>           <span style="color:#00cc33">║</span>',
-        '<span style="color:#00cc33">║</span>  Status: <span style="color:#00cc33">ONLINE</span>                   <span style="color:#00cc33">║</span>',
-        '<span style="color:#00cc33">║</span>  Security: <span style="color:#00cc33">ENABLED</span>                <span style="color:#00cc33">║</span>',
-        '<span style="color:#00cc33">╚═══════════════════════════════════════╝</span>',
+        '╔═══════════════════════════════════════╗',
+        '║  PORTFOLIO SYSTEM v3.0                ║',
+        '║  Status: ONLINE                       ║',
+        '║  Security: ENABLED                    ║',
+        '╚═══════════════════════════════════════╝',
         '',
-        '<span style="color:#ffbd2e">⚡</span> <span style="color:#fff">Launching interface...</span>',
+        '⚡ Launching interface...',
         ''
       ];
 
@@ -189,7 +196,7 @@
         if (i < lines.length) {
           var div = document.createElement('div');
           div.className = 'line';
-          div.innerHTML = lines[i] || '&nbsp;';
+          div.textContent = lines[i] || '\u00A0';
           body.insertBefore(div, cursor);
           i++;
         } else {
