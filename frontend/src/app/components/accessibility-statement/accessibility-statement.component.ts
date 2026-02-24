@@ -45,8 +45,7 @@ import { AuthService } from '../../services/auth.service';
             Clark Foster's portfolio is committed to ensuring digital accessibility for people with disabilities.
             We continually improve the user experience for everyone and apply the relevant accessibility standards
             to ensure we provide equal access to all users. This commitment aligns with our work supporting
-            federal applications including Library of Congress XPRESS IOSS and webreads systems, where
-            Section 508 compliance and WCAG adherence are foundational requirements.
+            federal applications where Section 508 compliance and WCAG adherence are foundational requirements.
           </p>
         </section>
 

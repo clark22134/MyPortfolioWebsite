@@ -27,7 +27,7 @@
 
 ## Overview
 
-This document describes the comprehensive accessibility implementation for the Clark Foster portfolio website, an Angular 21 single-page application with a cyberpunk/terminal aesthetic. The goal is to demonstrate WCAG 2.1 Level AA compliance while maintaining the visual design integrity, suitable for federal accessibility work including Library of Congress XPRESS IOSS and webreads applications.
+This document describes the comprehensive accessibility implementation for the Clark Foster portfolio website, an Angular 21 single-page application. The goal is to demonstrate WCAG 2.1 Level AA compliance suitable for federal accessibility work while maintaining the visual design integrity.
 
 ### Key Deliverables
 
