@@ -1,8 +1,8 @@
 import { environment } from './../../environments/environment.prod';
-import { Component, OnInit, AfterViewInit, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { trigger, state, style, transition, animate } from '@angular/animations';
+
 import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
 import { NavComponent } from '../nav/nav.component';
@@ -12,43 +12,16 @@ import { AuthService } from '../../services/auth.service';
   selector: 'app-home',
   standalone: true,
   imports: [CommonModule, RouterModule, NavComponent],
-  animations: [
-    trigger('terminalFade', [
-      state('void', style({ opacity: 1 })),
-      transition(':leave', [
-        animate('800ms ease-out', style({ opacity: 0 }))
-      ])
-    ])
-  ],
+
   template: `
     <app-nav></app-nav>
 
-    <!-- Terminal Loading Screen -->
-    <div class="terminal-loader" *ngIf="showTerminal" [@terminalFade]>
-      <div class="terminal-network-bg"></div>
-      <div class="terminal-window">
-        <div class="terminal-header">
-          <div class="terminal-buttons">
-            <span class="btn-close"></span>
-            <span class="btn-minimize"></span>
-            <span class="btn-maximize"></span>
-          </div>
-          <div class="terminal-title">root&#64;kali:~</div>
-        </div>
-        <div class="terminal-body">
-          <div class="terminal-line" *ngFor="let line of terminalLines">
-            <span [innerHTML]="line"></span>
-          </div>
-          <div class="terminal-cursor" *ngIf="showCursor">█</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="home-container" *ngIf="!showTerminal">
+    <div class="home-container">
       <!-- Cyber Logo -->
-      <div class="cyber-logo">
+      <div class="cyber-logo" role="img" aria-label="Clark Foster Portfolio Logo - Terminal icon">
         <div class="logo-icon">
-          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"
+               aria-hidden="true" focusable="false" role="img">
             <!-- Terminal window -->
             <rect x="10" y="20" width="80" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
             <line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="2"/>
@@ -63,20 +36,20 @@ import { AuthService } from '../../services/auth.service';
         <div class="logo-text">
           <span class="logo-prefix">{{ isAuthenticated ? 'root' : 'user' }}&#64;</span><span class="logo-host">portfolio</span>
         </div>
-        <div class="scan-line"></div>
+        <div class="scan-line" aria-hidden="true"></div>
       </div>
 
-      <!-- Animated Background -->
-      <div class="animated-bg">
+      <!-- Animated Background (decorative) -->
+      <div class="animated-bg" aria-hidden="true" role="presentation">
         <div class="circle circle-1"></div>
         <div class="circle circle-2"></div>
         <div class="circle circle-3"></div>
       </div>
 
-      <section class="hero" [class.scrolled]="scrolled">
+      <section class="hero" [class.scrolled]="scrolled" aria-label="Welcome banner">
         <div class="hero-content fade-in">
           <h1 class="hero-title">
-            <span class="typed-text">{{ typedText }}</span><span class="cursor" [class.typing]="isTyping">|</span>
+            <span class="typed-text" aria-label="Welcome">{{ typedText }}</span><span class="cursor" [class.typing]="isTyping" aria-hidden="true">|</span>
           </h1>
           <p class="hero-subtitle">Full Stack Developer & Security Engineer</p>
           <p class="hero-intro">
@@ -84,15 +57,19 @@ import { AuthService } from '../../services/auth.service';
             Passionate about cloud architecture, DevSecOps practices, and creating
             seamless user experiences. Let's connect and build something amazing together.
           </p>
-          <div class="hero-buttons">
+          <div class="hero-buttons" role="group" aria-label="Quick navigation links">
             <div class="button-row">
               <a routerLink="/projects" class="btn btn-primary">Angular/Java Projects</a>
               <a routerLink="/admin/interactive-projects" class="btn btn-outline">AI Projects</a>
             </div>
             <div class="button-row">
               <a routerLink="/contact" class="btn btn-primary">Contact Me</a>
-              <a href="/resume.html" target="_blank" class="btn btn-secondary">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <a routerLink="/accessibility" class="btn btn-outline">♿ Accessibility</a>
+            </div>
+            <div class="button-row">
+              <a href="/resume.html" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" aria-label="Resume (opens in new tab)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     aria-hidden="true" focusable="false">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
                   <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -101,8 +78,9 @@ import { AuthService } from '../../services/auth.service';
                 </svg>
                 Resume
               </a>
-              <a href="https://github.com/clark22134" target="_blank" class="btn btn-outline">
-                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+              <a href="https://github.com/clark22134" target="_blank" rel="noopener noreferrer" class="btn btn-outline" aria-label="GitHub profile (opens in new tab)">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"
+                     aria-hidden="true" focusable="false">
                   <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
                 </svg>
                 GitHub
@@ -110,12 +88,12 @@ import { AuthService } from '../../services/auth.service';
             </div>
           </div>
         </div>
-        <div class="scroll-indicator">
+        <div class="scroll-indicator" aria-hidden="true">
           <div class="mouse"></div>
         </div>
       </section>
 
-      <section class="about-me" #aboutMeSection [class.visible]="projectsVisible">
+      <section class="about-me" #aboutMeSection [class.visible]="projectsVisible" aria-label="About Me">
         <h2 class="section-title">About Me</h2>
         <div class="about-me-content">
           <p>
@@ -140,11 +118,11 @@ import { AuthService } from '../../services/auth.service';
         </div>
       </section>
 
-      <section class="skills" #skillsSection [class.visible]="skillsVisible">
+      <section class="skills" #skillsSection [class.visible]="skillsVisible" aria-label="Skills and expertise">
         <h2 class="section-title">Skills & Expertise</h2>
-        <div class="skills-grid">
-          <div class="skill-category" *ngFor="let category of skillCategories; let i = index" [style.animation-delay]="i * 0.1 + 's'">
-            <div class="skill-icon">{{ category.icon }}</div>
+        <div class="skills-grid" role="list" aria-label="Skill categories">
+          <div class="skill-category" *ngFor="let category of skillCategories; let i = index" [style.animation-delay]="i * 0.1 + 's'" role="listitem">
+            <div class="skill-icon" aria-hidden="true">{{ category.icon }}</div>
             <h3>{{ category.title }}</h3>
             <div class="skill-items">
               <span *ngFor="let skill of category.skills" class="skill-tag">{{ skill }}</span>
@@ -153,16 +131,20 @@ import { AuthService } from '../../services/auth.service';
         </div>
       </section>
 
-      <section class="about" #aboutSection [class.visible]="aboutVisible">
+      <section class="about" #aboutSection [class.visible]="aboutVisible" aria-label="About this portfolio">
         <h2 class="section-title">About This Portfolio</h2>
         <p>
           This portfolio website was built using the following technologies:
         </p>
         <ul>
-          <li>Angular 19 with TypeScript</li>
-          <li>Spring Boot 3.2.1 with Java 21 (LTS)</li>
+          <li>Angular 21 with TypeScript 5.9</li>
+          <li>Spring Boot 4.0 with Java 25 (LTS)</li>
           <li>RESTful API architecture</li>
           <li>JWT Authentication & Spring Security</li>
+          <li>WCAG 2.1 AA Compliance & Section 508</li>
+          <li>WAI-ARIA 1.2 Landmarks, Roles & Live Regions</li>
+          <li>Automated Accessibility Testing (axe-core & Puppeteer)</li>
+          <li>Web Speech API (Text-to-Speech)</li>
           <li>AWS ECS Fargate (Serverless Containers)</li>
           <li>AWS Application Load Balancer (ALB)</li>
           <li>AWS Route 53 (DNS Management)</li>
@@ -177,142 +159,8 @@ import { AuthService } from '../../services/auth.service';
     </div>
   `,
   styles: [`
-    /* Terminal Loader Styles */
-    .terminal-loader {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #0a0a0a;
-      z-index: 9999;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .terminal-network-bg {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image:
-        linear-gradient(rgba(0, 204, 51, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 204, 51, 0.05) 1px, transparent 1px),
-        radial-gradient(circle at 20% 30%, rgba(0, 204, 51, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(0, 204, 51, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, rgba(0, 204, 51, 0.05) 0%, transparent 70%);
-      background-size: 50px 50px, 50px 50px, 100% 100%, 100% 100%, 100% 100%;
-      animation: networkPulse 4s ease-in-out infinite;
-      opacity: 0.6;
-    }
-
-    @keyframes networkPulse {
-      0%, 100% {
-        opacity: 0.4;
-      }
-      50% {
-        opacity: 0.8;
-      }
-    }
-
-    .terminal-window {
-      width: 90%;
-      max-width: 800px;
-      background: rgba(20, 20, 20, 0.95);
-      border-radius: 8px;
-      box-shadow:
-        0 0 30px rgba(0, 204, 51, 0.3),
-        0 0 60px rgba(0, 204, 51, 0.2);
-      border: 2px solid rgba(0, 204, 51, 0.4);
-      overflow: hidden;
-      backdrop-filter: blur(10px);
-      position: relative;
-      z-index: 1;
-    }
-
-    .terminal-header {
-      background: rgba(40, 40, 40, 0.9);
-      padding: 0.75rem 1rem;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      border-bottom: 1px solid rgba(0, 204, 51, 0.3);
-    }
-
-    .terminal-buttons {
-      display: flex;
-      gap: 0.5rem;
-    }
-
-    .terminal-buttons span {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-
-    .btn-close {
-      background: #ff5f56;
-      box-shadow: 0 0 5px rgba(255, 95, 86, 0.5);
-    }
-
-    .btn-minimize {
-      background: #ffbd2e;
-      box-shadow: 0 0 5px rgba(255, 189, 46, 0.5);
-    }
-
-    .btn-maximize {
-      background: #27c93f;
-      box-shadow: 0 0 5px rgba(39, 201, 63, 0.5);
-    }
-
-    .terminal-title {
-      color: #00cc33;
-      font-family: 'Courier New', monospace;
-      font-size: 0.9rem;
-      font-weight: 600;
-      text-shadow: 0 0 5px rgba(0, 204, 51, 0.5);
-    }
-
-    .terminal-body {
-      padding: 1.5rem;
-      font-family: 'Courier New', monospace;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      min-height: 400px;
-      color: #00cc33;
-    }
-
-    .terminal-line {
-      margin-bottom: 0.5rem;
-      animation: terminalTyping 0.1s ease-in;
-    }
-
-    @keyframes terminalTyping {
-      from {
-        opacity: 0;
-      }
-      to {
-        opacity: 1;
-      }
-    }
-
-    .terminal-cursor {
-      display: inline-block;
-      animation: cursorBlink 0.8s infinite;
-      color: #00cc33;
-      margin-left: 4px;
-    }
-
-    @keyframes cursorBlink {
-      0%, 50% {
-        opacity: 1;
-      }
-      51%, 100% {
-        opacity: 0;
-      }
+    :host {
+      display: block;
     }
 
     .home-container {
@@ -1282,7 +1130,7 @@ import { AuthService } from '../../services/auth.service';
     }
   `]
 })
-export class HomeComponent implements OnInit, AfterViewInit {
+export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   featuredProjects: Project[] = [];
   scrolled = false;
   projectsVisible = false;
@@ -1292,17 +1140,13 @@ export class HomeComponent implements OnInit, AfterViewInit {
   isTyping = true;
   private fullText = 'WELCOME';
   private typingSpeed = 150;
-
-  // Terminal loading screen properties
-  showTerminal = true;
-  showCursor = true;
-  terminalLines: string[] = [];
+  private terminalListener: (() => void) | null = null;
 
   skillCategories = [
     {
       icon: '💻',
       title: 'Frontend Development',
-      skills: ['Angular', 'TypeScript', 'HTML/CSS', 'SCSS', 'Responsive Design']
+      skills: ['Angular', 'TypeScript', 'HTML/CSS', 'SCSS', 'Responsive Design', 'WAI-ARIA 1.2']
     },
     {
       icon: '⚙️',
@@ -1317,7 +1161,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     {
       icon: '🔧',
       title: 'DevSecOps & CI/CD',
-      skills: ['GitHub Actions', 'SonarQube', 'Trivy', 'Docker', 'Linux/Windows', 'GitHub', 'Agile']
+      skills: ['GitHub Actions', 'SonarQube', 'Trivy', 'Docker', 'Linux/Windows', 'GitHub', 'Agile', 'axe-core']
     },
     {
       icon: '🤖',
@@ -1333,6 +1177,11 @@ export class HomeComponent implements OnInit, AfterViewInit {
       icon: '🔒',
       title: 'Cyber Security',
       skills: ['Network Penetration Testing', 'Host Penetration Testing', 'Threat Hunting', 'Incident Response', 'Digital Forensics']
+    },
+    {
+      icon: '♿',
+      title: 'Accessibility & Testing',
+      skills: ['WCAG 2.1 AA', 'Section 508', 'Screen Reader Testing', 'axe-core / Puppeteer', 'Keyboard Navigation', 'ARIA Landmarks & Roles', 'Color Contrast Analysis', 'Web Speech API (TTS)']
     }
   ];
 
@@ -1353,52 +1202,39 @@ export class HomeComponent implements OnInit, AfterViewInit {
       error: (err: Error) => console.error('Error loading featured projects', err)
     });
 
-    // Always start terminal boot sequence on page load
-    this.startTerminalSequence();
+    // Listen for the index.html terminal animation to complete
+    this.waitForTerminalComplete();
   }
 
-  private startTerminalSequence(): void {
-    const lines = [
-      '<span style="color: #808080;">root@kali</span>:<span style="color: #5555ff;">~</span>$ <span style="color: #fff;">./welcome.sh --init --security-mode=enhanced</span>',
-      '',
-      '<span style="color: #00cc33;">[✓]</span> Initializing security protocols...',
-      '<span style="color: #00cc33;">[✓]</span> Loading network modules...',
-      '<span style="color: #00cc33;">[✓]</span> Establishing secure connection...',
-      '<span style="color: #00cc33;">[✓]</span> Scanning for vulnerabilities... <span style="color: #808080;">0 threats detected</span>',
-      '<span style="color: #00cc33;">[✓]</span> Configuring firewall rules...',
-      '<span style="color: #00cc33;">[✓]</span> Starting web services...',
-      '',
-      '<span style="color: #00cc33;">╔═══════════════════════════════════════╗</span>',
-      '<span style="color: #00cc33;">║</span>  <span style="color: #fff;">PORTFOLIO SYSTEM v3.0</span>           <span style="color: #00cc33;">║</span>',
-      '<span style="color: #00cc33;">║</span>  Status: <span style="color: #00cc33;">ONLINE</span>                   <span style="color: #00cc33;">║</span>',
-      '<span style="color: #00cc33;">║</span>  Security: <span style="color: #00cc33;">ENABLED</span>                <span style="color: #00cc33;">║</span>',
-      '<span style="color: #00cc33;">╚═══════════════════════════════════════╝</span>',
-      '',
-      '<span style="color: #ffbd2e;">⚡</span> <span style="color: #fff;">Launching interface...</span>',
-      ''
-    ];
+  /**
+   * Wait for the vanilla JS terminal animation in index.html to finish,
+   * then reveal content and start the welcome typing animation.
+   */
+  private waitForTerminalComplete(): void {
+    const onComplete = () => {
+      this.projectsVisible = true;
+      this.skillsVisible = true;
+      this.aboutVisible = true;
+      setTimeout(() => this.typeText(), 100);
+    };
 
-    let currentIndex = 0;
-    const typeInterval = setInterval(() => {
-      if (currentIndex < lines.length) {
-        this.terminalLines.push(lines[currentIndex]);
-        currentIndex++;
-      } else {
-        clearInterval(typeInterval);
-        this.showCursor = false;
+    // Check if terminal already finished (e.g., Angular bootstrapped after terminal)
+    if ((window as any).__terminalComplete) {
+      onComplete();
+    } else {
+      const handler = () => {
+        onComplete();
+        window.removeEventListener('terminal-complete', handler);
+      };
+      this.terminalListener = handler;
+      window.addEventListener('terminal-complete', handler);
+    }
+  }
 
-        // Hide terminal and show main site after a delay
-        setTimeout(() => {
-          this.showTerminal = false;
-          // Make all sections visible immediately after terminal
-          this.projectsVisible = true;
-          this.skillsVisible = true;
-          this.aboutVisible = true;
-          // Start typing animation for welcome text
-          setTimeout(() => this.typeText(), 100);
-        }, 800);
-      }
-    }, 200);
+  ngOnDestroy(): void {
+    if (this.terminalListener) {
+      window.removeEventListener('terminal-complete', this.terminalListener);
+    }
   }
 
   private typeText(): void {

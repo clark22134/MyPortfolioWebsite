@@ -5,10 +5,238 @@
   <title>Clark's Portfolio</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Clark Foster - Full Stack Developer & Security Engineer portfolio. Built with Angular, Spring Boot, and deployed on AWS.">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="alternate icon" type="image/x-icon" href="favicon.ico">
+  <style>
+    /* Terminal Loading Screen - runs before Angular bootstraps */
+    #kali-terminal-loader {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      background: #0a0a0a !important;
+      z-index: 99999 !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      opacity: 1;
+      transition: opacity 800ms ease-out;
+      overflow: visible !important;
+      clip: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    #kali-terminal-loader.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #kali-terminal-loader.hidden {
+      display: none !important;
+    }
+    #kali-terminal-network-bg {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-image:
+        linear-gradient(rgba(0, 204, 51, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 204, 51, 0.05) 1px, transparent 1px),
+        radial-gradient(circle at 20% 30%, rgba(0, 204, 51, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(0, 204, 51, 0.1) 0%, transparent 50%);
+      background-size: 50px 50px, 50px 50px, 100% 100%, 100% 100%;
+      animation: kaliNetworkPulse 4s ease-in-out infinite;
+      opacity: 0.6;
+    }
+    @keyframes kaliNetworkPulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.8; }
+    }
+    #kali-terminal-window {
+      width: 90%; max-width: 800px;
+      background: rgba(20, 20, 20, 0.95);
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(0, 204, 51, 0.3), 0 0 60px rgba(0, 204, 51, 0.2);
+      border: 2px solid rgba(0, 204, 51, 0.4);
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+    }
+    #kali-terminal-header {
+      background: rgba(40, 40, 40, 0.9);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      border-bottom: 1px solid rgba(0, 204, 51, 0.3);
+    }
+    #kali-terminal-header .btn-group { display: flex; gap: 0.5rem; }
+    #kali-terminal-header .btn-group span {
+      width: 12px; height: 12px; border-radius: 50%; display: inline-block;
+    }
+    #kali-terminal-header .btn-close { background: #ff5f56; box-shadow: 0 0 5px rgba(255,95,86,0.5); }
+    #kali-terminal-header .btn-minimize { background: #ffbd2e; box-shadow: 0 0 5px rgba(255,189,46,0.5); }
+    #kali-terminal-header .btn-maximize { background: #27c93f; box-shadow: 0 0 5px rgba(39,201,63,0.5); }
+    #kali-terminal-header .title {
+      color: #00cc33;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-shadow: 0 0 5px rgba(0, 204, 51, 0.5);
+    }
+    #kali-terminal-body {
+      padding: 1.5rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      min-height: 400px;
+      color: #00cc33;
+    }
+    #kali-terminal-body .line {
+      margin-bottom: 0.5rem;
+      animation: kaliLineAppear 0.1s ease-in;
+    }
+    @keyframes kaliLineAppear {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    #kali-terminal-cursor {
+      display: inline-block;
+      animation: kaliCursorBlink 0.8s infinite;
+      color: #00cc33;
+      margin-left: 4px;
+    }
+    @keyframes kaliCursorBlink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+    @media (max-width: 768px) {
+      #kali-terminal-window { width: 95%; }
+      #kali-terminal-body { font-size: 0.75rem; min-height: 300px; padding: 1rem; }
+    }
+    @media (max-width: 480px) {
+      #kali-terminal-body { font-size: 0.65rem; line-height: 1.4; }
+    }
+    /* Terminal color classes - use !important to override any global rules */
+    #kali-terminal-body .t-green { color: #00cc33 !important; }
+    #kali-terminal-body .t-white { color: #ffffff !important; }
+    #kali-terminal-body .t-grey { color: #808080 !important; }
+    #kali-terminal-body .t-blue { color: #5555ff !important; }
+    #kali-terminal-body .t-yellow { color: #ffbd2e !important; }
+    #kali-terminal-body .line { color: #00cc33 !important; }
+    @media (prefers-reduced-motion: reduce) {
+      #kali-terminal-loader { transition-duration: 0.01ms !important; }
+      #kali-terminal-network-bg { animation: none !important; }
+      #kali-terminal-cursor { animation: none !important; }
+      #kali-terminal-body .line { animation: none !important; }
+      app-root { transition-duration: 0.01ms !important; }
+    }
+
+    /* Hide Angular app until terminal animation finishes */
+    app-root {
+      opacity: 0;
+      transition: opacity 400ms ease-in;
+    }
+    app-root.terminal-done {
+      opacity: 1;
+    }
+  </style>
 </head>
 <body>
+  <!-- Kali Terminal Boot Animation (pure HTML/CSS/JS, runs before Angular) -->
+  <div id="kali-terminal-loader" role="status" aria-label="Loading portfolio">
+    <div id="kali-terminal-network-bg" aria-hidden="true"></div>
+    <div id="kali-terminal-window" aria-hidden="true">
+      <div id="kali-terminal-header">
+        <div class="btn-group">
+          <span class="btn-close"></span>
+          <span class="btn-minimize"></span>
+          <span class="btn-maximize"></span>
+        </div>
+        <div class="title">root@kali:~</div>
+      </div>
+      <div id="kali-terminal-body"></div>
+    </div>
+    <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Portfolio is loading, please wait.</span>
+  </div>
+
+  <script>
+    (function() {
+      var loader = document.getElementById('kali-terminal-loader');
+      var body = document.getElementById('kali-terminal-body');
+      if (!loader || !body) return;
+
+      var lines = [
+        'root@kali:~$ ./welcome.sh --init --security-mode=enhanced',
+        '',
+        '[✓] Initializing security protocols...',
+        '[✓] Loading network modules...',
+        '[✓] Establishing secure connection...',
+        '[✓] Scanning for vulnerabilities... 0 threats detected',
+        '[✓] Configuring firewall rules...',
+        '[✓] Starting web services...',
+        '',
+        '╔═══════════════════════════════════════╗',
+        '║  PORTFOLIO SYSTEM v3.0                ║',
+        '║  Status: ONLINE                       ║',
+        '║  Security: ENABLED                    ║',
+        '╚═══════════════════════════════════════╝',
+        '',
+        '⚡ Launching interface...',
+        ''
+      ];
+
+      // Add cursor
+      var cursor = document.createElement('span');
+      cursor.id = 'kali-terminal-cursor';
+      cursor.textContent = '█';
+      body.appendChild(cursor);
+
+      var i = 0;
+      var interval = setInterval(function() {
+        if (i < lines.length) {
+          var div = document.createElement('div');
+          div.className = 'line';
+          div.textContent = lines[i] || '\u00A0';
+          body.insertBefore(div, cursor);
+          i++;
+        } else {
+          clearInterval(interval);
+          cursor.style.display = 'none';
+          // Fade out after 800ms pause
+          setTimeout(function() {
+            loader.classList.add('fade-out');
+            // Remove from DOM after fade transition
+            setTimeout(function() {
+              loader.classList.add('hidden');
+              // Reveal Angular app and signal component
+              var appRoot = document.querySelector('app-root');
+              if (appRoot) appRoot.classList.add('terminal-done');
+              window.__terminalComplete = true;
+              window.dispatchEvent(new CustomEvent('terminal-complete'));
+            }, 850);
+          }, 800);
+        }
+      }, 200);
+    })();
+
+    // Safety fallback: reveal app-root if terminal script fails for any reason
+    setTimeout(function() {
+      var appRoot = document.querySelector('app-root');
+      if (appRoot && !appRoot.classList.contains('terminal-done')) {
+        appRoot.classList.add('terminal-done');
+        window.__terminalComplete = true;
+        window.dispatchEvent(new CustomEvent('terminal-complete'));
+      }
+    }, 8000);
+  </script>
+
+  <!-- Skip Navigation Link (WCAG 2.4.1) -->
+  <a href="#main-content" class="skip-to-main">Skip to main content</a>
+
+  <!-- ARIA Live Regions for screen reader announcements -->
+  <div id="aria-live-polite" aria-live="polite" aria-atomic="true" role="status"></div>
+  <div id="aria-live-assertive" aria-live="assertive" aria-atomic="true" role="alert"></div>
+
   <app-root></app-root>
 </body>
 </html>

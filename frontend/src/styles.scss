@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
+/* ============================================
+   ACCESSIBILITY & WCAG 2.1 AA COMPLIANCE
+   ============================================ */
+
 * {
   margin: 0;
   padding: 0;
@@ -10,5 +14,269 @@ body {
   font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: #0a0a0a;
   color: #e5e5e5;
+  /* Support resizable text via rem units */
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* ============================================
+   SKIP NAVIGATION LINK
+   Allows keyboard users to skip to main content
+   ============================================ */
+.skip-to-main {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  background: #0a0a0a;
+  color: #00ff41;
+  border: 3px solid #00ff41;
+  padding: 0.75rem 1.5rem;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 0 0 8px 8px;
+  transition: top 0.2s ease;
+
+  &:focus {
+    top: 0;
+    outline: 3px solid #00ff41;
+    outline-offset: 2px;
+  }
+}
+
+/* ============================================
+   GLOBAL FOCUS STYLES (WCAG 2.4.7 Focus Visible)
+   Provides clear, visible focus indicators
+   ============================================ */
+*:focus-visible {
+  outline: 3px solid #00ff41 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(0, 255, 65, 0.25) !important;
+}
+
+/* Remove default outline for non-keyboard interactions */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Enhanced focus for interactive elements */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid #00ff41 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(0, 255, 65, 0.25) !important;
+  border-radius: 4px;
+}
+
+/* ============================================
+   HIGH CONTRAST MODE (WCAG 1.4.3 / 1.4.6)
+   Replaces low-contrast colors with WCAG AA+ compliant values
+   ============================================ */
+html.high-contrast {
+  /* Override low-contrast grays */
+  --a11y-text: #ffffff;
+  --a11y-muted: #d4d4d4;
+  --a11y-accent: #00ff41;
+  --a11y-bg: #000000;
+  --a11y-surface: #1a1a1a;
+  --a11y-border: #00ff41;
+
+  body {
+    background: var(--a11y-bg) !important;
+    color: var(--a11y-text) !important;
+  }
+
+  /* Text color overrides - ensure >= 4.5:1 contrast ratio */
+  /* Scoped to app-root to avoid overriding the terminal loader colors */
+  app-root p, app-root span, app-root li, app-root td, app-root th, app-root label, app-root div {
+    color: var(--a11y-text) !important;
+  }
+
+
+
+  /* Muted text gets brighter in high contrast */
+  .description,
+  .tagline,
+  .subtitle,
+  .built-with,
+  .footer-bottom p,
+  .project-meta,
+  .dates {
+    color: var(--a11y-muted) !important;
+  }
+
+  /* Accent color stays green but brighter */
+  h1, h2, h3, h4,
+  .section-title,
+  .nav-text,
+  .logo-host {
+    color: var(--a11y-accent) !important;
+    text-shadow: none !important;
+  }
+
+  /* Links */
+  a {
+    color: var(--a11y-accent) !important;
+    text-decoration: underline !important;
+  }
+
+  /* Borders */
+  .project-card,
+  .info-card,
+  .contact-form,
+  .login-card,
+  .nav-link,
+  .skill-category {
+    border-color: var(--a11y-border) !important;
+  }
+
+  /* Buttons */
+  button,
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-outline {
+    border: 2px solid var(--a11y-accent) !important;
+  }
+
+  /* Focus indicators even more prominent */
+  *:focus-visible {
+    outline: 4px solid #ffffff !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.3) !important;
+  }
+}
+
+/* ============================================
+   REDUCED MOTION (WCAG 2.3.3 Animation)
+   Disables animations and transitions
+   ============================================ */
+html.reduced-motion,
+html.reduced-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================
+   SCREEN READER MODE
+   Simplifies layout for better SR navigation
+   ============================================ */
+html.screen-reader-mode {
+  .animated-bg,
+  .cyber-logo .scan-line,
+  .terminal-network-bg,
+  .circle {
+    display: none !important;
+  }
+}
+
+/* ============================================
+   SCREEN READER ONLY UTILITY
+   Visually hidden but accessible to assistive tech
+   ============================================ */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.sr-only-focusable:focus,
+.sr-only-focusable:active {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: normal !important;
+}
+
+/* ============================================
+   ARIA LIVE REGIONS (for screen reader announcements)
+   Only hide the dedicated announcement regions, not all aria-live elements
+   ============================================ */
+#aria-live-polite,
+#aria-live-assertive {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================================
+   RESIZABLE TEXT SUPPORT
+   All sizing uses rem so html font-size % scales everything
+   ============================================ */
+@media (prefers-contrast: more) {
+  :root {
+    --a11y-text: #ffffff;
+    --a11y-accent: #00ff41;
+  }
+
+  body {
+    color: #ffffff !important;
+  }
+}
+
+/* ============================================
+   KALI TERMINAL LOADER COLOR PROTECTION
+   Ensures no global styles override the terminal's
+   color scheme (loaded in index.html before Angular)
+   ============================================ */
+#kali-terminal-loader,
+#kali-terminal-loader * {
+  color: inherit;
+}
+#kali-terminal-body {
+  color: #00cc33 !important;
+}
+#kali-terminal-body .line {
+  color: #00cc33 !important;
+}
+#kali-terminal-body .t-green {
+  color: #00cc33 !important;
+}
+#kali-terminal-body .t-white {
+  color: #ffffff !important;
+}
+#kali-terminal-body .t-grey {
+  color: #808080 !important;
+}
+#kali-terminal-body .t-blue {
+  color: #5555ff !important;
+}
+#kali-terminal-body .t-yellow {
+  color: #ffbd2e !important;
+}
+#kali-terminal-header .title {
+  color: #00cc33 !important;
 }
 
