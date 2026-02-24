@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -38,32 +38,26 @@ describe('HomeComponent', () => {
     }).compileComponents();
 
     projectService = TestBed.inject(ProjectService) as jasmine.SpyObj<ProjectService>;
-    // Set up default return value to prevent undefined.subscribe() errors
     projectService.getFeaturedProjects.and.returnValue(of([]));
-    
+
+    // Simulate terminal already complete so component initializes properly
+    (window as any).__terminalComplete = true;
+
     fixture = TestBed.createComponent(HomeComponent);
     component = fixture.componentInstance;
+  });
+
+  afterEach(() => {
+    delete (window as any).__terminalComplete;
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should initialize with showTerminal as true', () => {
-    expect(component.showTerminal).toBe(true);
-  });
-
-  it('should have empty terminalLines array initially', () => {
-    expect(component.terminalLines).toEqual([]);
-  });
-
-  it('should set showCursor to true initially', () => {
-    expect(component.showCursor).toBe(true);
-  });
-
   it('should load featured projects on init', () => {
     projectService.getFeaturedProjects.and.returnValue(of(mockProjects));
-    
+
     component.ngOnInit();
 
     expect(projectService.getFeaturedProjects).toHaveBeenCalled();
@@ -72,7 +66,7 @@ describe('HomeComponent', () => {
 
   it('should handle empty featured projects', () => {
     projectService.getFeaturedProjects.and.returnValue(of([]));
-    
+
     component.ngOnInit();
 
     expect(component.featuredProjects).toEqual([]);
@@ -83,46 +77,67 @@ describe('HomeComponent', () => {
     expect(Array.isArray(component.featuredProjects)).toBe(true);
   });
 
-  it('should render terminal loader when showTerminal is true', () => {
-    component.showTerminal = true;
-    fixture.detectChanges();
-
-    const terminalElement = fixture.nativeElement.querySelector('.terminal-loader');
-    expect(terminalElement).toBeTruthy();
-  });
-
-  it('should render home container when showTerminal is false', () => {
-    component.showTerminal = false;
+  it('should render home container', () => {
     fixture.detectChanges();
 
     const homeContainer = fixture.nativeElement.querySelector('.home-container');
     expect(homeContainer).toBeTruthy();
   });
 
-  it('should display terminal lines', () => {
-    component.terminalLines = ['Line 1', 'Line 2'];
-    component.showTerminal = true;
+  it('should render hero section', () => {
     fixture.detectChanges();
 
-    const lines = fixture.nativeElement.querySelectorAll('.terminal-line');
-    expect(lines.length).toBe(2);
+    const hero = fixture.nativeElement.querySelector('.hero');
+    expect(hero).toBeTruthy();
   });
 
-  it('should show terminal cursor when showCursor is true', () => {
-    component.showTerminal = true;
-    component.showCursor = true;
+  it('should render skills section', () => {
     fixture.detectChanges();
 
-    const cursor = fixture.nativeElement.querySelector('.terminal-cursor');
-    expect(cursor).toBeTruthy();
+    const skills = fixture.nativeElement.querySelector('.skills');
+    expect(skills).toBeTruthy();
   });
 
-  it('should hide terminal cursor when showCursor is false', () => {
-    component.showTerminal = true;
-    component.showCursor = false;
+  it('should render about section', () => {
     fixture.detectChanges();
 
-    const cursor = fixture.nativeElement.querySelector('.terminal-cursor');
-    expect(cursor).toBeFalsy();
+    const about = fixture.nativeElement.querySelector('.about');
+    expect(about).toBeTruthy();
+  });
+
+  it('should have skill categories defined', () => {
+    expect(component.skillCategories).toBeDefined();
+    expect(component.skillCategories.length).toBeGreaterThan(0);
+  });
+
+  it('should start typing animation after terminal complete', fakeAsync(() => {
+    component.ngOnInit();
+    tick(600); // 500ms delay + 100ms from waitForTerminalComplete
+
+    expect(component.typedText.length).toBeGreaterThan(0);
+  }));
+
+  it('should set sections visible after terminal complete', () => {
+    component.ngOnInit();
+
+    expect(component.projectsVisible).toBe(true);
+    expect(component.skillsVisible).toBe(true);
+    expect(component.aboutVisible).toBe(true);
+  });
+
+  it('should set scrolled on window scroll', () => {
+    expect(component.scrolled).toBe(false);
+
+    Object.defineProperty(window, 'scrollY', { value: 100, writable: true });
+    component.onWindowScroll();
+
+    expect(component.scrolled).toBe(true);
+  });
+
+  it('should render nav component', () => {
+    fixture.detectChanges();
+
+    const nav = fixture.nativeElement.querySelector('app-nav');
+    expect(nav).toBeTruthy();
   });
 });
