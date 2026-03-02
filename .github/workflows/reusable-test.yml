@@ -50,7 +50,7 @@ jobs:
 
       - name: Upload Backend Artifact
         if: inputs.component == 'backend'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: backend-jar
           path: backend/target/*.jar
@@ -58,7 +58,7 @@ jobs:
 
       - name: Upload Frontend Artifact
         if: inputs.component == 'frontend'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-dist
           path: frontend/dist/
