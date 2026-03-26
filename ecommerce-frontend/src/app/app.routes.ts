@@ -4,6 +4,7 @@ import { CartDetailsComponent } from './components/cart-details/cart-details';
 import { CheckoutComponent } from './components/checkout/checkout';
 import { LoginComponent } from './components/login/login';
 import { OrderHistoryComponent } from './components/order-history/order-history';
+import { AboutComponent } from './components/about/about';
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -11,6 +12,7 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'checkout', component: CheckoutComponent },
   { path: 'cart-details', component: CartDetailsComponent },
+  { path: 'about', component: AboutComponent },
   { path: 'search/:keyword', component: ProductListComponent },
   { path: 'category/:id', component: ProductListComponent },
   { path: 'category', component: ProductListComponent },
