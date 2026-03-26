@@ -38,7 +38,8 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         initializeAdminUser();
-        updateLegacyProjects();
+        removeLegacyProjects();
+        updateExistingProjects();
         initializeSampleProjects();
     }
 
@@ -70,24 +71,24 @@ public class DataInitializer implements CommandLineRunner {
         log.info("Created admin user: {}", credentials.username());
     }
 
-    private void updateLegacyProjects() {
-        projectRepository.findByTitle("Portfolio Website").ifPresent(this::updateToSecureCloudProject);
+    private void removeLegacyProjects() {
+        projectRepository.findByTitle("SecureCloud DevOps Platform").ifPresent(project -> {
+            projectRepository.delete(project);
+            log.debug("Removed legacy SecureCloud DevOps Platform project");
+        });
+        projectRepository.findByTitle("Portfolio Website").ifPresent(project -> {
+            projectRepository.delete(project);
+            log.debug("Removed legacy Portfolio Website project");
+        });
     }
 
-    private void updateToSecureCloudProject(Project project) {
-        project.setTitle("SecureCloud DevOps Platform");
-        project.setDescription("An enterprise-grade DevSecOps automation platform integrating AI-powered threat detection, automated CI/CD pipelines, and cloud infrastructure management. Features include real-time security scanning with Trivy, automated Terraform deployments to AWS ECS/Lambda, GitHub Actions workflows, and LLM-powered incident response analysis using Python and HuggingFace transformers.");
-        project.setTechnologies(List.of(
-                "Angular", "Spring Boot", "Python", "AWS (ECS, Lambda, S3, CloudWatch)",
-                "Terraform", "GitHub Actions", "Docker", "SonarQube", "PostgreSQL",
-                "LLMs", "HuggingFace"
-        ));
-        project.setGithubUrl("https://github.com/clark22134");
-        project.setStartDate(null);
-        project.setEndDate(null);
-        project.setFeatured(true);
-        projectRepository.save(project);
-        log.debug("Updated legacy project to SecureCloud DevOps Platform");
+    private void updateExistingProjects() {
+        projectRepository.findByTitle("E-Commerce Platform").ifPresent(project -> {
+            project.setDemoUrl("https://shop.clarkfoster.com");
+            project.setTechnologies(List.of("Angular", "Spring Boot", "MySQL", "JWT", "Spring Data REST", "Bootstrap"));
+            projectRepository.save(project);
+            log.debug("Updated E-Commerce Platform project with demo URL");
+        });
     }
 
     private void initializeSampleProjects() {
@@ -100,9 +101,10 @@ public class DataInitializer implements CommandLineRunner {
         createProject(
                 "E-Commerce Platform",
                 "A full-stack e-commerce application built with Angular and Spring Boot, featuring user authentication, product management, shopping cart, and payment integration.",
-                List.of("Angular", "Spring Boot", "PostgreSQL", "JWT", "Stripe API"),
+                List.of("Angular", "Spring Boot", "MySQL", "JWT", "Spring Data REST", "Bootstrap"),
                 null,
-                null
+                null,
+                "https://shop.clarkfoster.com"
         );
 
         createProject(
@@ -110,27 +112,20 @@ public class DataInitializer implements CommandLineRunner {
                 "A modern task management application with real-time updates, team collaboration features, and advanced filtering capabilities.",
                 List.of("Angular", "Spring Boot", "WebSocket", "MongoDB", "Docker"),
                 null,
-                null
-        );
-
-        createProject(
-                "SecureCloud DevOps Platform",
-                "An enterprise-grade DevSecOps automation platform integrating AI-powered threat detection, automated CI/CD pipelines, and cloud infrastructure management. Features include real-time security scanning with Trivy, automated Terraform deployments to AWS ECS/Lambda, GitHub Actions workflows, and LLM-powered incident response analysis using Python and HuggingFace transformers.",
-                List.of("Angular", "Spring Boot", "Python", "AWS (ECS, Lambda, S3, CloudWatch)",
-                        "Terraform", "GitHub Actions", "Docker", "SonarQube", "PostgreSQL",
-                        "LLMs", "HuggingFace"),
                 null,
                 null
         );
+
     }
 
     private void createProject(String title, String description, List<String> technologies,
-                               LocalDate startDate, LocalDate endDate) {
+                               LocalDate startDate, LocalDate endDate, String demoUrl) {
         Project project = new Project();
         project.setTitle(title);
         project.setDescription(description);
         project.setTechnologies(technologies);
         project.setGithubUrl("https://github.com/clark22134");
+        project.setDemoUrl(demoUrl);
         project.setStartDate(startDate);
         project.setEndDate(endDate);
         project.setFeatured(true);

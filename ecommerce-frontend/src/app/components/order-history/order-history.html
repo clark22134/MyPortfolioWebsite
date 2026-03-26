@@ -1,0 +1,151 @@
+<div class="main-content">
+  <div class="section-content section-content-p30">
+    <div class="container-fluid">
+
+      <div class="order-history-header">
+        <h2>Order History</h2>
+        <p class="order-count">{{ filteredOrders().length }} order(s)</p>
+      </div>
+
+      <!-- Search & Sort Controls -->
+      <div class="controls-bar">
+        <div class="search-box">
+          <i class="fa fa-search search-icon"></i>
+          <input
+            type="text"
+            placeholder="Search by tracking #, status, amount..."
+            [ngModel]="searchTerm()"
+            (ngModelChange)="onSearchChange($event)"
+            class="search-input"
+          />
+          @if (searchTerm()) {
+            <button class="clear-btn" (click)="onSearchChange('')">
+              <i class="fa fa-times"></i>
+            </button>
+          }
+        </div>
+        <div class="sort-box">
+          <label class="sort-label">Sort by</label>
+          <select
+            [ngModel]="sortField()"
+            (ngModelChange)="onSortChange($event)"
+            class="sort-select"
+          >
+            <option value="date-desc">Date (Newest)</option>
+            <option value="date-asc">Date (Oldest)</option>
+            <option value="price-desc">Total (Highest)</option>
+            <option value="price-asc">Total (Lowest)</option>
+            <option value="qty-desc">Quantity (Most)</option>
+            <option value="qty-asc">Quantity (Least)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Loading state -->
+      @if (loading()) {
+        <div class="loading-state">
+          <i class="fa fa-spinner fa-spin"></i>
+          <p>Loading orders...</p>
+        </div>
+      }
+
+      <!-- Empty state -->
+      @if (!loading() && filteredOrders().length === 0) {
+        <div class="empty-state">
+          <i class="fa fa-receipt empty-icon"></i>
+          @if (searchTerm()) {
+            <h3>No matching orders</h3>
+            <p>Try a different search term.</p>
+          } @else {
+            <h3>No orders yet</h3>
+            <p>Your order history will appear here after your first purchase.</p>
+            <a routerLink="/products" class="btn-shop">Start Shopping</a>
+          }
+        </div>
+      }
+
+      <!-- Order Cards -->
+      @if (!loading()) {
+        <div class="order-list">
+          @for (order of filteredOrders(); track order.id) {
+            <div class="order-card" [class.expanded]="expandedOrderId() === order.id">
+
+              <!-- Order summary row (always visible) -->
+              <div class="order-summary" (click)="toggleExpand(order.id)">
+                <div class="order-summary-left">
+                  <span class="tracking-number">{{ order.orderTrackingNumber }}</span>
+                  <span class="order-date">{{ order.dateCreated | date: 'MMM d, yyyy · h:mm a' }}</span>
+                </div>
+                <div class="order-summary-right">
+                  <span class="order-status" [attr.data-status]="(order.status || 'processing').toLowerCase()">
+                    {{ order.status || 'Processing' }}
+                  </span>
+                  <span class="order-total">{{ order.totalPrice | currency: 'USD' }}</span>
+                  <span class="order-qty">{{ order.totalQuantity }} item(s)</span>
+                  <i class="fa expand-icon"
+                     [class.fa-chevron-down]="expandedOrderId() !== order.id"
+                     [class.fa-chevron-up]="expandedOrderId() === order.id"></i>
+                </div>
+              </div>
+
+              <!-- Expanded details -->
+              @if (expandedOrderId() === order.id) {
+                <div class="order-details">
+
+                  <!-- Addresses -->
+                  <div class="address-row">
+                    @if (order.shippingAddress) {
+                      <div class="address-block">
+                        <h4><i class="fa fa-truck"></i> Shipping</h4>
+                        <p>{{ order.shippingAddress.street }}</p>
+                        <p>{{ order.shippingAddress.city }}, {{ order.shippingAddress.state }} {{ order.shippingAddress.zipCode }}</p>
+                        <p>{{ order.shippingAddress.country }}</p>
+                      </div>
+                    }
+                    @if (order.billingAddress) {
+                      <div class="address-block">
+                        <h4><i class="fa fa-credit-card"></i> Billing</h4>
+                        <p>{{ order.billingAddress.street }}</p>
+                        <p>{{ order.billingAddress.city }}, {{ order.billingAddress.state }} {{ order.billingAddress.zipCode }}</p>
+                        <p>{{ order.billingAddress.country }}</p>
+                      </div>
+                    }
+                  </div>
+
+                  <!-- Line items -->
+                  <table class="items-table">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Name</th>
+                        <th>Unit Price</th>
+                        <th>Qty</th>
+                        <th>Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (item of order.orderItems; track item.id) {
+                        <tr>
+                          <td class="item-product">
+                            <img [src]="item.imageUrl" class="item-img" alt="product" />
+                          </td>
+                          <td class="item-name">{{ item.productName }}</td>
+                          <td>{{ item.unitPrice | currency: 'USD' }}</td>
+                          <td>{{ item.quantity }}</td>
+                          <td class="item-subtotal">{{ item.unitPrice * item.quantity | currency: 'USD' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+
+                </div>
+              }
+
+            </div>
+          }
+        </div>
+      }
+
+    </div>
+  </div>
+</div>

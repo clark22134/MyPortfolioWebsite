@@ -1,0 +1,142 @@
+<div class="main-content">
+  <div class="section-content section-content-p30">
+    <div class="container-fluid">
+
+      <!-- VIP Member Banner -->
+      @if (authService.isAuthenticated()) {
+      <div class="vip-banner">
+        <div class="vip-banner-glow"></div>
+        <div class="vip-banner-content">
+          <i class="fa fa-star vip-banner-icon"></i>
+          <div class="vip-banner-text">
+            <span class="vip-banner-title">VIP MEMBER ACCESS</span>
+            <span class="vip-banner-sub">Exclusive 30% off all products &mdash; your member discount is active</span>
+          </div>
+          <i class="fa fa-star vip-banner-icon"></i>
+        </div>
+      </div>
+      }
+
+      <div class="row">
+
+        <!--loop over the collection of products -->
+        @for (product of products(); track product.sku) {
+        <div class="col-md-3">
+          <div class="product-box" [class.product-box-vip]="authService.isAuthenticated()" (click)="openProductModal(product)">
+
+            @if (authService.isAuthenticated()) {
+            <div class="vip-badge"><i class="fa fa-star"></i> VIP</div>
+            }
+
+            <img [src]="product.imageUrl" class="img-responsive">
+
+            <h1>{{ product.name }}</h1>
+
+            @if (authService.isAuthenticated()) {
+            <div class="price-vip-wrap">
+              <span class="price-original">{{ product.unitPrice | currency: 'USD' }}</span>
+              <span class="price-member">{{ getMemberPrice(product.unitPrice) | currency: 'USD' }}</span>
+            </div>
+            } @else {
+            <div class="price">{{ product.unitPrice | currency: 'USD' }}</div>
+            }
+
+            <button class="btn-add-to-cart" (click)="addToCart(product); $event.stopPropagation()">
+              <i class="fa fa-cart-plus" aria-hidden="true"></i> Add to Cart
+            </button>
+          </div>
+
+        </div>
+        }
+
+        <!--if products are empty then display message to user-->
+        @if (!loading() && products().length === 0) {
+          <div class="alert alert-warning col-md-12" role="alert">
+            <p>No products found.</p>
+          </div>
+        }
+        <!-- begin footer -->
+        <div class="footer-pagination">
+          <div class="pagination-bar">
+
+            <ngb-pagination [page]="thePageNumber()"
+                            [pageSize]="thePageSize()"
+                            [collectionSize]="theTotalElements()"
+                            [maxSize]="5"
+                            [boundaryLinks]="true"
+                            (pageChange)="thePageNumber.set($event); listProducts()">
+            </ngb-pagination>
+
+            <div class="page-size-selector">
+              <label for="pageSizeSelect">Show</label>
+              <select id="pageSizeSelect" class="form-select form-select-sm"
+                      #myPageSelect (change)="updatePageSize(myPageSelect.value)">
+                <option [selected]="thePageSize() === 8" value="8">8</option>
+                <option [selected]="thePageSize() === 16" value="16">16</option>
+                <option [selected]="thePageSize() >= theTotalElements()" value="all">All</option>
+              </select>
+              <label>items</label>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- end footer -->
+
+    </div>
+  </div>
+</div>
+
+<!-- Product Detail Modal -->
+@if (selectedProduct()) {
+<div class="modal-overlay" (click)="closeProductModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <button class="modal-close" (click)="closeProductModal()">
+      <i class="fa fa-times"></i>
+    </button>
+    <div class="modal-body">
+      <div class="modal-img-wrapper">
+        <img [src]="selectedProduct()!.imageUrl" class="modal-img">
+      </div>
+      <div class="modal-info">
+        <h3>{{ selectedProduct()!.name }}</h3>
+        @if (authService.isAuthenticated()) {
+        <div class="vip-badge-modal"><i class="fa fa-star"></i> VIP MEMBER PRICE</div>
+        <div class="price-vip-wrap price-vip-wrap-modal">
+          <span class="price-original price-original-lg">{{ selectedProduct()!.unitPrice | currency: 'USD' }}</span>
+          <span class="price-member price-member-lg">{{ getMemberPrice(selectedProduct()!.unitPrice) | currency: 'USD' }}</span>
+        </div>
+        } @else {
+        <div class="price">{{ selectedProduct()!.unitPrice | currency: 'USD' }}</div>
+        }
+        <button class="btn-add-to-cart btn-add-to-cart-lg" (click)="addToCart(selectedProduct()!)">
+          <i class="fa fa-cart-plus" aria-hidden="true"></i> Add to Cart
+        </button>
+        @if (getCartQuantity(selectedProduct()!) > 0) {
+        <div class="modal-quantity-control">
+          <button class="modal-qty-btn" (click)="decrementInCart(selectedProduct()!)">
+            <i class="fa fa-minus"></i>
+          </button>
+          <span class="modal-qty-value">{{ getCartQuantity(selectedProduct()!) }}</span>
+          <button class="modal-qty-btn" (click)="incrementInCart(selectedProduct()!)">
+            <i class="fa fa-plus"></i>
+          </button>
+          <button class="modal-remove-btn" (click)="removeFromCart(selectedProduct()!)">
+            <i class="fa fa-trash"></i>
+          </button>
+        </div>
+        }
+        <div class="modal-cart-summary">
+          <i class="fa fa-shopping-cart"></i>
+          <span>{{ totalQuantity() }} {{ totalQuantity() === 1 ? 'item' : 'items' }}</span>
+          <span class="modal-cart-divider">|</span>
+          <span class="modal-cart-total">{{ totalPrice() | currency: 'USD' }}</span>
+        </div>
+        <hr>
+        <h4>Description</h4>
+        <p>{{ selectedProduct()!.description }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+}

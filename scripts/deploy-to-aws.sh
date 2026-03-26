@@ -20,9 +20,14 @@ AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 BACKEND_REPO="portfolio-backend"
 FRONTEND_REPO="portfolio-frontend"
+ECOM_BACKEND_REPO="ecommerce-backend"
+ECOM_FRONTEND_REPO="ecommerce-frontend"
+ECOM_DB_REPO="ecommerce-db"
 ECS_CLUSTER="prod-portfolio-cluster"
 BACKEND_SERVICE="prod-portfolio-backend"
 FRONTEND_SERVICE="prod-portfolio-frontend"
+ECOM_BACKEND_SERVICE="prod-ecommerce-backend"
+ECOM_FRONTEND_SERVICE="prod-ecommerce-frontend"
 IMAGE_TAG="deploy-$(date +%s)"
 
 echo "AWS Account: ${AWS_ACCOUNT_ID}"
@@ -42,7 +47,7 @@ echo ""
 
 # Create ECR repositories if they don't exist
 echo -e "${YELLOW}Setting up ECR repositories...${NC}"
-for repo in $BACKEND_REPO $FRONTEND_REPO; do
+for repo in $BACKEND_REPO $FRONTEND_REPO $ECOM_BACKEND_REPO $ECOM_FRONTEND_REPO $ECOM_DB_REPO; do
     if aws ecr describe-repositories --repository-names $repo --region $AWS_REGION &> /dev/null; then
         echo "✓ Repository $repo exists"
     else
@@ -87,6 +92,45 @@ echo -e "${YELLOW}Pushing frontend to ECR...${NC}"
 docker push $ECR_REGISTRY/$FRONTEND_REPO:$IMAGE_TAG
 FRONTEND_IMAGE="$ECR_REGISTRY/$FRONTEND_REPO:$IMAGE_TAG"
 echo -e "${GREEN}✓ Frontend pushed: $FRONTEND_IMAGE${NC}"
+echo ""
+
+# Build and push e-commerce backend
+cd ../ecommerce-backend
+echo -e "${YELLOW}Building e-commerce backend image...${NC}"
+docker build --build-arg GIT_COMMIT=$IMAGE_TAG -t $ECR_REGISTRY/$ECOM_BACKEND_REPO:$IMAGE_TAG .
+echo -e "${GREEN}✓ E-commerce backend image built${NC}"
+echo ""
+
+echo -e "${YELLOW}Pushing e-commerce backend to ECR...${NC}"
+docker push $ECR_REGISTRY/$ECOM_BACKEND_REPO:$IMAGE_TAG
+ECOM_BACKEND_IMAGE="$ECR_REGISTRY/$ECOM_BACKEND_REPO:$IMAGE_TAG"
+echo -e "${GREEN}✓ E-commerce backend pushed: $ECOM_BACKEND_IMAGE${NC}"
+echo ""
+
+# Build and push e-commerce frontend
+cd ../ecommerce-frontend
+echo -e "${YELLOW}Building e-commerce frontend image...${NC}"
+docker build -t $ECR_REGISTRY/$ECOM_FRONTEND_REPO:$IMAGE_TAG .
+echo -e "${GREEN}✓ E-commerce frontend image built${NC}"
+echo ""
+
+echo -e "${YELLOW}Pushing e-commerce frontend to ECR...${NC}"
+docker push $ECR_REGISTRY/$ECOM_FRONTEND_REPO:$IMAGE_TAG
+ECOM_FRONTEND_IMAGE="$ECR_REGISTRY/$ECOM_FRONTEND_REPO:$IMAGE_TAG"
+echo -e "${GREEN}✓ E-commerce frontend pushed: $ECOM_FRONTEND_IMAGE${NC}"
+echo ""
+
+# Build and push e-commerce DB
+cd ../ecommerce-db
+echo -e "${YELLOW}Building e-commerce DB image...${NC}"
+docker build -t $ECR_REGISTRY/$ECOM_DB_REPO:$IMAGE_TAG .
+echo -e "${GREEN}✓ E-commerce DB image built${NC}"
+echo ""
+
+echo -e "${YELLOW}Pushing e-commerce DB to ECR...${NC}"
+docker push $ECR_REGISTRY/$ECOM_DB_REPO:$IMAGE_TAG
+ECOM_DB_IMAGE="$ECR_REGISTRY/$ECOM_DB_REPO:$IMAGE_TAG"
+echo -e "${GREEN}✓ E-commerce DB pushed: $ECOM_DB_IMAGE${NC}"
 echo ""
 
 cd ..
@@ -134,6 +178,40 @@ FRONTEND_REVISION=$(aws ecs register-task-definition \
     --output text)
 
 echo "✓ Registered frontend task definition revision: $FRONTEND_REVISION"
+
+# Deploy e-commerce backend
+echo -e "${YELLOW}Deploying e-commerce backend...${NC}"
+ECOM_BACKEND_TASK_DEF=$(aws ecs describe-task-definition \
+    --task-definition prod-ecommerce-backend \
+    --region $AWS_REGION)
+
+NEW_ECOM_BACKEND_TASK_DEF=$(echo $ECOM_BACKEND_TASK_DEF | jq --arg IMAGE "$ECOM_BACKEND_IMAGE" --arg DBIMAGE "$ECOM_DB_IMAGE" \
+    '.taskDefinition | .containerDefinitions = [(.containerDefinitions[] | if .name == "ecommerce-backend" then .image = $IMAGE elif .name == "ecommerce-db" then .image = $DBIMAGE else . end)] | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+ECOM_BACKEND_REVISION=$(aws ecs register-task-definition \
+    --cli-input-json "$NEW_ECOM_BACKEND_TASK_DEF" \
+    --region $AWS_REGION \
+    --query 'taskDefinition.revision' \
+    --output text)
+
+echo "✓ Registered e-commerce backend task definition revision: $ECOM_BACKEND_REVISION"
+
+# Deploy e-commerce frontend
+echo -e "${YELLOW}Deploying e-commerce frontend...${NC}"
+ECOM_FRONTEND_TASK_DEF=$(aws ecs describe-task-definition \
+    --task-definition prod-ecommerce-frontend \
+    --region $AWS_REGION)
+
+NEW_ECOM_FRONTEND_TASK_DEF=$(echo $ECOM_FRONTEND_TASK_DEF | jq --arg IMAGE "$ECOM_FRONTEND_IMAGE" \
+    '.taskDefinition | .containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+ECOM_FRONTEND_REVISION=$(aws ecs register-task-definition \
+    --cli-input-json "$NEW_ECOM_FRONTEND_TASK_DEF" \
+    --region $AWS_REGION \
+    --query 'taskDefinition.revision' \
+    --output text)
+
+echo "✓ Registered e-commerce frontend task definition revision: $ECOM_FRONTEND_REVISION"
 echo ""
 
 # Update services
@@ -152,8 +230,22 @@ aws ecs update-service \
     --force-new-deployment \
     --region $AWS_REGION > /dev/null &
 
+aws ecs update-service \
+    --cluster $ECS_CLUSTER \
+    --service $ECOM_BACKEND_SERVICE \
+    --task-definition prod-ecommerce-backend:$ECOM_BACKEND_REVISION \
+    --force-new-deployment \
+    --region $AWS_REGION > /dev/null &
+
+aws ecs update-service \
+    --cluster $ECS_CLUSTER \
+    --service $ECOM_FRONTEND_SERVICE \
+    --task-definition prod-ecommerce-frontend:$ECOM_FRONTEND_REVISION \
+    --force-new-deployment \
+    --region $AWS_REGION > /dev/null &
+
 wait
-echo -e "${GREEN}✓ Both services updating${NC}"
+echo -e "${GREEN}✓ All services updating${NC}"
 echo ""
 
 # Wait for backend deployment
@@ -263,13 +355,127 @@ while true; do
 done
 echo ""
 
+# Wait for e-commerce backend deployment
+echo -e "${YELLOW}Waiting for e-commerce backend deployment to stabilize...${NC}"
+STABLE_COUNT=0
+START_TIME=$(date +%s)
+
+while true; do
+    CURRENT_TIME=$(date +%s)
+    ELAPSED=$((CURRENT_TIME - START_TIME))
+    
+    if [ $ELAPSED -gt $MAX_WAIT ]; then
+        echo -e "${RED}Deployment timed out after 15 minutes${NC}"
+        exit 1
+    fi
+    
+    RUNNING=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ECOM_BACKEND_SERVICE \
+        --region $AWS_REGION \
+        --query "services[0].runningCount" \
+        --output text)
+    
+    DESIRED=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ECOM_BACKEND_SERVICE \
+        --region $AWS_REGION \
+        --query "services[0].desiredCount" \
+        --output text)
+    
+    DEPLOYMENT_COUNT=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ECOM_BACKEND_SERVICE \
+        --region $AWS_REGION \
+        --query "length(services[0].deployments)" \
+        --output text)
+    
+    echo "E-Commerce Backend: $RUNNING/$DESIRED tasks | Active deployments: $DEPLOYMENT_COUNT"
+    
+    if [ "$RUNNING" = "$DESIRED" ] && [ "$RUNNING" != "0" ]; then
+        STABLE_COUNT=$((STABLE_COUNT + 1))
+        echo "✓ Stable for ${STABLE_COUNT} checks (need 3)"
+        
+        if [ $STABLE_COUNT -ge 3 ]; then
+            echo -e "${GREEN}✓ E-commerce backend deployment completed${NC}"
+            break
+        fi
+    else
+        STABLE_COUNT=0
+    fi
+    
+    sleep 10
+done
+echo ""
+
+# Wait for e-commerce frontend deployment
+echo -e "${YELLOW}Waiting for e-commerce frontend deployment to stabilize...${NC}"
+STABLE_COUNT=0
+START_TIME=$(date +%s)
+
+while true; do
+    CURRENT_TIME=$(date +%s)
+    ELAPSED=$((CURRENT_TIME - START_TIME))
+    
+    if [ $ELAPSED -gt $MAX_WAIT ]; then
+        echo -e "${RED}Deployment timed out after 15 minutes${NC}"
+        exit 1
+    fi
+    
+    RUNNING=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ECOM_FRONTEND_SERVICE \
+        --region $AWS_REGION \
+        --query "services[0].runningCount" \
+        --output text)
+    
+    DESIRED=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ECOM_FRONTEND_SERVICE \
+        --region $AWS_REGION \
+        --query "services[0].desiredCount" \
+        --output text)
+    
+    DEPLOYMENT_COUNT=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ECOM_FRONTEND_SERVICE \
+        --region $AWS_REGION \
+        --query "length(services[0].deployments)" \
+        --output text)
+    
+    echo "E-Commerce Frontend: $RUNNING/$DESIRED tasks | Active deployments: $DEPLOYMENT_COUNT"
+    
+    if [ "$RUNNING" = "$DESIRED" ] && [ "$RUNNING" != "0" ]; then
+        STABLE_COUNT=$((STABLE_COUNT + 1))
+        echo "✓ Stable for ${STABLE_COUNT} checks (need 3)"
+        
+        if [ $STABLE_COUNT -ge 3 ]; then
+            echo -e "${GREEN}✓ E-commerce frontend deployment completed${NC}"
+            break
+        fi
+    else
+        STABLE_COUNT=0
+    fi
+    
+    sleep 10
+done
+echo ""
+
 echo -e "${GREEN}=== Deployment Complete ===${NC}"
 echo ""
-echo "Backend Image: $BACKEND_IMAGE"
-echo "Frontend Image: $FRONTEND_IMAGE"
+echo "Portfolio Backend Image: $BACKEND_IMAGE"
+echo "Portfolio Frontend Image: $FRONTEND_IMAGE"
+echo "E-Commerce Backend Image: $ECOM_BACKEND_IMAGE"
+echo "E-Commerce Frontend Image: $ECOM_FRONTEND_IMAGE"
+echo "E-Commerce DB Image: $ECOM_DB_IMAGE"
 echo ""
-echo "Your application is now live at: https://clarkfoster.com"
+echo "Your applications are now live at:"
+echo "  Portfolio:   https://clarkfoster.com"
+echo "  E-Commerce:  https://shop.clarkfoster.com"
 echo ""
 echo "View logs:"
 echo "  aws logs tail /ecs/prod/portfolio-backend --follow"
 echo "  aws logs tail /ecs/prod/portfolio-frontend --follow"
+echo "  aws logs tail /ecs/prod/ecommerce-backend --follow"
+echo "  aws logs tail /ecs/prod/ecommerce-frontend --follow"
+echo "  aws logs tail /ecs/prod/ecommerce-db --follow"

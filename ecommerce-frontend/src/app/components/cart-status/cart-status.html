@@ -1,0 +1,14 @@
+<div class="cart-area d-n">
+  <a routerLink="/cart-details" class="cart-link">
+    <div class="cart-icon-wrapper">
+      <i class="fa fa-shopping-cart" aria-hidden="true"></i>
+      @if (totalQuantity > 0) {
+        <span class="cart-badge">{{ totalQuantity }}</span>
+      }
+    </div>
+    <div class="cart-info">
+      <span class="cart-label">Cart</span>
+      <span class="cart-total">{{ totalPrice | currency: 'USD' }}</span>
+    </div>
+  </a>
+</div>

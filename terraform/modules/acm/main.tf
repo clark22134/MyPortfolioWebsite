@@ -14,7 +14,8 @@ resource "aws_acm_certificate" "main" {
   validation_method = "DNS"
 
   subject_alternative_names = [
-    "www.${var.domain_name}"
+    "www.${var.domain_name}",
+    "shop.${var.domain_name}"
   ]
 
   lifecycle {

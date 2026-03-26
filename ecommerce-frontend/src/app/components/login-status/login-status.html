@@ -1,0 +1,9 @@
+<div class="login-status">
+  @if (authService.isAuthenticated()) {
+    <span class="user-email" [title]="authService.userEmail()">{{ authService.userEmail() }}</span>
+    <a routerLink="/order-history" class="btn-orders">Orders</a>
+    <button class="btn-logout" (click)="logout()">Logout</button>
+  } @else {
+    <a routerLink="/login" class="btn-login">Login</a>
+  }
+</div>

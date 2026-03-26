@@ -69,3 +69,28 @@ variable "github_repository" {
   type        = string
   default     = "clark22134/MyPortfolioWebsite"
 }
+
+# E-Commerce ECS sizing
+variable "ecommerce_backend_cpu" {
+  description = "CPU units for e-commerce backend container"
+  type        = number
+  default     = 512
+}
+
+variable "ecommerce_backend_memory" {
+  description = "Memory for e-commerce backend container in MB (includes MySQL sidecar)"
+  type        = number
+  default     = 2048
+}
+
+variable "ecommerce_frontend_cpu" {
+  description = "CPU units for e-commerce frontend container"
+  type        = number
+  default     = 256
+}
+
+variable "ecommerce_frontend_memory" {
+  description = "Memory for e-commerce frontend container in MB"
+  type        = number
+  default     = 512
+}

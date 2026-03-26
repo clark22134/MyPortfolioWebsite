@@ -13,9 +13,14 @@ env:
   AWS_REGION: us-east-1
   ECR_BACKEND_REPOSITORY: portfolio-backend
   ECR_FRONTEND_REPOSITORY: portfolio-frontend
+  ECR_ECOM_BACKEND_REPOSITORY: ecommerce-backend
+  ECR_ECOM_FRONTEND_REPOSITORY: ecommerce-frontend
+  ECR_ECOM_DB_REPOSITORY: ecommerce-db
   ECS_CLUSTER: prod-portfolio-cluster
   ECS_BACKEND_SERVICE: prod-portfolio-backend
   ECS_FRONTEND_SERVICE: prod-portfolio-frontend
+  ECS_ECOM_BACKEND_SERVICE: prod-ecommerce-backend
+  ECS_ECOM_FRONTEND_SERVICE: prod-ecommerce-frontend
 
 jobs:
   security-and-quality:
@@ -189,6 +194,9 @@ jobs:
     outputs:
       backend-image: ${{ steps.build-backend.outputs.image }}
       frontend-image: ${{ steps.build-frontend.outputs.image }}
+      ecom-backend-image: ${{ steps.build-ecom-backend.outputs.image }}
+      ecom-frontend-image: ${{ steps.build-ecom-frontend.outputs.image }}
+      ecom-db-image: ${{ steps.build-ecom-db.outputs.image }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -228,6 +236,39 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
+      - name: Build and push e-commerce backend image
+        id: build-ecom-backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd ecommerce-backend
+          docker build --build-arg GIT_COMMIT=${{ github.sha }} -t $ECR_REGISTRY/$ECR_ECOM_BACKEND_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_ECOM_BACKEND_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_ECOM_BACKEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Build and push e-commerce frontend image
+        id: build-ecom-frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd ecommerce-frontend
+          docker build -t $ECR_REGISTRY/$ECR_ECOM_FRONTEND_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_ECOM_FRONTEND_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_ECOM_FRONTEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Build and push e-commerce DB image
+        id: build-ecom-db
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd ecommerce-db
+          docker build -t $ECR_REGISTRY/$ECR_ECOM_DB_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_ECOM_DB_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_ECOM_DB_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
       - name: Scan backend image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
@@ -258,6 +299,38 @@ jobs:
         with:
           sarif_file: 'frontend-trivy-results.sarif'
           category: 'frontend-image'
+        continue-on-error: true
+
+      - name: Scan e-commerce backend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.build-ecom-backend.outputs.image }}
+          format: 'sarif'
+          output: 'ecom-backend-trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Scan e-commerce frontend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.build-ecom-frontend.outputs.image }}
+          format: 'sarif'
+          output: 'ecom-frontend-trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Upload e-commerce backend scan results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: 'ecom-backend-trivy-results.sarif'
+          category: 'ecom-backend-image'
+        continue-on-error: true
+
+      - name: Upload e-commerce frontend scan results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: 'ecom-frontend-trivy-results.sarif'
+          category: 'ecom-frontend-image'
         continue-on-error: true
 
   deploy-to-aws:
@@ -323,11 +396,61 @@ jobs:
           wait-for-service-stability: true
           wait-for-minutes: 15
 
+      # ============================================================
+      # E-COMMERCE BACKEND DEPLOYMENT (with MySQL sidecar)
+      # ============================================================
+      - name: Update e-commerce backend task definition with new image
+        id: ecom-backend-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ecs-task-definitions/ecommerce-backend.json
+          container-name: ecommerce-backend
+          image: ${{ needs.build-and-push-images.outputs.ecom-backend-image }}
+
+      - name: Update e-commerce DB sidecar image in task definition
+        id: ecom-backend-task-def-with-db
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ steps.ecom-backend-task-def.outputs.task-definition }}
+          container-name: ecommerce-db
+          image: ${{ needs.build-and-push-images.outputs.ecom-db-image }}
+
+      - name: Deploy e-commerce backend to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.ecom-backend-task-def-with-db.outputs.task-definition }}
+          service: ${{ env.ECS_ECOM_BACKEND_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 15
+
+      # ============================================================
+      # E-COMMERCE FRONTEND DEPLOYMENT
+      # ============================================================
+      - name: Update e-commerce frontend task definition with new image
+        id: ecom-frontend-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ecs-task-definitions/ecommerce-frontend.json
+          container-name: ecommerce-frontend
+          image: ${{ needs.build-and-push-images.outputs.ecom-frontend-image }}
+
+      - name: Deploy e-commerce frontend to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.ecom-frontend-task-def.outputs.task-definition }}
+          service: ${{ env.ECS_ECOM_FRONTEND_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 15
+
       - name: Final health check
         run: |
-          echo "Verifying website is accessible..."
+          echo "Verifying websites are accessible..."
           curl -f https://clarkfoster.com || exit 1
-          echo "✅ Deployment successful and website is healthy!"
+          echo "✅ Portfolio site is healthy!"
+          curl -f https://shop.clarkfoster.com || echo "⚠️ E-commerce site not yet accessible (may still be starting)"
+          echo "✅ Deployment successful!"
 
   post-deployment-tests:
     name: Post-Deployment Verification

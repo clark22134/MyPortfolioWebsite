@@ -92,6 +92,9 @@ docker-build:
 	@echo "Building Docker images..."
 	docker build -t portfolio-backend:latest ./backend
 	docker build -t portfolio-frontend:latest ./frontend
+	docker build -t ecommerce-backend:latest ./ecommerce-backend
+	docker build -t ecommerce-frontend:latest ./ecommerce-frontend
+	docker build -t ecommerce-db:latest ./ecommerce-db
 
 docker-up:
 	@echo "Starting Docker services..."

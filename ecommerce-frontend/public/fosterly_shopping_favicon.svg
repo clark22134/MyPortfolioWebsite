@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="8 8 48 48">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7ef9ff"/>
+      <stop offset="50%" stop-color="#19d3ff"/>
+      <stop offset="100%" stop-color="#2563ff"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.2" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g fill="none" stroke="url(#g1)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">
+
+    <!-- tighter shopping bag -->
+    <path d="M18 22
+             Q18 16 24 16
+             H36
+             Q42 16 42 22
+             V23
+             H44
+             L42 36
+             Q41 40 36 40
+             H24
+             Q19 40 18 36
+             L16 24
+             H18 Z"/>
+
+    <!-- handle -->
+    <path d="M24 22
+             Q24 17 30 17
+             Q36 17 36 22"/>
+
+    <!-- CF mark -->
+    <path d="M36 25
+             Q31 23 27 25
+             Q23 27 23 31
+             Q23 36 28 38
+             Q32 39 36 36"/>
+    <path d="M26 26 V37
+             M26 26 H35
+             M26 31 H33"/>
+  </g>
+
+  <!-- sparkle -->
+  <g fill="#7ef9ff">
+    <circle cx="40" cy="18" r="1.5"/>
+  </g>
+</svg>

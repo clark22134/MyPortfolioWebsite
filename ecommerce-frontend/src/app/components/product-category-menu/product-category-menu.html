@@ -1,0 +1,20 @@
+<div class="menu-sidebar-content js-scrollbar1">
+  <nav class="navbar-sidebar">
+    <div class="category-header" (click)="toggleCategories()">
+      <div class="category-header-label">
+        <i class="fa fa-th-large"></i>
+        <span>Product Categories</span>
+      </div>
+      <i class="fa fa-chevron-down category-chevron" [class.collapsed]="!categoriesExpanded()"></i>
+    </div>
+    <ul class="list-unstyled navbar-list" [class.expanded]="categoriesExpanded()">
+      @for (category of productCategories(); track category.id) {
+        <li>
+          <a [routerLink]="['/category', category.id]" routerLinkActive="active-link">
+            {{ category.categoryName }}
+          </a>
+        </li>
+      }
+    </ul>
+  </nav>
+</div>

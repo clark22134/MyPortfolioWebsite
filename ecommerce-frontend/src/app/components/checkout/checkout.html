@@ -1,0 +1,278 @@
+<div class="main-content">
+  <div class="section-content section-content-p30">
+    <div class="container-fluid">
+
+      @if (!isLoggedIn) {
+        <div class="guest-banner">
+          <i class="fa fa-info-circle"></i>
+          Checking out as a guest. <a routerLink="/login">Sign in</a> to use saved addresses and card info.
+        </div>
+      }
+
+      <form [formGroup]="checkoutFormGroup" (ngSubmit)="onSubmit()">
+        <div class="checkout-layout">
+
+          <!-- LEFT: Form sections -->
+          <div class="checkout-form">
+
+            <!-- Customer Info -->
+            <div class="form-section">
+              <h3><i class="fa fa-user"></i> Customer Information</h3>
+              <div formGroupName="customer">
+                <div class="form-row">
+                  <div class="form-field">
+                    <label for="firstName">First Name</label>
+                    <input id="firstName" formControlName="firstName" placeholder="First Name">
+                    @if (customer?.get('firstName')?.invalid && customer?.get('firstName')?.touched) {
+                      <small class="error">First name is required (min 2 chars).</small>
+                    }
+                  </div>
+                  <div class="form-field">
+                    <label for="lastName">Last Name</label>
+                    <input id="lastName" formControlName="lastName" placeholder="Last Name">
+                    @if (customer?.get('lastName')?.invalid && customer?.get('lastName')?.touched) {
+                      <small class="error">Last name is required (min 2 chars).</small>
+                    }
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label for="email">Email</label>
+                  <input id="email" type="email" formControlName="email" placeholder="Email">
+                  @if (customer?.get('email')?.invalid && customer?.get('email')?.touched) {
+                    <small class="error">Please enter a valid email.</small>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- Shipping Address -->
+            <div class="form-section">
+              <h3><i class="fa fa-truck"></i> Shipping Address</h3>
+              @if (isLoggedIn && customerProfile?.defaultShippingAddress) {
+                <div class="saved-toggle">
+                  <label>
+                    <input type="checkbox" [checked]="useSavedShipping()" (change)="toggleUseSavedShipping()">
+                    Use saved shipping address
+                  </label>
+                  @if (useSavedShipping()) {
+                    <div class="saved-summary">
+                      <p>{{ customerProfile!.defaultShippingAddress!.street }}</p>
+                      <p>{{ customerProfile!.defaultShippingAddress!.city }}, {{ customerProfile!.defaultShippingAddress!.state }} {{ customerProfile!.defaultShippingAddress!.zipCode }}</p>
+                      <p>{{ customerProfile!.defaultShippingAddress!.country }}</p>
+                    </div>
+                  }
+                </div>
+              }
+              @if (!useSavedShipping()) {
+                <div formGroupName="shippingAddress">
+                  <div class="form-field">
+                    <label for="shippingStreet">Street</label>
+                    <input id="shippingStreet" formControlName="street" placeholder="Street">
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label for="shippingCity">City</label>
+                      <input id="shippingCity" formControlName="city" placeholder="City">
+                    </div>
+                    <div class="form-field">
+                      <label for="shippingState">State</label>
+                      <select id="shippingState" formControlName="state">
+                        <option [ngValue]="''">Select State...</option>
+                        @for (state of shippingStates; track state.id) {
+                          <option [ngValue]="state">{{ state.name }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label for="shippingZip">Zip Code</label>
+                      <input id="shippingZip" formControlName="zipCode" placeholder="Zip Code">
+                    </div>
+                    <div class="form-field">
+                      <label for="shippingCountry">Country</label>
+                      <select id="shippingCountry" formControlName="country" (change)="onShippingCountryChange()">
+                        <option [ngValue]="''">Select Country...</option>
+                        @for (country of countries; track country.code) {
+                          <option [ngValue]="country">{{ country.name }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Billing Address -->
+            <div class="form-section">
+              <h3>
+                <i class="fa fa-file-text"></i> Billing Address
+              </h3>
+              @if (isLoggedIn && customerProfile?.defaultBillingAddress) {
+                <div class="saved-toggle">
+                  <label>
+                    <input type="checkbox" [checked]="useSavedBilling()" (change)="toggleUseSavedBilling()">
+                    Use saved billing address
+                  </label>
+                  @if (useSavedBilling()) {
+                    <div class="saved-summary">
+                      <p>{{ customerProfile!.defaultBillingAddress!.street }}</p>
+                      <p>{{ customerProfile!.defaultBillingAddress!.city }}, {{ customerProfile!.defaultBillingAddress!.state }} {{ customerProfile!.defaultBillingAddress!.zipCode }}</p>
+                      <p>{{ customerProfile!.defaultBillingAddress!.country }}</p>
+                    </div>
+                  }
+                </div>
+              }
+              @if (!useSavedBilling()) {
+                <div class="same-as-shipping">
+                  <label>
+                    <input type="checkbox" (change)="copyShippingToBilling($event)">
+                    Same as shipping address
+                  </label>
+                </div>
+                <div formGroupName="billingAddress">
+                  <div class="form-field">
+                    <label for="billingStreet">Street</label>
+                    <input id="billingStreet" formControlName="street" placeholder="Street">
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label for="billingCity">City</label>
+                      <input id="billingCity" formControlName="city" placeholder="City">
+                    </div>
+                    <div class="form-field">
+                      <label for="billingState">State</label>
+                      <select id="billingState" formControlName="state">
+                        <option [ngValue]="''">Select State...</option>
+                        @for (state of billingStates; track state.id) {
+                          <option [ngValue]="state">{{ state.name }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label for="billingZip">Zip Code</label>
+                      <input id="billingZip" formControlName="zipCode" placeholder="Zip Code">
+                    </div>
+                    <div class="form-field">
+                      <label for="billingCountry">Country</label>
+                      <select id="billingCountry" formControlName="country" (change)="onBillingCountryChange()">
+                        <option [ngValue]="''">Select Country...</option>
+                        @for (country of countries; track country.code) {
+                          <option [ngValue]="country">{{ country.name }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Credit Card -->
+            <div class="form-section">
+              <h3><i class="fa fa-credit-card"></i> Credit Card</h3>
+              @if (isLoggedIn && customerProfile?.cardType) {
+                <div class="saved-toggle">
+                  <label>
+                    <input type="checkbox" [checked]="useSavedCard()" (change)="toggleUseSavedCard()">
+                    Use saved card on file
+                  </label>
+                  @if (useSavedCard()) {
+                    <div class="saved-summary">
+                      <p>{{ customerProfile!.cardType }} ending in {{ customerProfile!.cardNumberLast4 }}</p>
+                      <p>{{ customerProfile!.nameOnCard }} — Exp: {{ customerProfile!.cardExpirationMonth }}/{{ customerProfile!.cardExpirationYear }}</p>
+                      <p class="saved-card-note"><i class="fa fa-lock"></i> Card number and CVV must still be entered for security.</p>
+                    </div>
+                  }
+                </div>
+              }
+              <div formGroupName="creditCard">
+                @if (!useSavedCard()) {
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label for="cardType">Card Type</label>
+                      <select id="cardType" formControlName="cardType">
+                        <option value="">Select...</option>
+                        <option value="Visa">Visa</option>
+                        <option value="Mastercard">Mastercard</option>
+                        <option value="Amex">American Express</option>
+                      </select>
+                    </div>
+                    <div class="form-field">
+                      <label for="nameOnCard">Name on Card</label>
+                      <input id="nameOnCard" formControlName="nameOnCard" placeholder="Name on Card">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label for="expMonth">Expiration Month</label>
+                      <select id="expMonth" formControlName="expirationMonth">
+                        <option value="">Month</option>
+                        @for (month of creditCardMonths; track month) {
+                          <option [value]="month">{{ month }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="form-field">
+                      <label for="expYear">Expiration Year</label>
+                      <select id="expYear" formControlName="expirationYear" (change)="onExpirationYearChange()">
+                        <option value="">Year</option>
+                        @for (year of creditCardYears; track year) {
+                          <option [value]="year">{{ year }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                }
+                <div class="form-row">
+                  <div class="form-field">
+                    <label for="cardNumber">Card Number</label>
+                    <input id="cardNumber" formControlName="cardNumber" placeholder="1234567890123456" maxlength="16">
+                    @if (creditCard?.get('cardNumber')?.invalid && creditCard?.get('cardNumber')?.touched) {
+                      <small class="error">Please enter a valid 16-digit card number.</small>
+                    }
+                  </div>
+                  <div class="form-field">
+                    <label for="securityCode">CVV</label>
+                    <input id="securityCode" formControlName="securityCode" placeholder="123" maxlength="3">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT: Order Summary -->
+          <div class="order-summary">
+            <div class="summary-card">
+              <h3>Order Summary</h3>
+              <div class="summary-line">
+                <span>Items ({{ totalQuantity }})</span>
+                <span>{{ totalPrice | currency: 'USD' }}</span>
+              </div>
+              <div class="summary-line">
+                <span>Shipping</span>
+                <span class="free">Free</span>
+              </div>
+              <div class="summary-divider"></div>
+              <div class="summary-line summary-grand">
+                <span>Total</span>
+                <span>{{ totalPrice | currency: 'USD' }}</span>
+              </div>
+              <button type="submit" class="btn-purchase">
+                <i class="fa fa-lock"></i> Place Order
+              </button>
+              <a routerLink="/cart-details" class="back-to-cart">
+                <i class="fa fa-arrow-left"></i> Back to Cart
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
