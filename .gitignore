@@ -74,6 +74,10 @@ docker-compose.override.yml
 *.sqlite
 *.sqlite3
 
+# But allow SQL scripts needed for Docker builds
+!ecommerce-db/init/*.sql
+!ecommerce-backend/sql_scripts/*.sql
+
 # Certificate files
 *.cer
 *.der
