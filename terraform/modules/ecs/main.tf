@@ -89,6 +89,178 @@ variable "alb_target_group_ecommerce_frontend_arn" {
   type        = string
 }
 
+# ECR Repositories
+resource "aws_ecr_repository" "portfolio_backend" {
+  name                 = "portfolio-backend"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = false
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "portfolio-backend"
+    Environment = var.environment
+  }
+}
+
+resource "aws_ecr_repository" "portfolio_frontend" {
+  name                 = "portfolio-frontend"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = false
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "portfolio-frontend"
+    Environment = var.environment
+  }
+}
+
+resource "aws_ecr_repository" "ecommerce_backend" {
+  name                 = "ecommerce-backend"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = false
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "ecommerce-backend"
+    Environment = var.environment
+  }
+}
+
+resource "aws_ecr_repository" "ecommerce_frontend" {
+  name                 = "ecommerce-frontend"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = false
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "ecommerce-frontend"
+    Environment = var.environment
+  }
+}
+
+resource "aws_ecr_repository" "ecommerce_db" {
+  name                 = "ecommerce-db"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = false
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "ecommerce-db"
+    Environment = var.environment
+  }
+}
+
+# ECR Lifecycle Policies - keep only last 10 images
+resource "aws_ecr_lifecycle_policy" "portfolio_backend" {
+  repository = aws_ecr_repository.portfolio_backend.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "portfolio_frontend" {
+  repository = aws_ecr_repository.portfolio_frontend.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "ecommerce_backend" {
+  repository = aws_ecr_repository.ecommerce_backend.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "ecommerce_frontend" {
+  repository = aws_ecr_repository.ecommerce_frontend.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "ecommerce_db" {
+  repository = aws_ecr_repository.ecommerce_db.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {
   name = "${var.environment}-portfolio-cluster"
