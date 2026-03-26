@@ -124,7 +124,7 @@ jobs:
     - name: Serve and run accessibility tests
       run: |
         cd frontend
-        npx http-server dist/frontend/browser -p 4200 -s &
+        npx http-server dist/frontend/browser -p 4200 -s --proxy http://localhost:4200? &
         sleep 5
         npm run test:a11y
       env:
