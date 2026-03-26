@@ -1,19 +1,30 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 
-import { Checkout } from './checkout';
+import { CheckoutComponent } from './checkout';
 
-describe('Checkout', () => {
-  let component: Checkout;
-  let fixture: ComponentFixture<Checkout>;
+describe('CheckoutComponent', () => {
+  let component: CheckoutComponent;
+  let fixture: ComponentFixture<CheckoutComponent>;
 
   beforeEach(async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {});
+
     await TestBed.configureTestingModule({
-      imports: [Checkout],
+      imports: [CheckoutComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
     }).compileComponents();
 
-    fixture = TestBed.createComponent(Checkout);
+    fixture = TestBed.createComponent(CheckoutComponent);
     component = fixture.componentInstance;
     await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('should create', () => {

@@ -46,7 +46,7 @@ describe('ProjectsComponent', () => {
     projectService = TestBed.inject(ProjectService) as jasmine.SpyObj<ProjectService>;
     // Set up default return value to prevent undefined.subscribe() errors
     projectService.getAllProjects.and.returnValue(of([]));
-    
+
     fixture = TestBed.createComponent(ProjectsComponent);
     component = fixture.componentInstance;
   });
@@ -85,7 +85,7 @@ describe('ProjectsComponent', () => {
   it('should format date correctly', () => {
     const date = '2024-01-15';
     const formatted = component.formatDate(date);
-    
+
     expect(formatted).toContain('2024');
     expect(formatted).toContain('Jan');
   });
@@ -102,7 +102,7 @@ describe('ProjectsComponent', () => {
     projectService.getAllProjects.and.returnValue(of([mockProjects[0]]));
     fixture.detectChanges();
 
-    const titleElement = fixture.nativeElement.querySelector('.project-card h3');
+    const titleElement = fixture.nativeElement.querySelector('.project-card h2');
     expect(titleElement.textContent).toContain('Portfolio Website');
   });
 
