@@ -26,6 +26,11 @@
     margin-bottom: 8px;
     transition: all 0.25s ease;
     user-select: none;
+    width: 100%;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    text-align: left;
 }
 
 .category-header:hover {

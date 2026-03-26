@@ -4,21 +4,21 @@
 
       @if (cartItems.length > 0) {
 
-      <table class="cart-table">
+      <table class="cart-table" aria-label="Shopping cart items">
         <thead>
           <tr>
-            <th width="20%">Product Image</th>
-            <th width="35%">Product Detail</th>
-            <th width="20%">Quantity</th>
-            <th width="15%">Subtotal</th>
-            <th width="10%">Remove</th>
+            <th scope="col" width="20%">Product Image</th>
+            <th scope="col" width="35%">Product Detail</th>
+            <th scope="col" width="20%">Quantity</th>
+            <th scope="col" width="15%">Subtotal</th>
+            <th scope="col" width="10%">Remove</th>
           </tr>
         </thead>
         <tbody>
           @for (cartItem of cartItems; track cartItem.id) {
           <tr>
             <td>
-              <img [src]="cartItem.imageUrl" class="cart-img">
+              <img [src]="cartItem.imageUrl" class="cart-img" [alt]="cartItem.name + ' product image'">
             </td>
             <td>
               <p class="product-name">{{ cartItem.name }}</p>
@@ -33,12 +33,12 @@
             </td>
             <td>
               <div class="quantity-control">
-                <button class="qty-btn" (click)="decrementQuantity(cartItem)">
-                  <i class="fa fa-minus"></i>
+                <button class="qty-btn" (click)="decrementQuantity(cartItem)" [attr.aria-label]="'Decrease quantity of ' + cartItem.name">
+                  <i class="fa fa-minus" aria-hidden="true"></i>
                 </button>
-                <span class="qty-value">{{ cartItem.quantity }}</span>
-                <button class="qty-btn" (click)="incrementQuantity(cartItem)">
-                  <i class="fa fa-plus"></i>
+                <span class="qty-value" aria-label="Quantity">{{ cartItem.quantity }}</span>
+                <button class="qty-btn" (click)="incrementQuantity(cartItem)" [attr.aria-label]="'Increase quantity of ' + cartItem.name">
+                  <i class="fa fa-plus" aria-hidden="true"></i>
                 </button>
               </div>
             </td>
@@ -46,8 +46,8 @@
               <p class="subtotal">{{ cartItem.unitPrice * cartItem.quantity | currency: 'USD' }}</p>
             </td>
             <td>
-              <button class="remove-btn" (click)="remove(cartItem)">
-                <i class="fa fa-trash"></i>
+              <button class="remove-btn" (click)="remove(cartItem)" [attr.aria-label]="'Remove ' + cartItem.name + ' from cart'">
+                <i class="fa fa-trash" aria-hidden="true"></i>
               </button>
             </td>
           </tr>
@@ -73,7 +73,7 @@
       } @else {
 
       <div class="empty-cart">
-        <i class="fa fa-shopping-cart empty-cart-icon"></i>
+        <i class="fa fa-shopping-cart empty-cart-icon" aria-hidden="true"></i>
         <h2>Your cart is empty</h2>
         <p>Looks like you haven't added anything yet.</p>
         <a routerLink="/products" class="btn-shop">Continue Shopping</a>

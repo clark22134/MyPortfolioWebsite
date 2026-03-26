@@ -1,14 +1,14 @@
 <div class="cart-area d-n">
-  <a routerLink="/cart-details" class="cart-link">
+  <a routerLink="/cart-details" class="cart-link" [attr.aria-label]="'Shopping cart, ' + totalQuantity + ' items, total ' + (totalPrice | currency: 'USD')">
     <div class="cart-icon-wrapper">
       <i class="fa fa-shopping-cart" aria-hidden="true"></i>
       @if (totalQuantity > 0) {
-        <span class="cart-badge">{{ totalQuantity }}</span>
+        <span class="cart-badge" aria-hidden="true">{{ totalQuantity }}</span>
       }
     </div>
     <div class="cart-info">
       <span class="cart-label">Cart</span>
-      <span class="cart-total">{{ totalPrice | currency: 'USD' }}</span>
+      <span class="cart-total" aria-hidden="true">{{ totalPrice | currency: 'USD' }}</span>
     </div>
   </a>
 </div>

@@ -1,10 +1,10 @@
 <div class="page-wrapper">
 
 		<!-- MENU SIDEBAR-->
-		<aside class="menu-sidebar d-none d-lg-block">
+		<aside class="menu-sidebar d-none d-lg-block" role="complementary" aria-label="Product categories">
 			<div class="logo">
-				<a routerLink="/products">
-					<img src="images/fosterly_final.png" alt="fosterly" class="img-responsive">
+				<a routerLink="/products" aria-label="Fosterly home">
+					<img src="images/fosterly_final.png" alt="Fosterly - Home" class="img-responsive">
 				</a>
 			</div>
 			<app-product-category-menu></app-product-category-menu>
@@ -14,7 +14,7 @@
     <!-- PAGE CONTAINER-->
     <div class="page-container">
       <!-- HEADER DESKTOP-->
-      <header class="header-desktop">
+      <header class="header-desktop" role="banner">
         <div class="section-content section-content-p30">
           <div class="container-fluid">
             <div class="header-wrap">
@@ -38,17 +38,21 @@
       <!-- END HEADER DESKTOP-->
 
       <!-- MAIN CONTENT-->
-       <router-outlet></router-outlet>
+      <main id="main-content" role="main" tabindex="-1" aria-label="Main content">
+        <router-outlet></router-outlet>
+      </main>
   </div>
 </div>
 
 <!--ENDS PAGE CONTAINER-->
 
-	<footer>
-		<ul>
-			<li><a href="#">About Us</a></li>
-			<li><a href="#">Contact Us</a></li>
-			<li><a href="#">Help</a></li>
-		</ul>
+	<footer role="contentinfo" aria-label="Site footer">
+		<nav aria-label="Footer navigation">
+			<ul>
+				<li><a href="#">About Us</a></li>
+				<li><a href="#">Contact Us</a></li>
+				<li><a href="#">Help</a></li>
+			</ul>
+		</nav>
 	</footer>
 

@@ -10,23 +10,26 @@
       <!-- Search & Sort Controls -->
       <div class="controls-bar">
         <div class="search-box">
-          <i class="fa fa-search search-icon"></i>
+          <i class="fa fa-search search-icon" aria-hidden="true"></i>
+          <label for="order-search" class="sr-only">Search orders</label>
           <input
             type="text"
+            id="order-search"
             placeholder="Search by tracking #, status, amount..."
             [ngModel]="searchTerm()"
             (ngModelChange)="onSearchChange($event)"
             class="search-input"
           />
           @if (searchTerm()) {
-            <button class="clear-btn" (click)="onSearchChange('')">
-              <i class="fa fa-times"></i>
+            <button class="clear-btn" (click)="onSearchChange('')" aria-label="Clear search">
+              <i class="fa fa-times" aria-hidden="true"></i>
             </button>
           }
         </div>
         <div class="sort-box">
-          <label class="sort-label">Sort by</label>
+          <label class="sort-label" for="order-sort">Sort by</label>
           <select
+            id="order-sort"
             [ngModel]="sortField()"
             (ngModelChange)="onSortChange($event)"
             class="sort-select"
@@ -43,8 +46,8 @@
 
       <!-- Loading state -->
       @if (loading()) {
-        <div class="loading-state">
-          <i class="fa fa-spinner fa-spin"></i>
+        <div class="loading-state" role="status" aria-live="polite">
+          <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
           <p>Loading orders...</p>
         </div>
       }
@@ -52,7 +55,7 @@
       <!-- Empty state -->
       @if (!loading() && filteredOrders().length === 0) {
         <div class="empty-state">
-          <i class="fa fa-receipt empty-icon"></i>
+          <i class="fa fa-receipt empty-icon" aria-hidden="true"></i>
           @if (searchTerm()) {
             <h3>No matching orders</h3>
             <p>Try a different search term.</p>

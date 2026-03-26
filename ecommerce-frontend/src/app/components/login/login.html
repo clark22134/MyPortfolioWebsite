@@ -1,23 +1,23 @@
 <div class="login-container">
   <div class="login-card" [class.login-card-wide]="isRegisterMode()">
     <div class="login-header">
-      <h2>{{ isRegisterMode() ? 'Create Account' : 'Sign In' }}</h2>
+      <h2 id="login-heading">{{ isRegisterMode() ? 'Create Account' : 'Sign In' }}</h2>
       <div class="header-line"></div>
     </div>
 
     @if (errorMessage()) {
-      <div class="error-message">{{ errorMessage() }}</div>
+      <div class="error-message" role="alert">{{ errorMessage() }}</div>
     }
 
     @if (!isRegisterMode()) {
-      <form [formGroup]="loginForm" (ngSubmit)="onLogin()">
+      <form [formGroup]="loginForm" (ngSubmit)="onLogin()" aria-labelledby="login-heading">
         <div class="form-field">
           <label for="loginEmail">Email</label>
-          <input type="email" id="loginEmail" formControlName="email" placeholder="agent&#64;example.com">
+          <input type="email" id="loginEmail" formControlName="email" placeholder="agent&#64;example.com" autocomplete="email" aria-required="true">
         </div>
         <div class="form-field">
           <label for="loginPassword">Password</label>
-          <input type="password" id="loginPassword" formControlName="password" placeholder="Enter password">
+          <input type="password" id="loginPassword" formControlName="password" placeholder="Enter password" autocomplete="current-password" aria-required="true">
         </div>
         <button type="submit" class="btn-auth" [disabled]="loginForm.invalid || isLoading()">
           {{ isLoading() ? 'Authenticating...' : 'Login' }}
