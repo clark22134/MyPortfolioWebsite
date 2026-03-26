@@ -49,7 +49,8 @@ import { AuthService } from '../../services/auth.service';
       <section class="hero" [class.scrolled]="scrolled" aria-label="Welcome banner">
         <div class="hero-content fade-in">
           <h1 class="hero-title">
-            <span class="typed-text" aria-label="Welcome">{{ typedText }}</span><span class="cursor" [class.typing]="isTyping" aria-hidden="true">|</span>
+            <span class="visually-hidden">Welcome</span>
+            <span class="typed-text" role="status" aria-live="polite" aria-hidden="true">{{ typedText }}</span><span class="cursor" [class.typing]="isTyping" aria-hidden="true">|</span>
           </h1>
           <p class="hero-subtitle">Full Stack Developer & Security Engineer</p>
           <p class="hero-intro">
@@ -161,6 +162,18 @@ import { AuthService } from '../../services/auth.service';
   styles: [`
     :host {
       display: block;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
 
     .home-container {

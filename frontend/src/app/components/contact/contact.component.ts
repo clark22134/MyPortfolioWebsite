@@ -43,19 +43,19 @@ import { AuthService } from '../../services/auth.service';
           <div class="contact-info">
             <div class="info-card">
               <div class="icon" aria-hidden="true">🔗</div>
-              <h3>LinkedIn</h3>
+              <h2>LinkedIn</h2>
               <a href="/linkedin.html" target="_blank" rel="noopener noreferrer" aria-label="Connect with me on LinkedIn (opens in new tab)">Connect with me</a>
             </div>
 
             <div class="info-card">
               <div class="icon" aria-hidden="true">💻</div>
-              <h3>GitHub</h3>
+              <h2>GitHub</h2>
               <a href="https://github.com/clark22134" target="_blank" rel="noopener noreferrer" aria-label="Check out my work on GitHub (opens in new tab)">Check out my work</a>
             </div>
 
             <div class="info-card">
               <div class="icon" aria-hidden="true">📧</div>
-              <h3>Email</h3>
+              <h2>Email</h2>
               <a href="mailto:clark&#64;clarkfoster.com" aria-label="Send email to clark at clarkfoster.com">clark&#64;clarkfoster.com</a>
             </div>
           </div>
@@ -245,7 +245,7 @@ import { AuthService } from '../../services/auth.service';
       margin-bottom: 1rem;
     }
 
-    .info-card h3 {
+    .info-card h2 {
       color: #00cc33;
       margin-bottom: 0.5rem;
       font-size: 1.2rem;

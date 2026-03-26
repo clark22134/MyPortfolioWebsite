@@ -47,7 +47,7 @@ import { AuthService } from '../../services/auth.service';
       <div class="projects-grid" *ngIf="!loading && !error" role="list" aria-label="Project cards">
         <div *ngFor="let project of projects" class="project-card" role="listitem">
           <span *ngIf="project.featured" class="featured-badge" aria-label="Featured project">Featured</span>
-          <h3>{{ project.title }}</h3>
+          <h2>{{ project.title }}</h2>
           <p class="description">{{ project.description }}</p>
           <div class="technologies" aria-label="Technologies used">
             <span *ngFor="let tech of project.technologies" class="tech-badge">{{ tech }}</span>
@@ -266,7 +266,7 @@ import { AuthService } from '../../services/auth.service';
       border-color: rgba(0, 204, 51, 0.5);
     }
 
-    h3 {
+    h2 {
       font-size: 1.5rem;
       margin-bottom: 1rem;
       color: #00cc33;
@@ -388,7 +388,7 @@ import { AuthService } from '../../services/auth.service';
         padding: 1.5rem;
       }
 
-      h3 {
+      h2 {
         font-size: 1.3rem;
       }
 
