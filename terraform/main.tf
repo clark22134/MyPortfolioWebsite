@@ -190,6 +190,7 @@ resource "aws_iam_role_policy" "github_actions" {
         Effect = "Allow"
         Action = [
           "ec2:*",
+          "ecr:*",
           "elasticloadbalancing:*",
           "ecs:*",
           "wafv2:*",
