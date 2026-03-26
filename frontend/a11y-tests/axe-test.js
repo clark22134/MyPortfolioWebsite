@@ -90,8 +90,9 @@ async function runAccessibilityTests() {
 
     try {
       await browserPage.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
-      // Wait a bit for Angular to render
-      await new Promise((r) => setTimeout(r, 3000));
+      // Wait for terminal animation to complete (~5s) and Angular to render
+      await browserPage.waitForFunction(() => window.__terminalComplete === true, { timeout: 15000 }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 2000));
 
       const axeResults = await new AxePuppeteer(browserPage)
         .options(AXE_OPTIONS)
