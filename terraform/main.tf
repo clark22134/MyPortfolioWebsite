@@ -207,6 +207,14 @@ resource "aws_iam_role_policy" "github_actions" {
         Resource = "*"
       },
       {
+        Sid    = "AllowSelfPolicyUpdate"
+        Effect = "Allow"
+        Action = [
+          "iam:PutRolePolicy"
+        ]
+        Resource = "arn:aws:iam::010438493245:role/github-actions-role"
+      },
+      {
         Effect = "Allow"
         Action = [
           "iam:PassRole"
