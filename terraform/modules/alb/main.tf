@@ -18,6 +18,11 @@ variable "certificate_arn" {
   type        = string
 }
 
+variable "domain_name" {
+  description = "Root domain name"
+  type        = string
+}
+
 # Security Group for ALB
 resource "aws_security_group" "alb" {
   name        = "${var.environment}-portfolio-alb-sg"
@@ -175,6 +180,112 @@ resource "aws_lb_listener_rule" "backend" {
       values = ["/api/*"]
     }
   }
+
+  condition {
+    host_header {
+      values = ["clarkfoster.com", "www.clarkfoster.com"]
+    }
+  }
+}
+
+# =========================================================================
+# E-Commerce Target Groups and Listener Rules (shop.clarkfoster.com)
+# =========================================================================
+
+# Target Group for E-Commerce Frontend
+resource "aws_lb_target_group" "ecommerce_frontend" {
+  name        = "${var.environment}-ecom-frontend-tg"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    interval            = 30
+    matcher             = "200"
+    path                = "/"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    timeout             = 10
+    unhealthy_threshold = 2
+  }
+
+  deregistration_delay = 30
+
+  tags = {
+    Name        = "${var.environment}-ecom-frontend-tg"
+    Environment = var.environment
+  }
+}
+
+# Target Group for E-Commerce Backend
+resource "aws_lb_target_group" "ecommerce_backend" {
+  name        = "${var.environment}-ecom-backend-tg"
+  port        = 8080
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    interval            = 30
+    matcher             = "200"
+    path                = "/actuator/health"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    timeout             = 15
+    unhealthy_threshold = 5
+  }
+
+  deregistration_delay = 30
+
+  tags = {
+    Name        = "${var.environment}-ecom-backend-tg"
+    Environment = var.environment
+  }
+}
+
+# Listener Rule: shop.clarkfoster.com /api/* -> ecommerce backend
+resource "aws_lb_listener_rule" "ecommerce_backend" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 50
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ecommerce_backend.arn
+  }
+
+  condition {
+    host_header {
+      values = ["shop.${var.domain_name}"]
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/*"]
+    }
+  }
+}
+
+# Listener Rule: shop.clarkfoster.com /* -> ecommerce frontend
+resource "aws_lb_listener_rule" "ecommerce_frontend" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 51
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ecommerce_frontend.arn
+  }
+
+  condition {
+    host_header {
+      values = ["shop.${var.domain_name}"]
+    }
+  }
 }
 
 # Outputs
@@ -206,4 +317,14 @@ output "frontend_target_group_arn" {
 output "backend_target_group_arn" {
   description = "ARN of the backend target group"
   value       = aws_lb_target_group.backend.arn
+}
+
+output "ecommerce_frontend_target_group_arn" {
+  description = "ARN of the e-commerce frontend target group"
+  value       = aws_lb_target_group.ecommerce_frontend.arn
+}
+
+output "ecommerce_backend_target_group_arn" {
+  description = "ARN of the e-commerce backend target group"
+  value       = aws_lb_target_group.ecommerce_backend.arn
 }

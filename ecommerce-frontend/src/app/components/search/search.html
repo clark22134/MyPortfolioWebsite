@@ -1,0 +1,13 @@
+<form class="form-header" role="search" aria-label="Product search" (submit)="$event.preventDefault(); doSearch(myInput.value)">
+
+  <label for="product-search" class="sr-only">Search for products</label>
+  <input #myInput type="text"
+    id="product-search"
+    placeholder="Search for products ..."
+    class="au-input au-input-xl"
+    (keyup.enter)="doSearch(myInput.value)" />
+
+    <button type="submit" class="au-btn-submit" aria-label="Search products">
+      Search
+    </button>
+</form>

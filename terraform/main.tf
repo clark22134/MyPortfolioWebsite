@@ -47,6 +47,7 @@ module "alb" {
   vpc_id             = module.networking.vpc_id
   public_subnet_ids  = module.networking.public_subnet_ids
   certificate_arn    = module.acm.certificate_arn
+  domain_name        = var.domain_name
 }
 
 # ECS Fargate Cluster and Services
@@ -65,6 +66,14 @@ module "ecs" {
   alb_target_group_backend_arn  = module.alb.backend_target_group_arn
   alb_target_group_frontend_arn = module.alb.frontend_target_group_arn
   alb_security_group_id = module.alb.alb_security_group_id
+
+  # E-Commerce
+  ecommerce_backend_cpu    = var.ecommerce_backend_cpu
+  ecommerce_backend_memory = var.ecommerce_backend_memory
+  ecommerce_frontend_cpu   = var.ecommerce_frontend_cpu
+  ecommerce_frontend_memory = var.ecommerce_frontend_memory
+  alb_target_group_ecommerce_backend_arn  = module.alb.ecommerce_backend_target_group_arn
+  alb_target_group_ecommerce_frontend_arn = module.alb.ecommerce_frontend_target_group_arn
 }
 
 # Route53 DNS

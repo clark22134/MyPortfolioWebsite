@@ -21,12 +21,66 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "4200:80"
     volumes:
       # Override with local nginx config for development
       - ./frontend/nginx.local.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend
+    networks:
+      - portfolio-network
+    restart: unless-stopped
+
+  # E-Commerce Services
+  ecommerce-db:
+    build:
+      context: ./ecommerce-db
+      dockerfile: Dockerfile
+    environment:
+      - MYSQL_DATABASE=full-stack-ecommerce
+      - MYSQL_USER=ecommerceapp
+      - MYSQL_PASSWORD=ecommerceapp
+      - MYSQL_ROOT_PASSWORD=rootpassword
+    ports:
+      - "3307:3306"
+    networks:
+      - portfolio-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ecommerce-backend:
+    build:
+      context: ./ecommerce-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - MYSQL_URL=jdbc:mysql://ecommerce-db:3306/full-stack-ecommerce?useSSL=false&useUnicode=yes&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - MYSQL_USERNAME=ecommerceapp
+      - MYSQL_PASSWORD=ecommerceapp
+    depends_on:
+      ecommerce-db:
+        condition: service_healthy
+    networks:
+      - portfolio-network
+    restart: unless-stopped
+
+  ecommerce-frontend:
+    build:
+      context: ./ecommerce-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8082:80"
+    volumes:
+      # Override with local nginx config for development
+      - ./ecommerce-frontend/nginx.local.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - ecommerce-backend
     networks:
       - portfolio-network
     restart: unless-stopped

@@ -49,7 +49,8 @@ import { AuthService } from '../../services/auth.service';
       <section class="hero" [class.scrolled]="scrolled" aria-label="Welcome banner">
         <div class="hero-content fade-in">
           <h1 class="hero-title">
-            <span class="typed-text" aria-label="Welcome">{{ typedText }}</span><span class="cursor" [class.typing]="isTyping" aria-hidden="true">|</span>
+            <span class="visually-hidden">Welcome</span>
+            <span class="typed-text" role="status" aria-live="polite" aria-hidden="true">{{ typedText }}</span><span class="cursor" [class.typing]="isTyping" aria-hidden="true">|</span>
           </h1>
           <p class="hero-subtitle">Full Stack Developer & Security Engineer</p>
           <p class="hero-intro">
@@ -163,6 +164,18 @@ import { AuthService } from '../../services/auth.service';
       display: block;
     }
 
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     .home-container {
       min-height: 100vh;
       position: relative;
@@ -180,10 +193,9 @@ import { AuthService } from '../../services/auth.service';
       align-items: flex-start;
       gap: 4px;
       padding: 8px;
-      background: rgba(20, 20, 20, 0.85);
+      background: #141414;
       border: 2px solid rgba(0, 204, 51, 0.4);
       border-radius: 8px;
-      backdrop-filter: blur(10px);
       box-shadow:
         0 0 20px rgba(0, 204, 51, 0.2),
         inset 0 0 20px rgba(0, 204, 51, 0.05);
@@ -221,7 +233,7 @@ import { AuthService } from '../../services/auth.service';
     }
 
     .logo-prefix {
-      color: #808080;
+      color: #a0a0a0;
     }
 
     .logo-host {

@@ -1,0 +1,9 @@
+<div role="list" aria-label="Product list">
+  @for (product of products(); track product.sku) {
+    <div role="listitem">
+      <p>
+        {{ product.name }}: {{ product.unitPrice | currency: 'USD' }}
+      </p>
+    </div>
+  }
+</div>

@@ -10,13 +10,13 @@ import { RouterModule } from '@angular/router';
     <footer class="footer" role="contentinfo" aria-label="Site footer">
       <div class="footer-content">
         <div class="footer-section">
-          <h3>Clark Foster</h3>
+          <h2>Clark Foster</h2>
           <p class="tagline">Full Stack Developer & Security Engineer</p>
           <p class="description">Building secure, scalable applications with modern cloud technologies.</p>
         </div>
 
         <div class="footer-section">
-          <h4>Quick Links</h4>
+          <h3>Quick Links</h3>
           <ul class="footer-links" aria-label="Footer navigation links">
             <li><a routerLink="/">Home</a></li>
             <li><a routerLink="/projects">Projects</a></li>
@@ -27,7 +27,7 @@ import { RouterModule } from '@angular/router';
         </div>
 
         <div class="footer-section">
-          <h4>Connect</h4>
+          <h3>Connect</h3>
           <ul class="footer-links" aria-label="Social media links">
             <li>
               <a href="https://github.com/clark22134" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile (opens in new tab)">
@@ -101,7 +101,7 @@ import { RouterModule } from '@angular/router';
       z-index: 1;
     }
 
-    .footer-section h3 {
+    .footer-section h2 {
       color: #00cc33;
       font-size: 1.5rem;
       margin-bottom: 0.75rem;
@@ -109,7 +109,7 @@ import { RouterModule } from '@angular/router';
       text-shadow: 0 0 5px rgba(0, 204, 51, 0.3);
     }
 
-    .footer-section h4 {
+    .footer-section h3 {
       color: #00cc33;
       font-size: 1.1rem;
       margin-bottom: 1rem;

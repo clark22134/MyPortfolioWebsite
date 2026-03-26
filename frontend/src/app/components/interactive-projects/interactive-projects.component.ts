@@ -173,10 +173,9 @@ interface InteractiveProject {
       align-items: flex-start;
       gap: 4px;
       padding: 8px;
-      background: rgba(20, 20, 20, 0.85);
+      background: #141414;
       border: 2px solid rgba(0, 204, 51, 0.4);
       border-radius: 8px;
-      backdrop-filter: blur(10px);
       box-shadow:
         0 0 20px rgba(0, 204, 51, 0.2),
         inset 0 0 20px rgba(0, 204, 51, 0.05);
@@ -225,7 +224,7 @@ interface InteractiveProject {
     }
 
     .logo-prefix {
-      color: #808080;
+      color: #a0a0a0;
     }
 
     .logo-host {

@@ -1,0 +1,255 @@
+<div class="login-container">
+  <div class="login-card" [class.login-card-wide]="isRegisterMode()">
+    <div class="login-header">
+      <h2 id="login-heading">{{ isRegisterMode() ? 'Create Account' : 'Sign In' }}</h2>
+      <div class="header-line"></div>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="error-message" role="alert">{{ errorMessage() }}</div>
+    }
+
+    @if (!isRegisterMode()) {
+      <form [formGroup]="loginForm" (ngSubmit)="onLogin()" aria-labelledby="login-heading">
+        <div class="form-field">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" formControlName="email" placeholder="agent&#64;example.com" autocomplete="email" aria-required="true">
+        </div>
+        <div class="form-field">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" formControlName="password" placeholder="Enter password" autocomplete="current-password" aria-required="true">
+        </div>
+        <button type="submit" class="btn-auth" [disabled]="loginForm.invalid || isLoading()">
+          {{ isLoading() ? 'Authenticating...' : 'Login' }}
+        </button>
+      </form>
+      <p class="toggle-text">
+        Don't have an account? <a (click)="toggleMode()">Register</a>
+      </p>
+    } @else {
+      <form [formGroup]="registerForm" (ngSubmit)="onRegister()">
+
+        <!-- Basic Info -->
+        <div class="reg-section-label"><i class="fa fa-user"></i> Account Info</div>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="regFirstName">First Name</label>
+            <input type="text" id="regFirstName" formControlName="firstName" placeholder="First name">
+            @if (registerForm.get('firstName')?.invalid && registerForm.get('firstName')?.touched) {
+              <small class="error">First name is required.</small>
+            }
+          </div>
+          <div class="form-field">
+            <label for="regLastName">Last Name</label>
+            <input type="text" id="regLastName" formControlName="lastName" placeholder="Last name">
+            @if (registerForm.get('lastName')?.invalid && registerForm.get('lastName')?.touched) {
+              <small class="error">Last name is required.</small>
+            }
+          </div>
+        </div>
+        <div class="form-field">
+          <label for="regEmail">Email</label>
+          <input type="email" id="regEmail" formControlName="email" placeholder="agent&#64;example.com">
+          @if (registerForm.get('email')?.invalid && registerForm.get('email')?.touched) {
+            <small class="error">Please enter a valid email address.</small>
+          }
+        </div>
+        <div class="form-field">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" formControlName="password" placeholder="Min 6 characters">
+          @if (registerForm.get('password')?.invalid && registerForm.get('password')?.touched) {
+            <small class="error">Password must be at least 6 characters.</small>
+          }
+        </div>
+
+        <!-- Shipping Address (Required) -->
+        <div class="reg-section-label"><i class="fa fa-truck"></i> Default Shipping Address <span class="required-tag">Required</span></div>
+        <div formGroupName="shippingAddress">
+          <div class="form-field">
+            <label for="regShipStreet">Street</label>
+            <input type="text" id="regShipStreet" formControlName="street" placeholder="Street address">
+            @if (registerForm.get('shippingAddress.street')?.invalid && registerForm.get('shippingAddress.street')?.touched) {
+              <small class="error">Street is required.</small>
+            }
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="regShipCity">City</label>
+              <input type="text" id="regShipCity" formControlName="city" placeholder="City">
+              @if (registerForm.get('shippingAddress.city')?.invalid && registerForm.get('shippingAddress.city')?.touched) {
+                <small class="error">City is required.</small>
+              }
+            </div>
+            <div class="form-field">
+              <label for="regShipCountry">Country</label>
+              <select id="regShipCountry" formControlName="country" (change)="onShippingCountryChange()">
+                <option value="">Select Country...</option>
+                @for (country of countries; track country.code) {
+                  <option [value]="country.code">{{ country.name }}</option>
+                }
+              </select>
+              @if (registerForm.get('shippingAddress.country')?.invalid && registerForm.get('shippingAddress.country')?.touched) {
+                <small class="error">Country is required.</small>
+              }
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="regShipState">State</label>
+              <select id="regShipState" formControlName="state">
+                <option value="">Select State...</option>
+                @for (state of shippingStates; track state.id) {
+                  <option [value]="state.name">{{ state.name }}</option>
+                }
+              </select>
+              @if (registerForm.get('shippingAddress.state')?.invalid && registerForm.get('shippingAddress.state')?.touched) {
+                <small class="error">State is required.</small>
+              }
+            </div>
+            <div class="form-field">
+              <label for="regShipZip">Zip Code</label>
+              <input type="text" id="regShipZip" formControlName="zipCode" placeholder="Zip Code">
+              @if (registerForm.get('shippingAddress.zipCode')?.invalid && registerForm.get('shippingAddress.zipCode')?.touched) {
+                <small class="error">Zip code is required.</small>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Billing Address (Optional) -->
+        <div class="reg-section-toggle">
+          <label>
+            <input type="checkbox" (change)="toggleBilling()">
+            <span><i class="fa fa-file-text"></i> Add a default billing address</span>
+          </label>
+        </div>
+        @if (includeBilling()) {
+          <div class="reg-section-toggle same-as-shipping">
+            <label>
+              <input type="checkbox" [checked]="billingSameAsShipping()" (change)="toggleBillingSameAsShipping()">
+              <span><i class="fa fa-copy"></i> Same as Shipping Address</span>
+            </label>
+          </div>
+          <div formGroupName="billingAddress">
+            <div class="form-field">
+              <label for="regBillStreet">Street</label>
+              <input type="text" id="regBillStreet" formControlName="street" placeholder="Street address">
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="regBillCity">City</label>
+                <input type="text" id="regBillCity" formControlName="city" placeholder="City">
+              </div>
+              <div class="form-field">
+                <label for="regBillCountry">Country</label>
+                <select id="regBillCountry" formControlName="country" (change)="onBillingCountryChange()">
+                  <option value="">Select Country...</option>
+                  @for (country of countries; track country.code) {
+                    <option [value]="country.code">{{ country.name }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="regBillState">State</label>
+                <select id="regBillState" formControlName="state">
+                  <option value="">Select State...</option>
+                  @for (state of billingStates; track state.id) {
+                    <option [value]="state.name">{{ state.name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="regBillZip">Zip Code</label>
+                <input type="text" id="regBillZip" formControlName="zipCode" placeholder="Zip Code">
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Credit Card (Optional) -->
+        <div class="reg-section-toggle">
+          <label>
+            <input type="checkbox" (change)="toggleCard()">
+            <span><i class="fa fa-credit-card"></i> Add a default credit card</span>
+          </label>
+        </div>
+        @if (includeCard()) {
+          <div formGroupName="creditCard">
+            <div class="form-row">
+              <div class="form-field">
+                <label for="regCardType">Card Type</label>
+                <select id="regCardType" formControlName="cardType">
+                  <option value="">Select...</option>
+                  <option value="Visa">Visa</option>
+                  <option value="Mastercard">Mastercard</option>
+                  <option value="Amex">American Express</option>
+                </select>
+                @if (registerForm.get('creditCard.cardType')?.invalid && registerForm.get('creditCard.cardType')?.touched) {
+                  <small class="error">Card type is required.</small>
+                }
+              </div>
+              <div class="form-field">
+                <label for="regNameOnCard">Name on Card</label>
+                <input type="text" id="regNameOnCard" formControlName="nameOnCard" placeholder="Name on card">
+                @if (registerForm.get('creditCard.nameOnCard')?.invalid && registerForm.get('creditCard.nameOnCard')?.touched) {
+                  <small class="error">Name on card is required.</small>
+                }
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="regCardNumber">Card Number</label>
+                <input type="text" id="regCardNumber" formControlName="cardNumber" placeholder="1234567890123456" maxlength="16">
+                @if (registerForm.get('creditCard.cardNumber')?.invalid && registerForm.get('creditCard.cardNumber')?.touched) {
+                  <small class="error">Please enter a valid 16-digit card number.</small>
+                }
+              </div>
+              <div class="form-field">
+                <label for="regSecurityCode">CVV</label>
+                <input type="text" id="regSecurityCode" formControlName="securityCode" placeholder="123" maxlength="3">
+                @if (registerForm.get('creditCard.securityCode')?.invalid && registerForm.get('creditCard.securityCode')?.touched) {
+                  <small class="error">Please enter a valid 3-digit code.</small>
+                }
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="regExpMonth">Exp. Month</label>
+                <select id="regExpMonth" formControlName="expirationMonth">
+                  <option value="">Month</option>
+                  @for (month of creditCardMonths; track month) {
+                    <option [value]="month">{{ month }}</option>
+                  }
+                </select>
+                @if (registerForm.get('creditCard.expirationMonth')?.invalid && registerForm.get('creditCard.expirationMonth')?.touched) {
+                  <small class="error">Expiration month is required.</small>
+                }
+              </div>
+              <div class="form-field">
+                <label for="regExpYear">Exp. Year</label>
+                <select id="regExpYear" formControlName="expirationYear">
+                  <option value="">Year</option>
+                  @for (year of creditCardYears; track year) {
+                    <option [value]="year">{{ year }}</option>
+                  }
+                </select>
+                @if (registerForm.get('creditCard.expirationYear')?.invalid && registerForm.get('creditCard.expirationYear')?.touched) {
+                  <small class="error">Expiration year is required.</small>
+                }
+              </div>
+            </div>
+          </div>
+        }
+
+        <button type="submit" class="btn-auth" [disabled]="isLoading()">
+          {{ isLoading() ? 'Creating Account...' : 'Register' }}
+        </button>
+      </form>
+      <p class="toggle-text">
+        Already have an account? <a (click)="toggleMode()">Sign In</a>
+      </p>
+    }
+  </div>
+</div>

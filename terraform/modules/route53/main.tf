@@ -47,6 +47,20 @@ resource "aws_route53_record" "www" {
   }
 }
 
+# E-Commerce subdomain
+resource "aws_route53_record" "shop" {
+  zone_id         = data.aws_route53_zone.main.zone_id
+  name            = "shop.${var.domain_name}"
+  type            = "A"
+  allow_overwrite = true
+
+  alias {
+    name                   = var.alb_dns_name
+    zone_id                = var.alb_zone_id
+    evaluate_target_health = true
+  }
+}
+
 # Output nameservers
 output "nameservers" {
   description = "Name servers for the domain"
