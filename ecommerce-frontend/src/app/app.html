@@ -1,20 +1,62 @@
 <div class="page-wrapper">
 
-		<!-- MENU SIDEBAR-->
-		<aside class="menu-sidebar d-none d-lg-block" role="complementary" aria-label="Product categories">
-			<div class="logo">
-				<a routerLink="/products" aria-label="Fosterly home">
-					<img src="images/fosterly_final.png" alt="Fosterly - Home" class="img-responsive">
-				</a>
+	<!-- MOBILE HEADER (visible below lg breakpoint) -->
+	<header class="mobile-top-bar d-lg-none" role="banner">
+		<div class="mobile-top-inner">
+			<button class="mobile-hamburger" (click)="mobileMenuOpen.set(!mobileMenuOpen())"
+				[attr.aria-expanded]="mobileMenuOpen()" aria-controls="mobile-nav-drawer"
+				aria-label="Toggle navigation menu">
+				<span class="hamburger-line" [class.open]="mobileMenuOpen()"></span>
+				<span class="hamburger-line" [class.open]="mobileMenuOpen()"></span>
+				<span class="hamburger-line" [class.open]="mobileMenuOpen()"></span>
+			</button>
+			<a routerLink="/products" class="mobile-logo-link" aria-label="Fosterly home" (click)="closeMobileMenu()">
+				<img src="images/fosterly_final.png" alt="Fosterly" class="mobile-logo-img">
+			</a>
+			<div class="mobile-top-actions">
+				<app-cart-status></app-cart-status>
 			</div>
+		</div>
+		<div class="mobile-search-bar">
+			<app-search></app-search>
+		</div>
+	</header>
+
+	<!-- MOBILE NAV OVERLAY -->
+	@if (mobileMenuOpen()) {
+		<div class="mobile-overlay d-lg-none" (click)="closeMobileMenu()" aria-hidden="true"></div>
+	}
+
+	<!-- MOBILE NAV DRAWER -->
+	<nav id="mobile-nav-drawer" class="mobile-drawer d-lg-none" [class.open]="mobileMenuOpen()" aria-label="Mobile navigation">
+		<div class="mobile-drawer-header">
+			<span class="mobile-drawer-title">Menu</span>
+			<button class="mobile-drawer-close" (click)="closeMobileMenu()" aria-label="Close menu">
+				<i class="fa fa-times"></i>
+			</button>
+		</div>
+		<div class="mobile-drawer-auth">
+			<app-login-status></app-login-status>
+		</div>
+		<div class="mobile-drawer-categories">
 			<app-product-category-menu></app-product-category-menu>
-		</aside>
-		<!-- END MENU SIDEBAR-->
+		</div>
+	</nav>
+
+	<!-- DESKTOP SIDEBAR -->
+	<aside class="menu-sidebar d-none d-lg-block" role="complementary" aria-label="Product categories">
+		<div class="logo">
+			<a routerLink="/products" aria-label="Fosterly home">
+				<img src="images/fosterly_final.png" alt="Fosterly - Home" class="img-responsive">
+			</a>
+		</div>
+		<app-product-category-menu></app-product-category-menu>
+	</aside>
 
     <!-- PAGE CONTAINER-->
     <div class="page-container">
-      <!-- HEADER DESKTOP-->
-      <header class="header-desktop" role="banner">
+      <!-- HEADER DESKTOP (hidden below lg) -->
+      <header class="header-desktop d-none d-lg-block" role="banner">
         <div class="section-content section-content-p30">
           <div class="container-fluid">
             <div class="header-wrap">
@@ -49,9 +91,8 @@
 	<footer role="contentinfo" aria-label="Site footer">
 		<nav aria-label="Footer navigation">
 			<ul>
-				<li><a href="#">About Us</a></li>
-				<li><a href="#">Contact Us</a></li>
-				<li><a href="#">Help</a></li>
+				<li><a routerLink="/about">About Us</a></li>
+				<li><a href="https://www.clarkfoster.com/contact" target="_blank" rel="noopener noreferrer">Contact Us</a></li>
 			</ul>
 		</nav>
 	</footer>

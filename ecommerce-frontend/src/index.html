@@ -16,6 +16,11 @@
   <div id="aria-live-polite" aria-live="polite" aria-atomic="true" role="status" class="sr-only"></div>
   <div id="aria-live-assertive" aria-live="assertive" aria-atomic="true" role="alert" class="sr-only"></div>
 
-  <app-root></app-root>
+  <app-root>
+    <style>@keyframes _lr{to{transform:rotate(360deg)}}</style>
+    <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#080c14;">
+      <div style="width:40px;height:40px;border:3px solid rgba(0,229,255,0.2);border-top-color:#00e5ff;border-radius:50%;animation:_lr .8s linear infinite;"></div>
+    </div>
+  </app-root>
 </body>
 </html>

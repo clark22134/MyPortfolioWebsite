@@ -14,6 +14,11 @@ import { LoginStatusComponent } from './components/login-status/login-status';
 })
 export class App {
   protected readonly title = signal('angular-ecommerce');
+  mobileMenuOpen = signal(false);
+
+  closeMobileMenu() {
+    this.mobileMenuOpen.set(false);
+  }
 }
 
 
