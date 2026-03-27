@@ -10,6 +10,7 @@ interface ProjectCard {
   route: string;
   tags: string[];
   status: 'live' | 'coming-soon' | 'in-progress';
+  externalUrl?: string;
 }
 
 @Component({
@@ -34,7 +35,9 @@ interface ProjectCard {
                 <span class="tag">{{ tag }}</span>
               }
             </div>
-            @if (project.status === 'live') {
+            @if (project.status === 'live' && project.externalUrl) {
+              <a [href]="project.externalUrl" class="launch-btn">Launch Project →</a>
+            } @else if (project.status === 'live') {
               <a [routerLink]="project.route" class="launch-btn">Launch Project →</a>
             } @else {
               <span class="status-badge">{{ project.status === 'in-progress' ? 'In Progress' : 'Coming Soon' }}</span>
@@ -157,13 +160,14 @@ export class ProjectGalleryComponent {
       status: 'coming-soon'
     },
     {
-      id: 'task-manager',
-      title: 'Task Manager',
-      description: 'A full-featured project management tool with drag-and-drop boards, deadlines, and team collaboration.',
-      icon: '📋',
-      route: '/projects/task-manager',
-      tags: ['Angular', 'Spring Boot', 'PostgreSQL', 'Drag & Drop'],
-      status: 'coming-soon'
+      id: 'ats',
+      title: 'Applicant Tracking System',
+      description: 'A modern ATS with Kanban pipeline boards to move candidates through screening, interviews, offers, and onboarding.',
+      icon: '👥',
+      route: '',
+      tags: ['Angular', 'Spring Boot', 'PostgreSQL', 'Kanban'],
+      status: 'live',
+      externalUrl: '/ats/'
     },
     {
       id: 'real-time-analytics',
