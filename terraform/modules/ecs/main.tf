@@ -89,6 +89,37 @@ variable "alb_target_group_ecommerce_frontend_arn" {
   type        = string
 }
 
+# ATS variables
+variable "ats_backend_cpu" {
+  description = "CPU units for ATS backend"
+  type        = number
+}
+
+variable "ats_backend_memory" {
+  description = "Memory for ATS backend in MB"
+  type        = number
+}
+
+variable "ats_frontend_cpu" {
+  description = "CPU units for ATS frontend"
+  type        = number
+}
+
+variable "ats_frontend_memory" {
+  description = "Memory for ATS frontend in MB"
+  type        = number
+}
+
+variable "alb_target_group_ats_backend_arn" {
+  description = "ARN of ATS backend target group"
+  type        = string
+}
+
+variable "alb_target_group_ats_frontend_arn" {
+  description = "ARN of ATS frontend target group"
+  type        = string
+}
+
 # ECR Repositories
 resource "aws_ecr_repository" "portfolio_backend" {
   name                 = "portfolio-backend"
@@ -713,6 +744,256 @@ resource "aws_cloudwatch_log_group" "ecommerce_db" {
 
   tags = {
     Name        = "${var.environment}-ecommerce-db-logs"
+    Environment = var.environment
+  }
+}
+
+# =========================================================================
+# ATS Resources
+# =========================================================================
+
+# CloudWatch Log Groups for ATS
+resource "aws_cloudwatch_log_group" "ats_backend" {
+  name              = "/ecs/${var.environment}/ats-backend"
+  retention_in_days = 7
+
+  tags = {
+    Name        = "${var.environment}-ats-backend-logs"
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_log_group" "ats_frontend" {
+  name              = "/ecs/${var.environment}/ats-frontend"
+  retention_in_days = 7
+
+  tags = {
+    Name        = "${var.environment}-ats-frontend-logs"
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_log_group" "ats_db" {
+  name              = "/ecs/${var.environment}/ats-db"
+  retention_in_days = 7
+
+  tags = {
+    Name        = "${var.environment}-ats-db-logs"
+    Environment = var.environment
+  }
+}
+
+# ATS Backend Task Definition (with PostgreSQL sidecar)
+resource "aws_ecs_task_definition" "ats_backend" {
+  family                   = "${var.environment}-ats-backend"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.ats_backend_cpu
+  memory                   = var.ats_backend_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "ats-backend"
+      image     = "010438493245.dkr.ecr.us-east-1.amazonaws.com/ats-backend:latest"
+      essential = true
+      portMappings = [
+        {
+          containerPort = 8080
+          protocol      = "tcp"
+        }
+      ]
+      environment = [
+        {
+          name  = "SPRING_PROFILES_ACTIVE"
+          value = "prod"
+        },
+        {
+          name  = "POSTGRES_URL"
+          value = "jdbc:postgresql://localhost:5432/ats?useSSL=false"
+        },
+        {
+          name  = "POSTGRES_USERNAME"
+          value = "atsapp"
+        },
+        {
+          name  = "POSTGRES_PASSWORD"
+          value = "atsapp"
+        }
+      ]
+      dependsOn = [
+        {
+          containerName = "ats-db"
+          condition     = "HEALTHY"
+        }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.ats_backend.name
+          "awslogs-region"        = data.aws_region.current.name
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
+    },
+    {
+      name      = "ats-db"
+      image     = "010438493245.dkr.ecr.us-east-1.amazonaws.com/ats-db:latest"
+      essential = true
+      portMappings = [
+        {
+          containerPort = 5432
+          protocol      = "tcp"
+        }
+      ]
+      environment = [
+        {
+          name  = "POSTGRES_DB"
+          value = "ats"
+        },
+        {
+          name  = "POSTGRES_USER"
+          value = "atsapp"
+        },
+        {
+          name  = "POSTGRES_PASSWORD"
+          value = "atsapp"
+        }
+      ]
+      healthCheck = {
+        command     = ["CMD-SHELL", "pg_isready -U atsapp -d ats"]
+        interval    = 10
+        timeout     = 5
+        retries     = 10
+        startPeriod = 30
+      }
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.ats_db.name
+          "awslogs-region"        = data.aws_region.current.name
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
+    }
+  ])
+
+  tags = {
+    Name        = "${var.environment}-ats-backend"
+    Environment = var.environment
+  }
+}
+
+# ATS Frontend Task Definition
+resource "aws_ecs_task_definition" "ats_frontend" {
+  family                   = "${var.environment}-ats-frontend"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.ats_frontend_cpu
+  memory                   = var.ats_frontend_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "ats-frontend"
+      image     = "010438493245.dkr.ecr.us-east-1.amazonaws.com/ats-frontend:latest"
+      essential = true
+      portMappings = [
+        {
+          containerPort = 80
+          protocol      = "tcp"
+        }
+      ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.ats_frontend.name
+          "awslogs-region"        = data.aws_region.current.name
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
+    }
+  ])
+
+  tags = {
+    Name        = "${var.environment}-ats-frontend"
+    Environment = var.environment
+  }
+}
+
+# ATS Backend ECS Service
+resource "aws_ecs_service" "ats_backend" {
+  name            = "${var.environment}-ats-backend"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.ats_backend.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  # Allow time for PostgreSQL + Spring Boot startup
+  health_check_grace_period_seconds = 180
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  network_configuration {
+    subnets          = var.public_subnet_ids
+    security_groups  = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = var.alb_target_group_ats_backend_arn
+    container_name   = "ats-backend"
+    container_port   = 8080
+  }
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.ecs_task_execution]
+
+  tags = {
+    Name        = "${var.environment}-ats-backend-service"
+    Environment = var.environment
+  }
+}
+
+# ATS Frontend ECS Service
+resource "aws_ecs_service" "ats_frontend" {
+  name            = "${var.environment}-ats-frontend"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.ats_frontend.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  network_configuration {
+    subnets          = var.public_subnet_ids
+    security_groups  = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = var.alb_target_group_ats_frontend_arn
+    container_name   = "ats-frontend"
+    container_port   = var.frontend_port
+  }
+
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.ecs_task_execution]
+
+  tags = {
+    Name        = "${var.environment}-ats-frontend-service"
     Environment = var.environment
   }
 }
