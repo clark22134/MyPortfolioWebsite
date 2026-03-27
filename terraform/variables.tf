@@ -70,6 +70,31 @@ variable "github_repository" {
   default     = "clark22134/MyPortfolioWebsite"
 }
 
+# ATS ECS sizing
+variable "ats_backend_cpu" {
+  description = "CPU units for ATS backend container (includes PostgreSQL sidecar)"
+  type        = number
+  default     = 512
+}
+
+variable "ats_backend_memory" {
+  description = "Memory for ATS backend container in MB (includes PostgreSQL sidecar)"
+  type        = number
+  default     = 1024
+}
+
+variable "ats_frontend_cpu" {
+  description = "CPU units for ATS frontend container"
+  type        = number
+  default     = 256
+}
+
+variable "ats_frontend_memory" {
+  description = "Memory for ATS frontend container in MB"
+  type        = number
+  default     = 512
+}
+
 # E-Commerce ECS sizing
 variable "ecommerce_backend_cpu" {
   description = "CPU units for e-commerce backend container"

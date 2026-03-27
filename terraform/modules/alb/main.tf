@@ -288,6 +288,106 @@ resource "aws_lb_listener_rule" "ecommerce_frontend" {
   }
 }
 
+# =========================================================================
+# ATS Target Groups and Listener Rules (ats.clarkfoster.com)
+# =========================================================================
+
+# Target Group for ATS Frontend
+resource "aws_lb_target_group" "ats_frontend" {
+  name        = "${var.environment}-ats-frontend-tg"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    interval            = 30
+    matcher             = "200"
+    path                = "/"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    timeout             = 10
+    unhealthy_threshold = 2
+  }
+
+  deregistration_delay = 30
+
+  tags = {
+    Name        = "${var.environment}-ats-frontend-tg"
+    Environment = var.environment
+  }
+}
+
+# Target Group for ATS Backend
+resource "aws_lb_target_group" "ats_backend" {
+  name        = "${var.environment}-ats-backend-tg"
+  port        = 8080
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    interval            = 30
+    matcher             = "200"
+    path                = "/actuator/health"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    timeout             = 15
+    unhealthy_threshold = 5
+  }
+
+  deregistration_delay = 30
+
+  tags = {
+    Name        = "${var.environment}-ats-backend-tg"
+    Environment = var.environment
+  }
+}
+
+# Listener Rule: ats.clarkfoster.com /api/* -> ATS backend
+resource "aws_lb_listener_rule" "ats_backend" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 60
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ats_backend.arn
+  }
+
+  condition {
+    host_header {
+      values = ["ats.${var.domain_name}"]
+    }
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/*"]
+    }
+  }
+}
+
+# Listener Rule: ats.clarkfoster.com /* -> ATS frontend
+resource "aws_lb_listener_rule" "ats_frontend" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 61
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ats_frontend.arn
+  }
+
+  condition {
+    host_header {
+      values = ["ats.${var.domain_name}"]
+    }
+  }
+}
+
 # Outputs
 output "alb_dns_name" {
   description = "DNS name of the load balancer"
@@ -327,4 +427,14 @@ output "ecommerce_frontend_target_group_arn" {
 output "ecommerce_backend_target_group_arn" {
   description = "ARN of the e-commerce backend target group"
   value       = aws_lb_target_group.ecommerce_backend.arn
+}
+
+output "ats_frontend_target_group_arn" {
+  description = "ARN of the ATS frontend target group"
+  value       = aws_lb_target_group.ats_frontend.arn
+}
+
+output "ats_backend_target_group_arn" {
+  description = "ARN of the ATS backend target group"
+  value       = aws_lb_target_group.ats_backend.arn
 }

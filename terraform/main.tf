@@ -74,6 +74,14 @@ module "ecs" {
   ecommerce_frontend_memory = var.ecommerce_frontend_memory
   alb_target_group_ecommerce_backend_arn  = module.alb.ecommerce_backend_target_group_arn
   alb_target_group_ecommerce_frontend_arn = module.alb.ecommerce_frontend_target_group_arn
+
+  # ATS
+  ats_backend_cpu    = var.ats_backend_cpu
+  ats_backend_memory = var.ats_backend_memory
+  ats_frontend_cpu   = var.ats_frontend_cpu
+  ats_frontend_memory = var.ats_frontend_memory
+  alb_target_group_ats_backend_arn  = module.alb.ats_backend_target_group_arn
+  alb_target_group_ats_frontend_arn = module.alb.ats_frontend_target_group_arn
 }
 
 # Route53 DNS
