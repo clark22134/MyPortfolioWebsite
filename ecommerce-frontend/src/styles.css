@@ -1344,16 +1344,40 @@ footer ul li{
         max-width: 100%
     }
     .product-box {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 14px;
+        display: grid;
+        grid-template-columns: 80px 1fr;
+        grid-template-rows: auto auto auto;
+        column-gap: 14px;
+        row-gap: 4px;
+        align-items: start;
         text-align: left;
         padding: 12px
     }
     .product-box img {
+        grid-column: 1;
+        grid-row: 1 / span 3;
         width: 80px;
+        align-self: center;
         flex-shrink: 0
+    }
+    .product-box h1 {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center
+    }
+    .product-box .price,
+    .product-box .price-vip-wrap {
+        grid-column: 2;
+        grid-row: 2;
+        margin: 0
+    }
+    .product-box .btn-add-to-cart {
+        grid-column: 2;
+        grid-row: 3;
+        display: block;
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box
     }
     .product-box .vip-badge {
         top: 6px;
