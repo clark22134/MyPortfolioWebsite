@@ -165,6 +165,51 @@ resource "aws_ecr_repository" "ecommerce_db" {
   }
 }
 
+resource "aws_ecr_repository" "ats_backend" {
+  name                 = "ats-backend"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = false
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "ats-backend"
+    Environment = var.environment
+  }
+}
+
+resource "aws_ecr_repository" "ats_frontend" {
+  name                 = "ats-frontend"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = false
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "ats-frontend"
+    Environment = var.environment
+  }
+}
+
+resource "aws_ecr_repository" "ats_db" {
+  name                 = "ats-db"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = false
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  tags = {
+    Name        = "ats-db"
+    Environment = var.environment
+  }
+}
+
 # ECR Lifecycle Policies - keep only last 10 images
 resource "aws_ecr_lifecycle_policy" "portfolio_backend" {
   repository = aws_ecr_repository.portfolio_backend.name
@@ -244,6 +289,63 @@ resource "aws_ecr_lifecycle_policy" "ecommerce_frontend" {
 
 resource "aws_ecr_lifecycle_policy" "ecommerce_db" {
   repository = aws_ecr_repository.ecommerce_db.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "ats_backend" {
+  repository = aws_ecr_repository.ats_backend.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "ats_frontend" {
+  repository = aws_ecr_repository.ats_frontend.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "ats_db" {
+  repository = aws_ecr_repository.ats_db.name
 
   policy = jsonencode({
     rules = [{
