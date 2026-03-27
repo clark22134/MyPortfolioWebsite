@@ -23,11 +23,16 @@ FRONTEND_REPO="portfolio-frontend"
 ECOM_BACKEND_REPO="ecommerce-backend"
 ECOM_FRONTEND_REPO="ecommerce-frontend"
 ECOM_DB_REPO="ecommerce-db"
+ATS_BACKEND_REPO="ats-backend"
+ATS_FRONTEND_REPO="ats-frontend"
+ATS_DB_REPO="ats-db"
 ECS_CLUSTER="prod-portfolio-cluster"
 BACKEND_SERVICE="prod-portfolio-backend"
 FRONTEND_SERVICE="prod-portfolio-frontend"
 ECOM_BACKEND_SERVICE="prod-ecommerce-backend"
 ECOM_FRONTEND_SERVICE="prod-ecommerce-frontend"
+ATS_BACKEND_SERVICE="prod-ats-backend"
+ATS_FRONTEND_SERVICE="prod-ats-frontend"
 IMAGE_TAG="deploy-$(date +%s)"
 
 echo "AWS Account: ${AWS_ACCOUNT_ID}"
@@ -47,7 +52,7 @@ echo ""
 
 # Create ECR repositories if they don't exist
 echo -e "${YELLOW}Setting up ECR repositories...${NC}"
-for repo in $BACKEND_REPO $FRONTEND_REPO $ECOM_BACKEND_REPO $ECOM_FRONTEND_REPO $ECOM_DB_REPO; do
+for repo in $BACKEND_REPO $FRONTEND_REPO $ECOM_BACKEND_REPO $ECOM_FRONTEND_REPO $ECOM_DB_REPO $ATS_BACKEND_REPO $ATS_FRONTEND_REPO $ATS_DB_REPO; do
     if aws ecr describe-repositories --repository-names $repo --region $AWS_REGION &> /dev/null; then
         echo "✓ Repository $repo exists"
     else
@@ -133,6 +138,45 @@ ECOM_DB_IMAGE="$ECR_REGISTRY/$ECOM_DB_REPO:$IMAGE_TAG"
 echo -e "${GREEN}✓ E-commerce DB pushed: $ECOM_DB_IMAGE${NC}"
 echo ""
 
+# Build and push ATS backend
+cd ../ats-backend
+echo -e "${YELLOW}Building ATS backend image...${NC}"
+docker build --build-arg GIT_COMMIT=$IMAGE_TAG -t $ECR_REGISTRY/$ATS_BACKEND_REPO:$IMAGE_TAG .
+echo -e "${GREEN}✓ ATS backend image built${NC}"
+echo ""
+
+echo -e "${YELLOW}Pushing ATS backend to ECR...${NC}"
+docker push $ECR_REGISTRY/$ATS_BACKEND_REPO:$IMAGE_TAG
+ATS_BACKEND_IMAGE="$ECR_REGISTRY/$ATS_BACKEND_REPO:$IMAGE_TAG"
+echo -e "${GREEN}✓ ATS backend pushed: $ATS_BACKEND_IMAGE${NC}"
+echo ""
+
+# Build and push ATS frontend
+cd ../ats-frontend
+echo -e "${YELLOW}Building ATS frontend image...${NC}"
+docker build -t $ECR_REGISTRY/$ATS_FRONTEND_REPO:$IMAGE_TAG .
+echo -e "${GREEN}✓ ATS frontend image built${NC}"
+echo ""
+
+echo -e "${YELLOW}Pushing ATS frontend to ECR...${NC}"
+docker push $ECR_REGISTRY/$ATS_FRONTEND_REPO:$IMAGE_TAG
+ATS_FRONTEND_IMAGE="$ECR_REGISTRY/$ATS_FRONTEND_REPO:$IMAGE_TAG"
+echo -e "${GREEN}✓ ATS frontend pushed: $ATS_FRONTEND_IMAGE${NC}"
+echo ""
+
+# Build and push ATS DB
+cd ../ats-db
+echo -e "${YELLOW}Building ATS DB image...${NC}"
+docker build -t $ECR_REGISTRY/$ATS_DB_REPO:$IMAGE_TAG .
+echo -e "${GREEN}✓ ATS DB image built${NC}"
+echo ""
+
+echo -e "${YELLOW}Pushing ATS DB to ECR...${NC}"
+docker push $ECR_REGISTRY/$ATS_DB_REPO:$IMAGE_TAG
+ATS_DB_IMAGE="$ECR_REGISTRY/$ATS_DB_REPO:$IMAGE_TAG"
+echo -e "${GREEN}✓ ATS DB pushed: $ATS_DB_IMAGE${NC}"
+echo ""
+
 cd ..
 
 # Check if ECS cluster exists
@@ -214,6 +258,41 @@ ECOM_FRONTEND_REVISION=$(aws ecs register-task-definition \
 echo "✓ Registered e-commerce frontend task definition revision: $ECOM_FRONTEND_REVISION"
 echo ""
 
+# Update ATS backend task definition
+echo -e "${YELLOW}Deploying ATS backend...${NC}"
+ATS_BACKEND_TASK_DEF=$(aws ecs describe-task-definition \
+    --task-definition prod-ats-backend \
+    --region $AWS_REGION)
+
+NEW_ATS_BACKEND_TASK_DEF=$(echo $ATS_BACKEND_TASK_DEF | jq --arg IMAGE "$ATS_BACKEND_IMAGE" --arg DBIMAGE "$ATS_DB_IMAGE" \
+    '.taskDefinition | .containerDefinitions = [(.containerDefinitions[] | if .name == "ats-backend" then .image = $IMAGE elif .name == "ats-db" then .image = $DBIMAGE else . end)] | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+ATS_BACKEND_REVISION=$(aws ecs register-task-definition \
+    --cli-input-json "$NEW_ATS_BACKEND_TASK_DEF" \
+    --region $AWS_REGION \
+    --query 'taskDefinition.revision' \
+    --output text)
+
+echo "✓ Registered ATS backend task definition revision: $ATS_BACKEND_REVISION"
+
+# Update ATS frontend task definition
+echo -e "${YELLOW}Deploying ATS frontend...${NC}"
+ATS_FRONTEND_TASK_DEF=$(aws ecs describe-task-definition \
+    --task-definition prod-ats-frontend \
+    --region $AWS_REGION)
+
+NEW_ATS_FRONTEND_TASK_DEF=$(echo $ATS_FRONTEND_TASK_DEF | jq --arg IMAGE "$ATS_FRONTEND_IMAGE" \
+    '.taskDefinition | .containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+
+ATS_FRONTEND_REVISION=$(aws ecs register-task-definition \
+    --cli-input-json "$NEW_ATS_FRONTEND_TASK_DEF" \
+    --region $AWS_REGION \
+    --query 'taskDefinition.revision' \
+    --output text)
+
+echo "✓ Registered ATS frontend task definition revision: $ATS_FRONTEND_REVISION"
+echo ""
+
 # Update services
 echo -e "${YELLOW}Updating ECS services...${NC}"
 aws ecs update-service \
@@ -241,6 +320,20 @@ aws ecs update-service \
     --cluster $ECS_CLUSTER \
     --service $ECOM_FRONTEND_SERVICE \
     --task-definition prod-ecommerce-frontend:$ECOM_FRONTEND_REVISION \
+    --force-new-deployment \
+    --region $AWS_REGION > /dev/null &
+
+aws ecs update-service \
+    --cluster $ECS_CLUSTER \
+    --service $ATS_BACKEND_SERVICE \
+    --task-definition prod-ats-backend:$ATS_BACKEND_REVISION \
+    --force-new-deployment \
+    --region $AWS_REGION > /dev/null &
+
+aws ecs update-service \
+    --cluster $ECS_CLUSTER \
+    --service $ATS_FRONTEND_SERVICE \
+    --task-definition prod-ats-frontend:$ATS_FRONTEND_REVISION \
     --force-new-deployment \
     --region $AWS_REGION > /dev/null &
 
@@ -461,6 +554,112 @@ while true; do
 done
 echo ""
 
+# Wait for ATS backend deployment
+echo -e "${YELLOW}Waiting for ATS backend deployment to stabilize...${NC}"
+STABLE_COUNT=0
+START_TIME=$(date +%s)
+
+while true; do
+    CURRENT_TIME=$(date +%s)
+    ELAPSED=$((CURRENT_TIME - START_TIME))
+    
+    if [ $ELAPSED -gt $MAX_WAIT ]; then
+        echo -e "${RED}Deployment timed out after 15 minutes${NC}"
+        exit 1
+    fi
+    
+    RUNNING=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ATS_BACKEND_SERVICE \
+        --region $AWS_REGION \
+        --query "services[0].runningCount" \
+        --output text)
+    
+    DESIRED=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ATS_BACKEND_SERVICE \
+        --region $AWS_REGION \
+        --query "services[0].desiredCount" \
+        --output text)
+    
+    DEPLOYMENT_COUNT=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ATS_BACKEND_SERVICE \
+        --region $AWS_REGION \
+        --query "length(services[0].deployments)" \
+        --output text)
+    
+    echo "ATS Backend: $RUNNING/$DESIRED tasks | Active deployments: $DEPLOYMENT_COUNT"
+    
+    if [ "$RUNNING" = "$DESIRED" ] && [ "$RUNNING" != "0" ]; then
+        STABLE_COUNT=$((STABLE_COUNT + 1))
+        echo "✓ Stable for ${STABLE_COUNT} checks (need 3)"
+        
+        if [ $STABLE_COUNT -ge 3 ]; then
+            echo -e "${GREEN}✓ ATS backend deployment completed${NC}"
+            break
+        fi
+    else
+        STABLE_COUNT=0
+    fi
+    
+    sleep 10
+done
+echo ""
+
+# Wait for ATS frontend deployment
+echo -e "${YELLOW}Waiting for ATS frontend deployment to stabilize...${NC}"
+STABLE_COUNT=0
+START_TIME=$(date +%s)
+
+while true; do
+    CURRENT_TIME=$(date +%s)
+    ELAPSED=$((CURRENT_TIME - START_TIME))
+    
+    if [ $ELAPSED -gt $MAX_WAIT ]; then
+        echo -e "${RED}Deployment timed out after 15 minutes${NC}"
+        exit 1
+    fi
+    
+    RUNNING=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ATS_FRONTEND_SERVICE \
+        --region $AWS_REGION \
+        --query "services[0].runningCount" \
+        --output text)
+    
+    DESIRED=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ATS_FRONTEND_SERVICE \
+        --region $AWS_REGION \
+        --query "services[0].desiredCount" \
+        --output text)
+    
+    DEPLOYMENT_COUNT=$(aws ecs describe-services \
+        --cluster $ECS_CLUSTER \
+        --service $ATS_FRONTEND_SERVICE \
+        --region $AWS_REGION \
+        --query "length(services[0].deployments)" \
+        --output text)
+    
+    echo "ATS Frontend: $RUNNING/$DESIRED tasks | Active deployments: $DEPLOYMENT_COUNT"
+    
+    if [ "$RUNNING" = "$DESIRED" ] && [ "$RUNNING" != "0" ]; then
+        STABLE_COUNT=$((STABLE_COUNT + 1))
+        echo "✓ Stable for ${STABLE_COUNT} checks (need 3)"
+        
+        if [ $STABLE_COUNT -ge 3 ]; then
+            echo -e "${GREEN}✓ ATS frontend deployment completed${NC}"
+            break
+        fi
+    else
+        STABLE_COUNT=0
+    fi
+    
+    sleep 10
+done
+echo ""
+
 echo -e "${GREEN}=== Deployment Complete ===${NC}"
 echo ""
 echo "Portfolio Backend Image: $BACKEND_IMAGE"
@@ -468,10 +667,14 @@ echo "Portfolio Frontend Image: $FRONTEND_IMAGE"
 echo "E-Commerce Backend Image: $ECOM_BACKEND_IMAGE"
 echo "E-Commerce Frontend Image: $ECOM_FRONTEND_IMAGE"
 echo "E-Commerce DB Image: $ECOM_DB_IMAGE"
+echo "ATS Backend Image: $ATS_BACKEND_IMAGE"
+echo "ATS Frontend Image: $ATS_FRONTEND_IMAGE"
+echo "ATS DB Image: $ATS_DB_IMAGE"
 echo ""
 echo "Your applications are now live at:"
 echo "  Portfolio:   https://clarkfoster.com"
 echo "  E-Commerce:  https://shop.clarkfoster.com"
+echo "  ATS:         https://ats.clarkfoster.com"
 echo ""
 echo "View logs:"
 echo "  aws logs tail /ecs/prod/portfolio-backend --follow"
@@ -479,3 +682,6 @@ echo "  aws logs tail /ecs/prod/portfolio-frontend --follow"
 echo "  aws logs tail /ecs/prod/ecommerce-backend --follow"
 echo "  aws logs tail /ecs/prod/ecommerce-frontend --follow"
 echo "  aws logs tail /ecs/prod/ecommerce-db --follow"
+echo "  aws logs tail /ecs/prod/ats-backend --follow"
+echo "  aws logs tail /ecs/prod/ats-frontend --follow"
+echo "  aws logs tail /ecs/prod/ats-db --follow"
