@@ -1,0 +1,93 @@
+{
+  "family": "prod-ats-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::010438493245:role/prod-portfolio-ecs-task-execution",
+  "containerDefinitions": [
+    {
+      "name": "ats-backend",
+      "image": "IMAGE_PLACEHOLDER",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "SPRING_PROFILES_ACTIVE",
+          "value": "prod"
+        },
+        {
+          "name": "POSTGRES_URL",
+          "value": "jdbc:postgresql://localhost:5432/ats?useSSL=false"
+        },
+        {
+          "name": "POSTGRES_USERNAME",
+          "value": "atsapp"
+        },
+        {
+          "name": "POSTGRES_PASSWORD",
+          "value": "atsapp"
+        }
+      ],
+      "dependsOn": [
+        {
+          "containerName": "ats-db",
+          "condition": "HEALTHY"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/prod/ats-backend",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    },
+    {
+      "name": "ats-db",
+      "image": "010438493245.dkr.ecr.us-east-1.amazonaws.com/ats-db:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 5432,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "POSTGRES_DB",
+          "value": "ats"
+        },
+        {
+          "name": "POSTGRES_USER",
+          "value": "atsapp"
+        },
+        {
+          "name": "POSTGRES_PASSWORD",
+          "value": "atsapp"
+        }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "pg_isready -U atsapp -d ats"],
+        "interval": 10,
+        "timeout": 5,
+        "retries": 10,
+        "startPeriod": 30
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/prod/ats-db",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

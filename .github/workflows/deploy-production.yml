@@ -16,11 +16,16 @@ env:
   ECR_ECOM_BACKEND_REPOSITORY: ecommerce-backend
   ECR_ECOM_FRONTEND_REPOSITORY: ecommerce-frontend
   ECR_ECOM_DB_REPOSITORY: ecommerce-db
+  ECR_ATS_BACKEND_REPOSITORY: ats-backend
+  ECR_ATS_FRONTEND_REPOSITORY: ats-frontend
+  ECR_ATS_DB_REPOSITORY: ats-db
   ECS_CLUSTER: prod-portfolio-cluster
   ECS_BACKEND_SERVICE: prod-portfolio-backend
   ECS_FRONTEND_SERVICE: prod-portfolio-frontend
   ECS_ECOM_BACKEND_SERVICE: prod-ecommerce-backend
   ECS_ECOM_FRONTEND_SERVICE: prod-ecommerce-frontend
+  ECS_ATS_BACKEND_SERVICE: prod-ats-backend
+  ECS_ATS_FRONTEND_SERVICE: prod-ats-frontend
 
 jobs:
   security-and-quality:
@@ -197,6 +202,9 @@ jobs:
       ecom-backend-image: ${{ steps.build-ecom-backend.outputs.image }}
       ecom-frontend-image: ${{ steps.build-ecom-frontend.outputs.image }}
       ecom-db-image: ${{ steps.build-ecom-db.outputs.image }}
+      ats-backend-image: ${{ steps.build-ats-backend.outputs.image }}
+      ats-frontend-image: ${{ steps.build-ats-frontend.outputs.image }}
+      ats-db-image: ${{ steps.build-ats-db.outputs.image }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -269,6 +277,39 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_ECOM_DB_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_ECOM_DB_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
+      - name: Build and push ATS backend image
+        id: build-ats-backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd ats-backend
+          docker build --build-arg GIT_COMMIT=${{ github.sha }} -t $ECR_REGISTRY/$ECR_ATS_BACKEND_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_ATS_BACKEND_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_ATS_BACKEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Build and push ATS frontend image
+        id: build-ats-frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd ats-frontend
+          docker build -t $ECR_REGISTRY/$ECR_ATS_FRONTEND_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_ATS_FRONTEND_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_ATS_FRONTEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Build and push ATS DB image
+        id: build-ats-db
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd ats-db
+          docker build -t $ECR_REGISTRY/$ECR_ATS_DB_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_ATS_DB_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_ATS_DB_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
       - name: Scan backend image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
@@ -331,6 +372,38 @@ jobs:
         with:
           sarif_file: 'ecom-frontend-trivy-results.sarif'
           category: 'ecom-frontend-image'
+        continue-on-error: true
+
+      - name: Scan ATS backend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.build-ats-backend.outputs.image }}
+          format: 'sarif'
+          output: 'ats-backend-trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Scan ATS frontend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.build-ats-frontend.outputs.image }}
+          format: 'sarif'
+          output: 'ats-frontend-trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Upload ATS backend scan results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: 'ats-backend-trivy-results.sarif'
+          category: 'ats-backend-image'
+        continue-on-error: true
+
+      - name: Upload ATS frontend scan results
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: 'ats-frontend-trivy-results.sarif'
+          category: 'ats-frontend-image'
         continue-on-error: true
 
   deploy-to-aws:
@@ -440,6 +513,54 @@ jobs:
         with:
           task-definition: ${{ steps.ecom-frontend-task-def.outputs.task-definition }}
           service: ${{ env.ECS_ECOM_FRONTEND_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 15
+
+      # ============================================================
+      # ATS BACKEND DEPLOYMENT (with PostgreSQL sidecar)
+      # ============================================================
+      - name: Update ATS backend task definition with new image
+        id: ats-backend-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ecs-task-definitions/ats-backend.json
+          container-name: ats-backend
+          image: ${{ needs.build-and-push-images.outputs.ats-backend-image }}
+
+      - name: Update ATS DB sidecar image in task definition
+        id: ats-backend-task-def-with-db
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ steps.ats-backend-task-def.outputs.task-definition }}
+          container-name: ats-db
+          image: ${{ needs.build-and-push-images.outputs.ats-db-image }}
+
+      - name: Deploy ATS backend to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.ats-backend-task-def-with-db.outputs.task-definition }}
+          service: ${{ env.ECS_ATS_BACKEND_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 15
+
+      # ============================================================
+      # ATS FRONTEND DEPLOYMENT
+      # ============================================================
+      - name: Update ATS frontend task definition with new image
+        id: ats-frontend-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ecs-task-definitions/ats-frontend.json
+          container-name: ats-frontend
+          image: ${{ needs.build-and-push-images.outputs.ats-frontend-image }}
+
+      - name: Deploy ATS frontend to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.ats-frontend-task-def.outputs.task-definition }}
+          service: ${{ env.ECS_ATS_FRONTEND_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
           wait-for-minutes: 15
