@@ -89,6 +89,18 @@ public class DataInitializer implements CommandLineRunner {
             projectRepository.save(project);
             log.debug("Updated E-Commerce Platform project with demo URL");
         });
+
+        if (projectRepository.findByTitle("Applicant Tracking System").isEmpty()) {
+            createProject(
+                    "Applicant Tracking System",
+                    "A full-stack ATS with Kanban pipeline boards to manage candidates through screening, interviews, offers, and onboarding.",
+                    List.of("Angular", "Spring Boot", "PostgreSQL", "JWT", "Kanban"),
+                    null,
+                    null,
+                    "https://ats.clarkfoster.com"
+            );
+            log.info("Added Applicant Tracking System project");
+        }
     }
 
     private void initializeSampleProjects() {
@@ -105,6 +117,15 @@ public class DataInitializer implements CommandLineRunner {
                 null,
                 null,
                 "https://shop.clarkfoster.com"
+        );
+
+        createProject(
+                "Applicant Tracking System",
+                "A full-stack ATS with Kanban pipeline boards to manage candidates through screening, interviews, offers, and onboarding.",
+                List.of("Angular", "Spring Boot", "PostgreSQL", "JWT", "Kanban"),
+                null,
+                null,
+                "https://ats.clarkfoster.com"
         );
 
         createProject(
