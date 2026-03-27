@@ -15,7 +15,8 @@ resource "aws_acm_certificate" "main" {
 
   subject_alternative_names = [
     "www.${var.domain_name}",
-    "shop.${var.domain_name}"
+    "shop.${var.domain_name}",
+    "ats.${var.domain_name}"
   ]
 
   lifecycle {
