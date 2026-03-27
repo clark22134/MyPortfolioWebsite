@@ -89,8 +89,23 @@ public class DataInitializer implements CommandLineRunner {
             projectRepository.save(project);
             log.debug("Updated E-Commerce Platform project with demo URL");
         });
+    }
+
+    private void initializeSampleProjects() {
+        if (projectRepository.findByTitle("E-Commerce Platform").isEmpty()) {
+            log.info("Initializing E-Commerce Platform project");
+            createProject(
+                    "E-Commerce Platform",
+                    "A full-stack e-commerce application built with Angular and Spring Boot, featuring user authentication, product management, shopping cart, and payment integration.",
+                    List.of("Angular", "Spring Boot", "MySQL", "JWT", "Spring Data REST", "Bootstrap"),
+                    null,
+                    null,
+                    "https://shop.clarkfoster.com"
+            );
+        }
 
         if (projectRepository.findByTitle("Applicant Tracking System").isEmpty()) {
+            log.info("Initializing Applicant Tracking System project");
             createProject(
                     "Applicant Tracking System",
                     "A full-stack ATS with Kanban pipeline boards to manage candidates through screening, interviews, offers, and onboarding.",
@@ -99,44 +114,19 @@ public class DataInitializer implements CommandLineRunner {
                     null,
                     "https://ats.clarkfoster.com"
             );
-            log.info("Added Applicant Tracking System project");
-        }
-    }
-
-    private void initializeSampleProjects() {
-        if (projectRepository.count() > 0) {
-            return;
         }
 
-        log.info("Initializing sample projects");
-
-        createProject(
-                "E-Commerce Platform",
-                "A full-stack e-commerce application built with Angular and Spring Boot, featuring user authentication, product management, shopping cart, and payment integration.",
-                List.of("Angular", "Spring Boot", "MySQL", "JWT", "Spring Data REST", "Bootstrap"),
-                null,
-                null,
-                "https://shop.clarkfoster.com"
-        );
-
-        createProject(
-                "Applicant Tracking System",
-                "A full-stack ATS with Kanban pipeline boards to manage candidates through screening, interviews, offers, and onboarding.",
-                List.of("Angular", "Spring Boot", "PostgreSQL", "JWT", "Kanban"),
-                null,
-                null,
-                "https://ats.clarkfoster.com"
-        );
-
-        createProject(
-                "Task Management System",
-                "A modern task management application with real-time updates, team collaboration features, and advanced filtering capabilities.",
-                List.of("Angular", "Spring Boot", "WebSocket", "MongoDB", "Docker"),
-                null,
-                null,
-                null
-        );
-
+        if (projectRepository.findByTitle("Task Management System").isEmpty()) {
+            log.info("Initializing Task Management System project");
+            createProject(
+                    "Task Management System",
+                    "A modern task management application with real-time updates, team collaboration features, and advanced filtering capabilities.",
+                    List.of("Angular", "Spring Boot", "WebSocket", "MongoDB", "Docker"),
+                    null,
+                    null,
+                    null
+            );
+        }
     }
 
     private void createProject(String title, String description, List<String> technologies,
