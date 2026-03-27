@@ -50,7 +50,7 @@ jobs:
 
       - name: Upload Backend Artifact
         if: inputs.component == 'backend'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: backend-jar
           path: backend/target/*.jar
@@ -58,14 +58,14 @@ jobs:
 
       - name: Upload Frontend Artifact
         if: inputs.component == 'frontend'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-dist
           path: frontend/dist/
           retention-days: 1
 
       - name: Upload Coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: ${{ inputs.component == 'backend' && 'backend/target/site/jacoco/jacoco.xml' || 'frontend/coverage/lcov.info' }}
           flags: ${{ inputs.component }}
