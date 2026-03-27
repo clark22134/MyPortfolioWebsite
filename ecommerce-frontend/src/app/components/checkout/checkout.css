@@ -232,6 +232,10 @@
 @media (max-width: 768px) {
   .checkout-layout {
     flex-direction: column;
+    align-items: stretch;
+  }
+  .checkout-form {
+    width: 100%;
   }
   .order-summary {
     width: 100%;
@@ -256,6 +260,19 @@
   .guest-banner {
     font-size: 13px;
     padding: 10px 14px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    line-height: 1.6;
+  }
+
+  .guest-banner i {
+    margin-top: 3px;
+  }
+
+  .guest-banner span {
+    flex: 1;
+    min-width: 0;
   }
 }
 
