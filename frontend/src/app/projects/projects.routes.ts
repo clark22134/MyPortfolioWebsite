@@ -23,12 +23,6 @@ export const projectRoutes: Routes = [
     title: 'AI Chatbot'
   },
   {
-    path: 'task-manager',
-    loadChildren: () => import('./task-manager/task-manager.routes')
-      .then(m => m.TASK_MANAGER_ROUTES),
-    title: 'Task Manager'
-  },
-  {
     path: 'real-time-analytics',
     loadChildren: () => import('./real-time-analytics/real-time-analytics.routes')
       .then(m => m.REAL_TIME_ANALYTICS_ROUTES),

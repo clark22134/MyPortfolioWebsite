@@ -95,6 +95,9 @@ docker-build:
 	docker build -t ecommerce-backend:latest ./ecommerce-backend
 	docker build -t ecommerce-frontend:latest ./ecommerce-frontend
 	docker build -t ecommerce-db:latest ./ecommerce-db
+	docker build -t ats-backend:latest ./ats-backend
+	docker build -t ats-frontend:latest ./ats-frontend
+	docker build -t ats-db:latest ./ats-db
 
 docker-up:
 	@echo "Starting Docker services..."

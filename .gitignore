@@ -77,6 +77,7 @@ docker-compose.override.yml
 # But allow SQL scripts needed for Docker builds
 !ecommerce-db/init/*.sql
 !ecommerce-backend/sql_scripts/*.sql
+!ats-db/init/*.sql
 
 # Certificate files
 *.cer
@@ -109,6 +110,20 @@ yarn-error.log*
 # Backend build artifacts
 /backend/target/
 /backend/.mvn/
+
+# E-Commerce build artifacts
+/ecommerce-backend/target/
+/ecommerce-backend/.mvn/
+/ecommerce-frontend/dist/
+/ecommerce-frontend/.angular/
+/ecommerce-frontend/node_modules/
+
+# ATS build artifacts
+/ats-backend/target/
+/ats-backend/.mvn/
+/ats-frontend/dist/
+/ats-frontend/.angular/
+/ats-frontend/node_modules/
 
 # Terraform - State files and local cache
 *.tfstate

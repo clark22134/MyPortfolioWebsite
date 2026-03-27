@@ -239,6 +239,26 @@
   }
 }
 
+@media (max-width: 575px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .form-section {
+    padding: 20px 16px;
+  }
+
+  .summary-card {
+    padding: 20px 16px;
+  }
+
+  .guest-banner {
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+}
+
 /* Guest banner */
 .guest-banner {
   background: rgba(0, 229, 255, 0.06);
