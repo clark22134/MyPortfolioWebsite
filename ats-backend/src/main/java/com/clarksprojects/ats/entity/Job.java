@@ -35,6 +35,15 @@ public class Job {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "required_skills", columnDefinition = "TEXT")
+    private String requiredSkills;
+
+    private String address;
+
+    private Double latitude;
+
+    private Double longitude;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private JobStatus status;

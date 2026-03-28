@@ -80,6 +80,10 @@ public class DataInitializer implements CommandLineRunner {
             projectRepository.delete(project);
             log.debug("Removed legacy Portfolio Website project");
         });
+        projectRepository.findByTitle("Task Management System").ifPresent(project -> {
+            projectRepository.delete(project);
+            log.debug("Removed legacy Task Management System project");
+        });
     }
 
     private void updateExistingProjects() {
@@ -116,17 +120,6 @@ public class DataInitializer implements CommandLineRunner {
             );
         }
 
-        if (projectRepository.findByTitle("Task Management System").isEmpty()) {
-            log.info("Initializing Task Management System project");
-            createProject(
-                    "Task Management System",
-                    "A modern task management application with real-time updates, team collaboration features, and advanced filtering capabilities.",
-                    List.of("Angular", "Spring Boot", "WebSocket", "MongoDB", "Docker"),
-                    null,
-                    null,
-                    null
-            );
-        }
     }
 
     private void createProject(String title, String description, List<String> technologies,

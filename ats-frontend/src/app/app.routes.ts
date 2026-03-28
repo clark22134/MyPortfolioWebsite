@@ -17,6 +17,11 @@ export const routes: Routes = [
     title: 'Pipeline - HireFlow'
   },
   {
+    path: 'talent',
+    loadComponent: () => import('./pages/talent/talent.component').then(m => m.TalentComponent),
+    title: 'Talent Pool - HireFlow'
+  },
+  {
     path: '**',
     redirectTo: ''
   }

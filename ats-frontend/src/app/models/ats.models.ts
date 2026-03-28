@@ -9,6 +9,10 @@ export interface Job {
   department: string;
   location: string;
   description: string;
+  requiredSkills: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
   status: JobStatus;
   employmentType: EmploymentType;
   candidateCount: number;
@@ -22,6 +26,10 @@ export interface JobRequest {
   department: string;
   location: string;
   description: string;
+  requiredSkills: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
   status: JobStatus;
   employmentType: EmploymentType;
 }
@@ -34,6 +42,11 @@ export interface Candidate {
   phone: string;
   resumeUrl: string;
   notes: string;
+  skills: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  lastAssignmentDays: number;
   stage: PipelineStage;
   stageOrder: number;
   jobId: number;
@@ -49,6 +62,11 @@ export interface CandidateRequest {
   phone: string;
   resumeUrl: string;
   notes: string;
+  skills: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  lastAssignmentDays: number;
   stage: PipelineStage;
   jobId: number;
 }
@@ -56,6 +74,18 @@ export interface CandidateRequest {
 export interface StageMoveRequest {
   newStage: PipelineStage;
   newOrder?: number;
+}
+
+export interface TopCandidateMatch {
+  candidateId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  skillsMatchPercent: number;
+  daysWorkedScore: number;
+  distanceMiles: number;
+  matchedSkills: string[];
+  candidateSkills: string[];
 }
 
 export interface DashboardStats {

@@ -16,6 +16,11 @@ public class CandidateResponse {
     private String phone;
     private String resumeUrl;
     private String notes;
+    private String skills;
+    private String address;
+    private Double latitude;
+    private Double longitude;
+    private Integer lastAssignmentDays;
     private PipelineStage stage;
     private Integer stageOrder;
     private Long jobId;

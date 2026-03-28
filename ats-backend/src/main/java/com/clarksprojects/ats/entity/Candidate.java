@@ -35,6 +35,18 @@ public class Candidate {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Column(columnDefinition = "TEXT")
+    private String skills;
+
+    private String address;
+
+    private Double latitude;
+
+    private Double longitude;
+
+    @Column(name = "last_assignment_days")
+    private Integer lastAssignmentDays;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PipelineStage stage;

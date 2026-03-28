@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -19,6 +21,30 @@ public class CandidateService {
 
     private final CandidateRepository candidateRepository;
     private final JobService jobService;
+
+    @Transactional(readOnly = true)
+    public List<CandidateResponse> searchCandidates(String name, String skills, PipelineStage stage, Long jobId) {
+        return candidateRepository.findAll().stream()
+                .filter(c -> name == null || name.isBlank() ||
+                        (c.getFirstName() + " " + c.getLastName()).toLowerCase().contains(name.toLowerCase().trim()))
+                .filter(c -> stage == null || c.getStage() == stage)
+                .filter(c -> jobId == null || c.getJob().getId().equals(jobId))
+                .filter(c -> skills == null || skills.isBlank() || skillsMatch(c.getSkills(), skills))
+                .map(this::toResponse)
+                .sorted(Comparator.comparing(CandidateResponse::getLastName)
+                        .thenComparing(CandidateResponse::getFirstName))
+                .toList();
+    }
+
+    private boolean skillsMatch(String candidateSkills, String searchSkills) {
+        if (candidateSkills == null || candidateSkills.isBlank()) return false;
+        List<String> cSkills = Arrays.stream(candidateSkills.split(","))
+                .map(s -> s.trim().toLowerCase()).toList();
+        return Arrays.stream(searchSkills.split(","))
+                .map(s -> s.trim().toLowerCase())
+                .filter(s -> !s.isEmpty())
+                .anyMatch(cSkills::contains);
+    }
 
     @Transactional(readOnly = true)
     public List<CandidateResponse> getCandidatesByJob(Long jobId) {
@@ -49,6 +75,11 @@ public class CandidateService {
                 .phone(request.getPhone())
                 .resumeUrl(request.getResumeUrl())
                 .notes(request.getNotes())
+                .skills(request.getSkills())
+                .address(request.getAddress())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .lastAssignmentDays(request.getLastAssignmentDays())
                 .stage(request.getStage())
                 .stageOrder(0)
                 .job(job)
@@ -65,6 +96,11 @@ public class CandidateService {
         candidate.setPhone(request.getPhone());
         candidate.setResumeUrl(request.getResumeUrl());
         candidate.setNotes(request.getNotes());
+        candidate.setSkills(request.getSkills());
+        candidate.setAddress(request.getAddress());
+        candidate.setLatitude(request.getLatitude());
+        candidate.setLongitude(request.getLongitude());
+        candidate.setLastAssignmentDays(request.getLastAssignmentDays());
         candidate.setStage(request.getStage());
         if (request.getJobId() != null && !request.getJobId().equals(candidate.getJob().getId())) {
             Job newJob = jobService.findJobOrThrow(request.getJobId());
@@ -103,6 +139,11 @@ public class CandidateService {
                 .phone(c.getPhone())
                 .resumeUrl(c.getResumeUrl())
                 .notes(c.getNotes())
+                .skills(c.getSkills())
+                .address(c.getAddress())
+                .latitude(c.getLatitude())
+                .longitude(c.getLongitude())
+                .lastAssignmentDays(c.getLastAssignmentDays())
                 .stage(c.getStage())
                 .stageOrder(c.getStageOrder())
                 .jobId(c.getJob().getId())

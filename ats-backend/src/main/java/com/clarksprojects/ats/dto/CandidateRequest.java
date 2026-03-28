@@ -26,6 +26,16 @@ public class CandidateRequest {
 
     private String notes;
 
+    private String skills;
+
+    private String address;
+
+    private Double latitude;
+
+    private Double longitude;
+
+    private Integer lastAssignmentDays;
+
     @NotNull
     private PipelineStage stage;
 

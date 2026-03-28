@@ -24,38 +24,7 @@ import {
             <p class="subtitle">{{ job.department }} · {{ job.location }}</p>
           }
         </div>
-        <button class="btn-primary" (click)="showAddForm = !showAddForm">
-          {{ showAddForm ? 'Cancel' : '+ Add Candidate' }}
-        </button>
       </div>
-
-      @if (showAddForm) {
-        <form class="candidate-form" (ngSubmit)="addCandidate()">
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="firstName">First Name</label>
-              <input id="firstName" [(ngModel)]="candidateForm.firstName" name="firstName" required>
-            </div>
-            <div class="form-group">
-              <label for="lastName">Last Name</label>
-              <input id="lastName" [(ngModel)]="candidateForm.lastName" name="lastName" required>
-            </div>
-            <div class="form-group">
-              <label for="email">Email</label>
-              <input id="email" [(ngModel)]="candidateForm.email" name="email" type="email" required>
-            </div>
-            <div class="form-group">
-              <label for="phone">Phone</label>
-              <input id="phone" [(ngModel)]="candidateForm.phone" name="phone">
-            </div>
-          </div>
-          <div class="form-group full-width">
-            <label for="notes">Notes</label>
-            <textarea id="notes" [(ngModel)]="candidateForm.notes" name="notes" rows="2"></textarea>
-          </div>
-          <button type="submit" class="btn-primary">Add Candidate</button>
-        </form>
-      }
 
       <div class="kanban-board" role="region" aria-label="Candidate pipeline board">
         @for (stage of activeStages; track stage) {
@@ -78,10 +47,18 @@ import {
                   @if (candidate.phone) {
                     <div class="candidate-phone">{{ candidate.phone }}</div>
                   }
+                  @if (candidate.skills) {
+                    <div class="candidate-skills">
+                      @for (skill of parseSkills(candidate.skills); track skill) {
+                        <span class="skill-chip">{{ skill }}</span>
+                      }
+                    </div>
+                  }
                   @if (candidate.notes) {
                     <div class="candidate-notes">{{ candidate.notes }}</div>
                   }
                   <div class="candidate-date">Applied {{ formatDate(candidate.appliedAt) }}</div>
+                  <button class="btn-edit" (click)="openEdit(candidate); $event.stopPropagation()" aria-label="Edit candidate">✏️</button>
                   <button class="btn-delete" (click)="deleteCandidate(candidate.id)" aria-label="Remove candidate">×</button>
                 </div>
               } @empty {
@@ -92,6 +69,75 @@ import {
         }
       </div>
     </div>
+
+    @if (editingCandidate) {
+      <div class="modal-backdrop" (click)="closeEdit()">
+        <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Edit Candidate">
+          <div class="modal-header">
+            <h2>Edit Candidate</h2>
+            <button class="modal-close" (click)="closeEdit()" aria-label="Close">×</button>
+          </div>
+          <form class="modal-form" (ngSubmit)="saveEdit()">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="editFirstName">First Name</label>
+                <input id="editFirstName" [(ngModel)]="editForm.firstName" name="editFirstName" required>
+              </div>
+              <div class="form-group">
+                <label for="editLastName">Last Name</label>
+                <input id="editLastName" [(ngModel)]="editForm.lastName" name="editLastName" required>
+              </div>
+              <div class="form-group">
+                <label for="editEmail">Email</label>
+                <input id="editEmail" [(ngModel)]="editForm.email" name="editEmail" type="email" required>
+              </div>
+              <div class="form-group">
+                <label for="editPhone">Phone</label>
+                <input id="editPhone" [(ngModel)]="editForm.phone" name="editPhone">
+              </div>
+              <div class="form-group">
+                <label for="editStage">Stage</label>
+                <select id="editStage" [(ngModel)]="editForm.stage" name="editStage">
+                  @for (s of allStages; track s) {
+                    <option [value]="s">{{ getLabel(s) }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label for="editSkills">Skills <span class="hint">(comma-separated)</span></label>
+              <input id="editSkills" [(ngModel)]="editForm.skills" name="editSkills" placeholder="e.g. Java, Docker, AWS">
+            </div>
+            <div class="form-group full-width">
+              <label for="pipeEditAddress">Address <span class="hint">(for commute distance matching)</span></label>
+              <input id="pipeEditAddress" [(ngModel)]="editForm.address" name="pipeEditAddress" placeholder="e.g. 384 Grand Ave, Oakland, CA 94610">
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="pipeEditLat">Latitude <span class="hint">(optional)</span></label>
+                <input id="pipeEditLat" type="number" step="any" [(ngModel)]="editForm.latitude" name="pipeEditLat" placeholder="e.g. 37.804">
+              </div>
+              <div class="form-group">
+                <label for="pipeEditLng">Longitude <span class="hint">(optional)</span></label>
+                <input id="pipeEditLng" type="number" step="any" [(ngModel)]="editForm.longitude" name="pipeEditLng" placeholder="e.g. -122.271">
+              </div>
+              <div class="form-group">
+                <label for="pipeEditDays">Days at Last Assignment</label>
+                <input id="pipeEditDays" type="number" min="0" [(ngModel)]="editForm.lastAssignmentDays" name="pipeEditDays" placeholder="e.g. 365">
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <label for="editNotes">Notes</label>
+              <textarea id="editNotes" [(ngModel)]="editForm.notes" name="editNotes" rows="3"></textarea>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn-cancel" (click)="closeEdit()">Cancel</button>
+              <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    }
   `,
   styles: [`
     .pipeline-page { max-width: 100%; }
@@ -250,6 +296,22 @@ import {
     .candidate-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.2rem; }
     .candidate-email { font-size: 0.8rem; color: var(--accent); margin-bottom: 0.15rem; }
     .candidate-phone { font-size: 0.78rem; color: var(--text-secondary); }
+
+    .candidate-skills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-top: 0.35rem;
+    }
+    .skill-chip {
+      background: rgba(99,102,241,0.12);
+      color: var(--accent);
+      font-size: 0.68rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+
     .candidate-notes {
       font-size: 0.78rem;
       color: var(--text-secondary);
@@ -261,6 +323,23 @@ import {
       white-space: nowrap;
     }
     .candidate-date { font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.35rem; }
+
+    .btn-edit {
+      position: absolute;
+      top: 0.4rem;
+      right: 2.1rem;
+      background: none;
+      border: none;
+      font-size: 0.85rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0.15rem;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .candidate-card:hover .btn-edit { opacity: 1; }
+    .btn-edit:hover { background: rgba(99,102,241,0.15); }
 
     .btn-delete {
       position: absolute;
@@ -277,6 +356,110 @@ import {
     }
     .btn-delete:hover { color: var(--danger); background: rgba(239,68,68,0.1); }
 
+    /* Edit Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-header h2 { font-size: 1.15rem; font-weight: 700; }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      line-height: 1;
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+    }
+    .modal-close:hover { color: var(--danger); background: rgba(239,68,68,0.1); }
+
+    .modal-form {
+      padding: 1.25rem 1.5rem;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+    .form-group.full-width { margin-bottom: 1rem; }
+    label { font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); }
+    .hint { font-size: 0.75rem; font-weight: 400; }
+    input, select, textarea {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.55rem 0.75rem;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    textarea { resize: vertical; }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.6rem 1.25rem;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: background 0.15s;
+      cursor: pointer;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    .btn-cancel {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 0.6rem 1.25rem;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-cancel:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+
     .empty-column {
       text-align: center;
       padding: 1.5rem 0.5rem;
@@ -288,10 +471,11 @@ import {
 export class PipelineComponent implements OnInit {
   job: Job | null = null;
   candidates: Candidate[] = [];
-  showAddForm = false;
-  candidateForm: Partial<CandidateRequest> = {};
+  editingCandidate: Candidate | null = null;
+  editForm: Partial<CandidateRequest> = {};
 
   activeStages: PipelineStage[] = PIPELINE_STAGES.filter(s => s !== 'REJECTED');
+  allStages: PipelineStage[] = PIPELINE_STAGES;
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -326,22 +510,50 @@ export class PipelineComponent implements OnInit {
     return this.candidates.filter(c => c.stage === stage);
   }
 
-  addCandidate(): void {
-    if (!this.job) return;
-    const req: CandidateRequest = {
-      firstName: this.candidateForm.firstName ?? '',
-      lastName: this.candidateForm.lastName ?? '',
-      email: this.candidateForm.email ?? '',
-      phone: this.candidateForm.phone ?? '',
-      resumeUrl: '',
-      notes: this.candidateForm.notes ?? '',
-      stage: 'APPLIED',
-      jobId: this.job.id
+  openEdit(candidate: Candidate): void {
+    this.editingCandidate = candidate;
+    this.editForm = {
+      firstName: candidate.firstName,
+      lastName: candidate.lastName,
+      email: candidate.email,
+      phone: candidate.phone,
+      resumeUrl: candidate.resumeUrl,
+      notes: candidate.notes,
+      skills: candidate.skills,
+      address: candidate.address ?? '',
+      latitude: candidate.latitude ?? null,
+      longitude: candidate.longitude ?? null,
+      lastAssignmentDays: candidate.lastAssignmentDays ?? 0,
+      stage: candidate.stage,
+      jobId: candidate.jobId
     };
-    this.candidateService.create(req).subscribe(() => {
+  }
+
+  closeEdit(): void {
+    this.editingCandidate = null;
+    this.editForm = {};
+  }
+
+  saveEdit(): void {
+    if (!this.editingCandidate) return;
+    const req: CandidateRequest = {
+      firstName: this.editForm.firstName ?? '',
+      lastName: this.editForm.lastName ?? '',
+      email: this.editForm.email ?? '',
+      phone: this.editForm.phone ?? '',
+      resumeUrl: this.editForm.resumeUrl ?? '',
+      notes: this.editForm.notes ?? '',
+      skills: this.editForm.skills ?? '',
+      address: this.editForm.address ?? '',
+      latitude: this.editForm.latitude ?? null,
+      longitude: this.editForm.longitude ?? null,
+      lastAssignmentDays: this.editForm.lastAssignmentDays ?? 0,
+      stage: this.editForm.stage ?? 'APPLIED',
+      jobId: this.editingCandidate.jobId
+    };
+    this.candidateService.update(this.editingCandidate.id, req).subscribe(() => {
+      this.closeEdit();
       this.loadCandidates();
-      this.showAddForm = false;
-      this.candidateForm = {};
     });
   }
 
@@ -383,5 +595,10 @@ export class PipelineComponent implements OnInit {
 
   formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  parseSkills(skills: string): string[] {
+    if (!skills) return [];
+    return skills.split(',').map(s => s.trim()).filter(s => s.length > 0);
   }
 }

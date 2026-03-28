@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Job, JobRequest, JobStatus } from '../models/ats.models';
+import { Job, JobRequest, JobStatus, TopCandidateMatch } from '../models/ats.models';
 
 @Injectable({ providedIn: 'root' })
 export class JobService {
@@ -34,5 +34,9 @@ export class JobService {
 
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  }
+
+  getTopCandidates(id: number): Observable<TopCandidateMatch[]> {
+    return this.http.get<TopCandidateMatch[]>(`${this.baseUrl}/${id}/top-candidates`);
   }
 }

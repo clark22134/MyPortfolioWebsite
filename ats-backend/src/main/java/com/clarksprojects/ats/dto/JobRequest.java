@@ -25,6 +25,14 @@ public class JobRequest {
 
     private String description;
 
+    private String requiredSkills;
+
+    private String address;
+
+    private Double latitude;
+
+    private Double longitude;
+
     @NotNull
     private JobStatus status;
 
