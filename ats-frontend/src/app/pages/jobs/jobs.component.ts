@@ -105,14 +105,14 @@ interface EmployerGroup {
                     [attr.aria-expanded]="!group.collapsed">
               <span class="employer-name">{{ group.employer }}</span>
               <span class="employer-meta">
-                <span class="employer-count">{{ group.jobs.length }} job{{ group.jobs.length !== 1 ? 's' : '' }}</span>
+                <span class="employer-count">{{ displayedJobs(group).length }} job{{ displayedJobs(group).length !== 1 ? 's' : '' }}</span>
                 <span class="collapse-icon">{{ group.collapsed ? '▶' : '▼' }}</span>
               </span>
             </button>
 
             @if (!group.collapsed) {
               <div class="jobs-list">
-                @for (job of group.jobs; track job.id) {
+                @for (job of displayedJobs(group); track job.id) {
                   <div class="job-card" (click)="openJobDetail(job)">
                     <div class="job-info">
                       <h3>{{ job.title }}</h3>
@@ -768,7 +768,12 @@ interface EmployerGroup {
     @media (max-width: 640px) {
       .job-card { flex-direction: column; align-items: flex-start; gap: 1rem; }
       .job-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
-      .match-row { flex-direction: column; align-items: flex-start; }
+      .match-row { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+      .match-info { width: 100%; }
+      .match-scores { width: 100%; }
+      .match-skills { width: 100%; }
+      .score-label { min-width: 4rem; }
+      .score-value { min-width: 3rem; }
     }
   `]
 })
@@ -912,12 +917,14 @@ export class JobsComponent implements OnInit {
 
   get pagedGroups(): EmployerGroup[] {
     const source = this.showOpenOnly
-      ? this.employerGroups
-          .map(g => ({ ...g, jobs: g.jobs.filter(j => j.status === 'OPEN') }))
-          .filter(g => g.jobs.length > 0)
+      ? this.employerGroups.filter(g => g.jobs.some(j => j.status === 'OPEN'))
       : this.employerGroups;
     const start = (this.jobsPage - 1) * this.jobsPageSize;
     return source.slice(start, start + this.jobsPageSize);
+  }
+
+  displayedJobs(group: EmployerGroup): Job[] {
+    return this.showOpenOnly ? group.jobs.filter(j => j.status === 'OPEN') : group.jobs;
   }
 
   private get filteredGroupCount(): number {

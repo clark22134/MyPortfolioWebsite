@@ -518,7 +518,7 @@ import {
     /* Grid */
     .candidates-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
       gap: 1rem;
     }
 
@@ -591,6 +591,9 @@ import {
     .contact-item {
       font-size: 0.78rem;
       color: var(--text-secondary);
+      overflow-wrap: break-word;
+      word-break: break-word;
+      min-width: 0;
     }
 
     .skills-row {
@@ -854,10 +857,12 @@ import {
     .pg-info { font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.4rem; white-space: nowrap; }
 
     @media (max-width: 768px) {
+      .page-header { flex-wrap: wrap; gap: 0.75rem; }
       .search-bar-wrapper { flex-direction: column; }
       .search-input-wrap { min-width: 100%; }
       .filter-select { width: 100%; }
       .candidates-grid { grid-template-columns: 1fr; }
+      .candidate-card { min-width: 0; }
     }
   `]
 })
@@ -951,10 +956,14 @@ export class TalentComponent implements OnInit, OnDestroy {
 
   filterBySkill(skill: string): void {
     const current = this.filters.skills ? this.filters.skills.split(',').map(s => s.trim()) : [];
-    if (!current.includes(skill)) {
+    const lowerSkill = skill.toLowerCase();
+    const exists = current.some(s => s.toLowerCase() === lowerSkill);
+    if (exists) {
+      this.filters.skills = current.filter(s => s.toLowerCase() !== lowerSkill).join(', ');
+    } else {
       this.filters.skills = [...current, skill].join(', ');
-      this.runSearch();
     }
+    this.runSearch();
   }
 
   isSkillMatch(skill: string): boolean {
