@@ -26,6 +26,8 @@ public class CandidateRequest {
 
     private String notes;
 
+    private String skills;
+
     @NotNull
     private PipelineStage stage;
 

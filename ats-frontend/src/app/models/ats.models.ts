@@ -9,6 +9,7 @@ export interface Job {
   department: string;
   location: string;
   description: string;
+  requiredSkills: string;
   status: JobStatus;
   employmentType: EmploymentType;
   candidateCount: number;
@@ -22,6 +23,7 @@ export interface JobRequest {
   department: string;
   location: string;
   description: string;
+  requiredSkills: string;
   status: JobStatus;
   employmentType: EmploymentType;
 }
@@ -34,6 +36,7 @@ export interface Candidate {
   phone: string;
   resumeUrl: string;
   notes: string;
+  skills: string;
   stage: PipelineStage;
   stageOrder: number;
   jobId: number;
@@ -49,6 +52,7 @@ export interface CandidateRequest {
   phone: string;
   resumeUrl: string;
   notes: string;
+  skills: string;
   stage: PipelineStage;
   jobId: number;
 }
@@ -56,6 +60,16 @@ export interface CandidateRequest {
 export interface StageMoveRequest {
   newStage: PipelineStage;
   newOrder?: number;
+}
+
+export interface TopCandidateMatch {
+  candidateId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  matchPercent: number;
+  matchedSkills: string[];
+  candidateSkills: string[];
 }
 
 export interface DashboardStats {

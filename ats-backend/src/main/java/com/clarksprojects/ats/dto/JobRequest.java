@@ -25,6 +25,8 @@ public class JobRequest {
 
     private String description;
 
+    private String requiredSkills;
+
     @NotNull
     private JobStatus status;
 

@@ -35,6 +35,9 @@ public class Candidate {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Column(columnDefinition = "TEXT")
+    private String skills;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PipelineStage stage;

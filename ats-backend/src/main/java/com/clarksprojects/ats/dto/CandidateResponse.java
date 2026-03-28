@@ -16,6 +16,7 @@ public class CandidateResponse {
     private String phone;
     private String resumeUrl;
     private String notes;
+    private String skills;
     private PipelineStage stage;
     private Integer stageOrder;
     private Long jobId;

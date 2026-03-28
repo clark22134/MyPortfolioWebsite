@@ -19,6 +19,15 @@ public class CandidateController {
 
     private final CandidateService candidateService;
 
+    @GetMapping("/search")
+    public List<CandidateResponse> searchCandidates(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String skills,
+            @RequestParam(required = false) PipelineStage stage,
+            @RequestParam(required = false) Long jobId) {
+        return candidateService.searchCandidates(name, skills, stage, jobId);
+    }
+
     @GetMapping
     public List<CandidateResponse> getCandidates(
             @RequestParam Long jobId,

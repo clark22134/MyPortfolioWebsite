@@ -16,6 +16,7 @@ public class JobResponse {
     private String department;
     private String location;
     private String description;
+    private String requiredSkills;
     private JobStatus status;
     private EmploymentType employmentType;
     private int candidateCount;

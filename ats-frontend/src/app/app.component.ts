@@ -23,6 +23,11 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
               <span class="nav-icon">💼</span> Jobs
             </a>
           </li>
+          <li>
+            <a routerLink="/talent" routerLinkActive="active">
+              <span class="nav-icon">👥</span> Talent
+            </a>
+          </li>
         </ul>
       </nav>
       <main id="main-content" class="main-content">

@@ -2,6 +2,7 @@ package com.clarksprojects.ats.controller;
 
 import com.clarksprojects.ats.dto.JobRequest;
 import com.clarksprojects.ats.dto.JobResponse;
+import com.clarksprojects.ats.dto.TopCandidateMatch;
 import com.clarksprojects.ats.entity.JobStatus;
 import com.clarksprojects.ats.service.JobService;
 import jakarta.validation.Valid;
@@ -34,6 +35,11 @@ public class JobController {
     @GetMapping("/{id}")
     public JobResponse getJob(@PathVariable Long id) {
         return jobService.getJob(id);
+    }
+
+    @GetMapping("/{id}/top-candidates")
+    public List<TopCandidateMatch> getTopCandidates(@PathVariable Long id) {
+        return jobService.getTopCandidates(id);
     }
 
     @PostMapping
