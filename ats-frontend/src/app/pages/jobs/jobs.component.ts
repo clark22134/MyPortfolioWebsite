@@ -80,6 +80,20 @@ interface EmployerGroup {
               <label for="requiredSkills">Required Skills <span class="hint">(comma-separated)</span></label>
               <input id="requiredSkills" [(ngModel)]="form.requiredSkills" name="requiredSkills" placeholder="e.g. Java, Spring Boot, Docker, AWS">
             </div>
+            <div class="form-group full-width">
+              <label for="jobAddress">Office Address <span class="hint">(for commute distance matching)</span></label>
+              <input id="jobAddress" [(ngModel)]="form.address" name="jobAddress" placeholder="e.g. 100 Pine St, San Francisco, CA 94111">
+            </div>
+            <div class="form-grid coords-grid">
+              <div class="form-group">
+                <label for="jobLat">Latitude <span class="hint">(optional)</span></label>
+                <input id="jobLat" type="number" step="any" [(ngModel)]="form.latitude" name="jobLat" placeholder="e.g. 37.792">
+              </div>
+              <div class="form-group">
+                <label for="jobLng">Longitude <span class="hint">(optional)</span></label>
+                <input id="jobLng" type="number" step="any" [(ngModel)]="form.longitude" name="jobLng" placeholder="e.g. -122.400">
+              </div>
+            </div>
             <button type="submit" class="btn-primary">{{ editingId ? 'Update Job' : 'Create Job' }}</button>
         </form>
       }
@@ -147,16 +161,36 @@ interface EmployerGroup {
                                 <span class="match-name">{{ match.firstName }} {{ match.lastName }}</span>
                                 <span class="match-email">{{ match.email }}</span>
                               </div>
+                              <div class="match-scores">
+                                <div class="score-row">
+                                  <span class="score-label">Skills</span>
+                                  <div class="score-bar"><div class="score-fill"
+                                    [style.width.%]="match.skillsMatchPercent"
+                                    [style.background]="'hsl(' + (match.skillsMatchPercent * 1.2) + 'deg, 80%, 45%)'">
+                                  </div></div>
+                                  <span class="score-value">{{ match.skillsMatchPercent }}%</span>
+                                </div>
+                                <div class="score-row">
+                                  <span class="score-label">Time at Prev</span>
+                                  <div class="score-bar"><div class="score-fill"
+                                    [style.width.%]="(match.daysWorkedScore / 730) * 100"
+                                    [style.background]="'hsl(' + ((match.daysWorkedScore / 730) * 120) + 'deg, 80%, 45%)'">
+                                  </div></div>
+                                  <span class="score-value">{{ match.daysWorkedScore }} days</span>
+                                </div>
+                                <div class="score-row">
+                                  <span class="score-label">Commute</span>
+                                  <div class="score-bar"><div class="score-fill"
+                                    [style.width.%]="match.distanceMiles < 0 ? 0 : (100 - (match.distanceMiles / 50) * 100 < 0 ? 0 : 100 - (match.distanceMiles / 50) * 100)"
+                                    [style.background]="match.distanceMiles < 0 ? 'hsl(60deg, 80%, 45%)' : 'hsl(' + ((100 - (match.distanceMiles / 50) * 100 < 0 ? 0 : 100 - (match.distanceMiles / 50) * 100) * 1.2) + 'deg, 80%, 45%)'">
+                                  </div></div>
+                                  <span class="score-value">{{ match.distanceMiles < 0 ? 'N/A' : (match.distanceMiles | number:'1.1-1') + ' mi' }}</span>
+                                </div>
+                              </div>
                               <div class="match-skills">
                                 @for (skill of match.matchedSkills; track skill) {
                                   <span class="match-skill-tag">{{ skill }}</span>
                                 }
-                              </div>
-                              <div class="match-pct-wrap">
-                                <div class="match-bar">
-                                  <div class="match-fill" [style.width.%]="match.matchPercent"></div>
-                                </div>
-                                <span class="match-pct">{{ match.matchPercent }}%</span>
                               </div>
                             </div>
                           }
@@ -517,37 +551,70 @@ interface EmployerGroup {
     .matches-list { display: flex; flex-direction: column; gap: 0.5rem; }
 
     .match-row {
-      display: flex;
-      align-items: center;
+      display: grid;
+      grid-template-columns: 1.75rem 140px 1fr;
+      align-items: start;
       gap: 0.75rem;
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 0.6rem 0.9rem;
-      flex-wrap: wrap;
+      padding: 0.65rem 0.9rem;
     }
 
     .match-rank {
       font-size: 0.75rem;
       font-weight: 700;
       color: var(--accent);
-      min-width: 1.75rem;
+      padding-top: 0.15rem;
     }
 
     .match-info {
       display: flex;
       flex-direction: column;
-      min-width: 140px;
-      flex: 0 0 auto;
+      min-width: 0;
+      overflow: hidden;
     }
-    .match-name { font-weight: 600; font-size: 0.88rem; }
-    .match-email { font-size: 0.75rem; color: var(--text-secondary); }
+    .match-name { font-weight: 600; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .match-email { font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .match-scores {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.78rem;
+    }
+    .score-label {
+      min-width: 5.5rem;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
+    .score-bar {
+      flex: 1;
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .score-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+
+    .score-value { min-width: 4.5rem; font-weight: 600; font-size: 0.75rem; text-align: right; }
 
     .match-skills {
+      grid-column: 2 / -1;
       display: flex;
       flex-wrap: wrap;
       gap: 0.3rem;
-      flex: 1;
+      margin-top: 0.3rem;
     }
     .match-skill-tag {
       background: rgba(99,102,241,0.12);
@@ -558,29 +625,8 @@ interface EmployerGroup {
       font-weight: 500;
     }
 
-    .match-pct-wrap {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-shrink: 0;
-      min-width: 110px;
-    }
-    .match-bar {
-      flex: 1;
-      height: 6px;
-      background: var(--border);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-    .match-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), #22c55e);
-      border-radius: 3px;
-      transition: width 0.4s ease;
-    }
-    .match-pct { font-size: 0.78rem; font-weight: 700; color: var(--success); min-width: 2.5rem; text-align: right; }
-
     .hint { font-size: 0.75rem; color: var(--text-secondary); font-weight: 400; }
+    .coords-grid { grid-template-columns: 1fr 1fr; }
 
     .empty-state {
       text-align: center;
@@ -802,6 +848,9 @@ export class JobsComponent implements OnInit {
       location: job.location,
       description: job.description,
       requiredSkills: job.requiredSkills ?? '',
+      address: job.address ?? '',
+      latitude: job.latitude ?? null,
+      longitude: job.longitude ?? null,
       status: job.status,
       employmentType: job.employmentType
     };
@@ -848,7 +897,7 @@ export class JobsComponent implements OnInit {
   }
 
   private emptyForm(): JobRequest {
-    return { employer: '', title: '', department: '', location: '', description: '', requiredSkills: '', status: 'OPEN', employmentType: 'FULL_TIME' };
+    return { employer: '', title: '', department: '', location: '', description: '', requiredSkills: '', address: '', latitude: null, longitude: null, status: 'OPEN', employmentType: 'FULL_TIME' };
   }
 
   get openJobCount(): number {

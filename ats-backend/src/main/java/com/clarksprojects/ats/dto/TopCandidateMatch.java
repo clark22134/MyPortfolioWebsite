@@ -12,7 +12,9 @@ public class TopCandidateMatch {
     private String firstName;
     private String lastName;
     private String email;
-    private int matchPercent;
+    private int skillsMatchPercent;
+    private int daysWorkedScore;
+    private double distanceMiles;
     private List<String> matchedSkills;
     private List<String> candidateSkills;
 }

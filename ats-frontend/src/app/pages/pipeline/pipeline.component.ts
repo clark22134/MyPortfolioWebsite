@@ -109,6 +109,24 @@ import {
               <input id="editSkills" [(ngModel)]="editForm.skills" name="editSkills" placeholder="e.g. Java, Docker, AWS">
             </div>
             <div class="form-group full-width">
+              <label for="pipeEditAddress">Address <span class="hint">(for commute distance matching)</span></label>
+              <input id="pipeEditAddress" [(ngModel)]="editForm.address" name="pipeEditAddress" placeholder="e.g. 384 Grand Ave, Oakland, CA 94610">
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="pipeEditLat">Latitude <span class="hint">(optional)</span></label>
+                <input id="pipeEditLat" type="number" step="any" [(ngModel)]="editForm.latitude" name="pipeEditLat" placeholder="e.g. 37.804">
+              </div>
+              <div class="form-group">
+                <label for="pipeEditLng">Longitude <span class="hint">(optional)</span></label>
+                <input id="pipeEditLng" type="number" step="any" [(ngModel)]="editForm.longitude" name="pipeEditLng" placeholder="e.g. -122.271">
+              </div>
+              <div class="form-group">
+                <label for="pipeEditDays">Days at Last Assignment</label>
+                <input id="pipeEditDays" type="number" min="0" [(ngModel)]="editForm.lastAssignmentDays" name="pipeEditDays" placeholder="e.g. 365">
+              </div>
+            </div>
+            <div class="form-group full-width">
               <label for="editNotes">Notes</label>
               <textarea id="editNotes" [(ngModel)]="editForm.notes" name="editNotes" rows="3"></textarea>
             </div>
@@ -502,6 +520,10 @@ export class PipelineComponent implements OnInit {
       resumeUrl: candidate.resumeUrl,
       notes: candidate.notes,
       skills: candidate.skills,
+      address: candidate.address ?? '',
+      latitude: candidate.latitude ?? null,
+      longitude: candidate.longitude ?? null,
+      lastAssignmentDays: candidate.lastAssignmentDays ?? 0,
       stage: candidate.stage,
       jobId: candidate.jobId
     };
@@ -522,6 +544,10 @@ export class PipelineComponent implements OnInit {
       resumeUrl: this.editForm.resumeUrl ?? '',
       notes: this.editForm.notes ?? '',
       skills: this.editForm.skills ?? '',
+      address: this.editForm.address ?? '',
+      latitude: this.editForm.latitude ?? null,
+      longitude: this.editForm.longitude ?? null,
+      lastAssignmentDays: this.editForm.lastAssignmentDays ?? 0,
       stage: this.editForm.stage ?? 'APPLIED',
       jobId: this.editingCandidate.jobId
     };

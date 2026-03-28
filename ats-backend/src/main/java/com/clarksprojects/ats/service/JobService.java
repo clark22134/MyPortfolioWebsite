@@ -58,6 +58,9 @@ public class JobService {
                 .location(request.getLocation())
                 .description(request.getDescription())
                 .requiredSkills(request.getRequiredSkills())
+                .address(request.getAddress())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
                 .status(request.getStatus())
                 .employmentType(request.getEmploymentType())
                 .build();
@@ -73,6 +76,9 @@ public class JobService {
         job.setLocation(request.getLocation());
         job.setDescription(request.getDescription());
         job.setRequiredSkills(request.getRequiredSkills());
+        job.setAddress(request.getAddress());
+        job.setLatitude(request.getLatitude());
+        job.setLongitude(request.getLongitude());
         job.setStatus(request.getStatus());
         job.setEmploymentType(request.getEmploymentType());
         return toResponse(jobRepository.save(job));
@@ -84,11 +90,16 @@ public class JobService {
         jobRepository.delete(job);
     }
 
+    private static final int MAX_DAYS = 730;
+    private static final double MAX_DISTANCE_MILES = 50.0;
+
     @Transactional(readOnly = true)
     public List<TopCandidateMatch> getTopCandidates(Long jobId) {
         Job job = findJobOrThrow(jobId);
         List<String> required = parseSkills(job.getRequiredSkills());
         if (required.isEmpty()) return List.of();
+
+        record Scored(TopCandidateMatch match, double composite) {}
 
         List<Candidate> all = candidateRepository.findAll();
         return all.stream()
@@ -97,21 +108,50 @@ public class JobService {
                     List<String> matched = required.stream()
                             .filter(s -> cSkills.stream().anyMatch(cs -> cs.equalsIgnoreCase(s)))
                             .toList();
-                    int pct = (int) Math.round((double) matched.size() / required.size() * 100);
-                    return TopCandidateMatch.builder()
+                    int skillsPct = (int) Math.round((double) matched.size() / required.size() * 100);
+
+                    int days = c.getLastAssignmentDays() != null ? c.getLastAssignmentDays() : 0;
+                    double daysNorm = Math.min(days, MAX_DAYS) / (double) MAX_DAYS * 100.0;
+
+                    double distMiles = -1.0;
+                    double distNorm = 50.0;
+                    if (job.getLatitude() != null && job.getLongitude() != null
+                            && c.getLatitude() != null && c.getLongitude() != null) {
+                        distMiles = haversineDistanceMiles(
+                                job.getLatitude(), job.getLongitude(),
+                                c.getLatitude(), c.getLongitude());
+                        distNorm = Math.max(0.0, 100.0 - (distMiles / MAX_DISTANCE_MILES) * 100.0);
+                    }
+
+                    double composite = 0.5 * skillsPct + 0.25 * daysNorm + 0.25 * distNorm;
+                    TopCandidateMatch match = TopCandidateMatch.builder()
                             .candidateId(c.getId())
                             .firstName(c.getFirstName())
                             .lastName(c.getLastName())
                             .email(c.getEmail())
-                            .matchPercent(pct)
+                            .skillsMatchPercent(skillsPct)
+                            .daysWorkedScore(days)
+                            .distanceMiles(distMiles)
                             .matchedSkills(matched)
                             .candidateSkills(cSkills)
                             .build();
+                    return new Scored(match, composite);
                 })
-                .filter(m -> m.getMatchPercent() > 0)
-                .sorted(Comparator.comparingInt(TopCandidateMatch::getMatchPercent).reversed())
+                .filter(s -> s.match().getSkillsMatchPercent() > 0)
+                .sorted(Comparator.comparingDouble(Scored::composite).reversed())
                 .limit(5)
+                .map(Scored::match)
                 .toList();
+    }
+
+    private double haversineDistanceMiles(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 3958.8;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     private List<String> parseSkills(String skills) {
@@ -136,6 +176,9 @@ public class JobService {
                 .location(job.getLocation())
                 .description(job.getDescription())
                 .requiredSkills(job.getRequiredSkills())
+                .address(job.getAddress())
+                .latitude(job.getLatitude())
+                .longitude(job.getLongitude())
                 .status(job.getStatus())
                 .employmentType(job.getEmploymentType())
                 .candidateCount(job.getCandidates().size())

@@ -76,6 +76,10 @@ public class CandidateService {
                 .resumeUrl(request.getResumeUrl())
                 .notes(request.getNotes())
                 .skills(request.getSkills())
+                .address(request.getAddress())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .lastAssignmentDays(request.getLastAssignmentDays())
                 .stage(request.getStage())
                 .stageOrder(0)
                 .job(job)
@@ -93,6 +97,10 @@ public class CandidateService {
         candidate.setResumeUrl(request.getResumeUrl());
         candidate.setNotes(request.getNotes());
         candidate.setSkills(request.getSkills());
+        candidate.setAddress(request.getAddress());
+        candidate.setLatitude(request.getLatitude());
+        candidate.setLongitude(request.getLongitude());
+        candidate.setLastAssignmentDays(request.getLastAssignmentDays());
         candidate.setStage(request.getStage());
         if (request.getJobId() != null && !request.getJobId().equals(candidate.getJob().getId())) {
             Job newJob = jobService.findJobOrThrow(request.getJobId());
@@ -132,6 +140,10 @@ public class CandidateService {
                 .resumeUrl(c.getResumeUrl())
                 .notes(c.getNotes())
                 .skills(c.getSkills())
+                .address(c.getAddress())
+                .latitude(c.getLatitude())
+                .longitude(c.getLongitude())
+                .lastAssignmentDays(c.getLastAssignmentDays())
                 .stage(c.getStage())
                 .stageOrder(c.getStageOrder())
                 .jobId(c.getJob().getId())

@@ -207,6 +207,24 @@ import {
               <input id="addSkills" [(ngModel)]="addForm.skills" name="addSkills" placeholder="e.g. Java, Docker, AWS">
             </div>
             <div class="form-group full-width">
+              <label for="addAddress">Address <span class="hint">(for commute distance matching)</span></label>
+              <input id="addAddress" [(ngModel)]="addForm.address" name="addAddress" placeholder="e.g. 384 Grand Ave, Oakland, CA 94610">
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="addLat">Latitude <span class="hint">(optional)</span></label>
+                <input id="addLat" type="number" step="any" [(ngModel)]="addForm.latitude" name="addLat" placeholder="e.g. 37.804">
+              </div>
+              <div class="form-group">
+                <label for="addLng">Longitude <span class="hint">(optional)</span></label>
+                <input id="addLng" type="number" step="any" [(ngModel)]="addForm.longitude" name="addLng" placeholder="e.g. -122.271">
+              </div>
+              <div class="form-group">
+                <label for="addDays">Days at Last Assignment</label>
+                <input id="addDays" type="number" min="0" [(ngModel)]="addForm.lastAssignmentDays" name="addDays" placeholder="e.g. 365">
+              </div>
+            </div>
+            <div class="form-group full-width">
               <label for="addNotes">Notes</label>
               <textarea id="addNotes" [(ngModel)]="addForm.notes" name="addNotes" rows="3"></textarea>
             </div>
@@ -266,6 +284,24 @@ import {
               <input id="editSkills" [(ngModel)]="editForm.skills" name="editSkills" placeholder="e.g. Java, Docker, AWS">
             </div>
             <div class="form-group full-width">
+              <label for="editAddress">Address <span class="hint">(for commute distance matching)</span></label>
+              <input id="editAddress" [(ngModel)]="editForm.address" name="editAddress" placeholder="e.g. 384 Grand Ave, Oakland, CA 94610">
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="editLat">Latitude <span class="hint">(optional)</span></label>
+                <input id="editLat" type="number" step="any" [(ngModel)]="editForm.latitude" name="editLat" placeholder="e.g. 37.804">
+              </div>
+              <div class="form-group">
+                <label for="editLng">Longitude <span class="hint">(optional)</span></label>
+                <input id="editLng" type="number" step="any" [(ngModel)]="editForm.longitude" name="editLng" placeholder="e.g. -122.271">
+              </div>
+              <div class="form-group">
+                <label for="editDays">Days at Last Assignment</label>
+                <input id="editDays" type="number" min="0" [(ngModel)]="editForm.lastAssignmentDays" name="editDays" placeholder="e.g. 365">
+              </div>
+            </div>
+            <div class="form-group full-width">
               <label for="editNotes">Notes</label>
               <textarea id="editNotes" [(ngModel)]="editForm.notes" name="editNotes" rows="3"></textarea>
             </div>
@@ -316,6 +352,18 @@ import {
                 <span class="detail-section-label">Last Updated</span>
                 <span>{{ formatDate(selectedCandidate.updatedAt) }}</span>
               </div>
+              @if (selectedCandidate.address) {
+                <div class="detail-item">
+                  <span class="detail-section-label">Address</span>
+                  <span>{{ selectedCandidate.address }}</span>
+                </div>
+              }
+              @if (selectedCandidate.lastAssignmentDays) {
+                <div class="detail-item">
+                  <span class="detail-section-label">Last Assignment</span>
+                  <span>{{ selectedCandidate.lastAssignmentDays }} days</span>
+                </div>
+              }
             </div>
             @if (selectedCandidate.skills) {
               <div class="detail-section">
@@ -955,6 +1003,10 @@ export class TalentComponent implements OnInit, OnDestroy {
       resumeUrl: '',
       notes: this.addForm.notes ?? '',
       skills: this.addForm.skills ?? '',
+      address: this.addForm.address ?? '',
+      latitude: this.addForm.latitude ?? null,
+      longitude: this.addForm.longitude ?? null,
+      lastAssignmentDays: this.addForm.lastAssignmentDays ?? 0,
       stage: this.addForm.stage ?? 'APPLIED',
       jobId: this.addForm.jobId!
     };
@@ -974,6 +1026,10 @@ export class TalentComponent implements OnInit, OnDestroy {
       resumeUrl: candidate.resumeUrl,
       notes: candidate.notes,
       skills: candidate.skills,
+      address: candidate.address ?? '',
+      latitude: candidate.latitude ?? null,
+      longitude: candidate.longitude ?? null,
+      lastAssignmentDays: candidate.lastAssignmentDays ?? 0,
       stage: candidate.stage,
       jobId: candidate.jobId
     };
@@ -994,6 +1050,10 @@ export class TalentComponent implements OnInit, OnDestroy {
       resumeUrl: this.editForm.resumeUrl ?? '',
       notes: this.editForm.notes ?? '',
       skills: this.editForm.skills ?? '',
+      address: this.editForm.address ?? '',
+      latitude: this.editForm.latitude ?? null,
+      longitude: this.editForm.longitude ?? null,
+      lastAssignmentDays: this.editForm.lastAssignmentDays ?? 0,
       stage: this.editForm.stage ?? 'APPLIED',
       jobId: this.editForm.jobId ?? this.editingCandidate.jobId
     };

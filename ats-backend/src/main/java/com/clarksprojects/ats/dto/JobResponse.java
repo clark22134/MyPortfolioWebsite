@@ -17,6 +17,9 @@ public class JobResponse {
     private String location;
     private String description;
     private String requiredSkills;
+    private String address;
+    private Double latitude;
+    private Double longitude;
     private JobStatus status;
     private EmploymentType employmentType;
     private int candidateCount;
