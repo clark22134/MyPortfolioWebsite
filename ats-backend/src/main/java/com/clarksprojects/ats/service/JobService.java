@@ -4,6 +4,7 @@ import com.clarksprojects.ats.dto.JobRequest;
 import com.clarksprojects.ats.dto.JobResponse;
 import com.clarksprojects.ats.dto.TopCandidateMatch;
 import com.clarksprojects.ats.entity.Candidate;
+import com.clarksprojects.ats.entity.EmploymentType;
 import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.JobStatus;
 import com.clarksprojects.ats.repository.CandidateRepository;
@@ -20,12 +21,16 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JobService {
 
+    static final String TALENT_POOL_EMPLOYER = "SYSTEM";
+    static final String TALENT_POOL_TITLE = "Talent Pool";
+
     private final JobRepository jobRepository;
     private final CandidateRepository candidateRepository;
 
     @Transactional(readOnly = true)
     public List<JobResponse> getAllJobs() {
         return jobRepository.findAll().stream()
+                .filter(j -> !isTalentPoolJob(j))
                 .map(this::toResponse)
                 .toList();
     }
@@ -33,8 +38,27 @@ public class JobService {
     @Transactional(readOnly = true)
     public List<JobResponse> getJobsByStatus(JobStatus status) {
         return jobRepository.findByStatusOrderByCreatedAtDesc(status).stream()
+                .filter(j -> !isTalentPoolJob(j))
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional
+    public Job findOrCreateTalentPoolJob() {
+        return jobRepository.findByEmployerAndTitle(TALENT_POOL_EMPLOYER, TALENT_POOL_TITLE)
+                .orElseGet(() -> jobRepository.save(Job.builder()
+                        .employer(TALENT_POOL_EMPLOYER)
+                        .title(TALENT_POOL_TITLE)
+                        .department("Talent Pool")
+                        .location("N/A")
+                        .status(JobStatus.ON_HOLD)
+                        .employmentType(EmploymentType.FULL_TIME)
+                        .build()));
+    }
+
+    private boolean isTalentPoolJob(Job job) {
+        return TALENT_POOL_EMPLOYER.equals(job.getEmployer())
+                && TALENT_POOL_TITLE.equals(job.getTitle());
     }
 
     @Transactional(readOnly = true)

@@ -199,3 +199,7 @@ INSERT INTO candidate (first_name, last_name, email, phone, skills, address, lat
 ('Max',     'Russell',  'max.russell@example.com',    '555-0613', 'React,JavaScript,HTML/CSS,TypeScript',                                      '6889 S Holly St, Centennial, CO 80122',          39.5931, -104.8918, 45,  'APPLIED',    0, 6),
 ('Nora',    'Griffin',  'nora.griffin@example.com',   '555-0614', 'Angular,TypeScript,HTML/CSS,JavaScript,SCSS,RxJS',                          '3000 S Logan St, Englewood, CO 80113',           39.6478, -104.9878, 365, 'SCREENING',  1, 6),
 ('Omar',    'Diaz',     'omar.diaz@example.com',      '555-0615', 'Angular,TypeScript,RxJS,SCSS,HTML/CSS,JavaScript,REST API',                  '2400 W Drake Rd, Fort Collins, CO 80526',        40.5853, -105.0844, 600, 'REJECTED',   0, 6);
+
+-- System job: Talent Pool (used to hold candidates not yet assigned to a specific opening)
+INSERT INTO job (employer, title, department, location, status, employment_type)
+VALUES ('SYSTEM', 'Talent Pool', 'Talent Pool', 'N/A', 'ON_HOLD', 'FULL_TIME');

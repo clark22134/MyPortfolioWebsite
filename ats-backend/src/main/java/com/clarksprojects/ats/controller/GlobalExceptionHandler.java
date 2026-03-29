@@ -1,5 +1,6 @@
 package com.clarksprojects.ats.controller;
 
+import com.clarksprojects.ats.exception.UnsupportedFileTypeException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -15,6 +16,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, String> handleNotFound(IllegalArgumentException ex) {
+        return Map.of("error", ex.getMessage());
+    }
+
+    @ExceptionHandler(UnsupportedFileTypeException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleUnsupportedFileType(UnsupportedFileTypeException ex) {
         return Map.of("error", ex.getMessage());
     }
 

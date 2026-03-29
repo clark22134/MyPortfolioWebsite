@@ -52,4 +52,10 @@ export class CandidateService {
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
+
+  uploadResume(file: File): Observable<Candidate> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<Candidate>('/api/talent-pool/upload', form);
+  }
 }

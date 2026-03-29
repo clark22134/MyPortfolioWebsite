@@ -32,8 +32,7 @@ class CheckoutControllerTest {
     @MockitoBean
     private CheckoutService checkoutService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void placeOrder_shouldReturnTrackingNumber() throws Exception {

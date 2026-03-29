@@ -44,8 +44,7 @@ class AuthControllerTest {
     @MockitoBean
     private JwtUtils jwtUtils;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void login_shouldReturnToken() throws Exception {

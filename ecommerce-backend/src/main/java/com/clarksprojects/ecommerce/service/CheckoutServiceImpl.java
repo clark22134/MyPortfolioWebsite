@@ -3,6 +3,7 @@ package com.clarksprojects.ecommerce.service;
 import java.util.Set;
 import java.util.UUID;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,13 +15,10 @@ import com.clarksprojects.ecommerce.entity.Order;
 import com.clarksprojects.ecommerce.entity.OrderItem;
 
 @Service
+@RequiredArgsConstructor
 public class CheckoutServiceImpl implements CheckoutService {
 
   private final CustomerRepository customerRepository;
-
-  public CheckoutServiceImpl(CustomerRepository customerRepository) {
-    this.customerRepository = customerRepository;
-  }
 
   @Override
   @Transactional

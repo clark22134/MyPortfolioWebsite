@@ -1,7 +1,6 @@
 package com.clarksprojects.ats.service;
 
 import com.clarksprojects.ats.dto.DashboardStats;
-import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.JobStatus;
 import com.clarksprojects.ats.entity.PipelineStage;
 import com.clarksprojects.ats.repository.CandidateRepository;
@@ -20,6 +19,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class DashboardServiceTest {
 
+    private static final String SYSTEM_EMPLOYER = JobService.TALENT_POOL_EMPLOYER;
+
     @Mock
     private JobRepository jobRepository;
 
@@ -31,7 +32,7 @@ class DashboardServiceTest {
 
     @Test
     void getStats_returnsAggregatedCounts() {
-        when(jobRepository.count()).thenReturn(6L);
+        when(jobRepository.countByEmployerNot(SYSTEM_EMPLOYER)).thenReturn(6L);
         when(jobRepository.countByStatus(JobStatus.OPEN)).thenReturn(4L);
         when(candidateRepository.count()).thenReturn(13L);
         when(candidateRepository.countByStage(PipelineStage.APPLIED)).thenReturn(3L);
@@ -41,13 +42,10 @@ class DashboardServiceTest {
         when(candidateRepository.countByStage(PipelineStage.OFFER)).thenReturn(1L);
         when(candidateRepository.countByStage(PipelineStage.HIRED)).thenReturn(2L);
         when(candidateRepository.countByStage(PipelineStage.REJECTED)).thenReturn(1L);
-        when(jobRepository.findAll()).thenReturn(List.of(
-                Job.builder().employer("Acme").build(),
-                Job.builder().employer("Acme").build(),
-                Job.builder().employer("Acme").build(),
-                Job.builder().employer("DataBridge").build(),
-                Job.builder().employer("DataBridge").build(),
-                Job.builder().employer("GrowthMedia").build()
+        when(jobRepository.countJobsGroupedByEmployer(SYSTEM_EMPLOYER)).thenReturn(List.of(
+                new Object[]{"Acme", 3L},
+                new Object[]{"DataBridge", 2L},
+                new Object[]{"GrowthMedia", 1L}
         ));
 
         DashboardStats stats = dashboardService.getStats();
@@ -62,17 +60,15 @@ class DashboardServiceTest {
 
     @Test
     void getStats_jobsByEmployer_groupedByEmployer() {
-        when(jobRepository.count()).thenReturn(4L);
+        when(jobRepository.countByEmployerNot(SYSTEM_EMPLOYER)).thenReturn(4L);
         when(jobRepository.countByStatus(JobStatus.OPEN)).thenReturn(2L);
         when(candidateRepository.count()).thenReturn(0L);
         for (PipelineStage stage : PipelineStage.values()) {
             when(candidateRepository.countByStage(stage)).thenReturn(0L);
         }
-        when(jobRepository.findAll()).thenReturn(List.of(
-                Job.builder().employer("Acme").build(),
-                Job.builder().employer("Acme").build(),
-                Job.builder().employer("Pixel").build(),
-                Job.builder().employer("Pixel").build()
+        when(jobRepository.countJobsGroupedByEmployer(SYSTEM_EMPLOYER)).thenReturn(List.of(
+                new Object[]{"Acme", 2L},
+                new Object[]{"Pixel", 2L}
         ));
 
         DashboardStats stats = dashboardService.getStats();
@@ -84,7 +80,6 @@ class DashboardServiceTest {
 
     @Test
     void getStats_candidatesByStage_containsAllStages() {
-        when(jobRepository.count()).thenReturn(0L);
         when(jobRepository.countByStatus(JobStatus.OPEN)).thenReturn(0L);
         when(candidateRepository.count()).thenReturn(0L);
         for (PipelineStage stage : PipelineStage.values()) {
@@ -106,7 +101,6 @@ class DashboardServiceTest {
 
     @Test
     void getStats_candidatesByStage_valuesMatchRepositoryCounts() {
-        when(jobRepository.count()).thenReturn(2L);
         when(jobRepository.countByStatus(JobStatus.OPEN)).thenReturn(1L);
         when(candidateRepository.count()).thenReturn(5L);
         when(candidateRepository.countByStage(PipelineStage.APPLIED)).thenReturn(5L);
@@ -125,7 +119,7 @@ class DashboardServiceTest {
 
     @Test
     void getStats_emptyDatabase_returnsZeroCounts() {
-        when(jobRepository.count()).thenReturn(0L);
+        when(jobRepository.countByEmployerNot(SYSTEM_EMPLOYER)).thenReturn(0L);
         when(jobRepository.countByStatus(JobStatus.OPEN)).thenReturn(0L);
         when(candidateRepository.count()).thenReturn(0L);
         for (PipelineStage stage : PipelineStage.values()) {

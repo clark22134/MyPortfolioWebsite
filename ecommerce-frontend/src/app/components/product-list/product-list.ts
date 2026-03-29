@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
-import { ProductService } from '../../services/product';
+import { GetResponseProducts, ProductService } from '../../services/product';
 import { Product } from '../../common/product';
 import { ActivatedRoute } from '@angular/router';
 import { NgbPagination } from '@ng-bootstrap/ng-bootstrap';
@@ -65,7 +65,6 @@ export class ProductListComponent implements OnInit {
       this.thePageNumber.set(1);
     }
     this.previousKeyword.set(theKeyword);
-    console.log(`keyword=${theKeyword}, thePageNumber=${this.thePageNumber()}`);
 
     // now search for the products using keyword
     this.loading.set(true);
@@ -75,7 +74,7 @@ export class ProductListComponent implements OnInit {
   }
 
   processResult() {
-    return (data: any) => {
+    return (data: GetResponseProducts) => {
       this.products.set(data._embedded.products);
       this.thePageNumber.set(data.page.number + 1);
       this.thePageSize.set(data.page.size);
@@ -105,8 +104,6 @@ export class ProductListComponent implements OnInit {
       this.thePageNumber.set(1);
     }
     this.previousCategoryId.set(this.currentCategoryId());
-    console.log(`currentCategoryId=${this.currentCategoryId()}, thePageNumber=${this.thePageNumber()}`);
-
 
     // now get the products for the given category id
     this.loading.set(true);
@@ -136,7 +133,6 @@ export class ProductListComponent implements OnInit {
   }
 
   addToCart(theProduct: Product) {
-    console.log(`Adding to cart: ${theProduct.name}, ${theProduct.unitPrice}`);
     const theCartItem = new CartItem(theProduct);
     if (this.authService.isAuthenticated()) {
       theCartItem.unitPrice = +(theProduct.unitPrice * 0.7).toFixed(2);

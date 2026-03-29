@@ -2,6 +2,7 @@ package com.clarksprojects.ats.service;
 
 import com.clarksprojects.ats.dto.CandidateRequest;
 import com.clarksprojects.ats.dto.CandidateResponse;
+import com.clarksprojects.ats.dto.ParsedResume;
 import com.clarksprojects.ats.dto.StageMoveRequest;
 import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.Job;
@@ -12,8 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -24,15 +25,14 @@ public class CandidateService {
 
     @Transactional(readOnly = true)
     public List<CandidateResponse> searchCandidates(String name, String skills, PipelineStage stage, Long jobId) {
-        return candidateRepository.findAll().stream()
-                .filter(c -> name == null || name.isBlank() ||
-                        (c.getFirstName() + " " + c.getLastName()).toLowerCase().contains(name.toLowerCase().trim()))
-                .filter(c -> stage == null || c.getStage() == stage)
-                .filter(c -> jobId == null || c.getJob().getId().equals(jobId))
-                .filter(c -> skills == null || skills.isBlank() || skillsMatch(c.getSkills(), skills))
+        String nameParam = (name == null || name.isBlank()) ? null : name.trim();
+        List<Candidate> candidates = candidateRepository.search(nameParam, stage, jobId);
+        if (skills == null || skills.isBlank()) {
+            return candidates.stream().map(this::toResponse).toList();
+        }
+        return candidates.stream()
+                .filter(c -> skillsMatch(c.getSkills(), skills))
                 .map(this::toResponse)
-                .sorted(Comparator.comparing(CandidateResponse::getLastName)
-                        .thenComparing(CandidateResponse::getFirstName))
                 .toList();
     }
 
@@ -63,6 +63,23 @@ public class CandidateService {
     @Transactional(readOnly = true)
     public CandidateResponse getCandidate(Long id) {
         return toResponse(findCandidateOrThrow(id));
+    }
+
+    @Transactional
+    public CandidateResponse createFromParsedResume(ParsedResume parsed, String resumeUrl) {
+        Job talentPoolJob = jobService.findOrCreateTalentPoolJob();
+        Candidate candidate = Candidate.builder()
+                .firstName(Objects.requireNonNullElse(parsed.firstName(), ""))
+                .lastName(Objects.requireNonNullElse(parsed.lastName(), ""))
+                .email(Objects.requireNonNullElse(parsed.email(), ""))
+                .phone(parsed.phone())
+                .resumeUrl(resumeUrl)
+                .skills(parsed.skills())
+                .stage(PipelineStage.APPLIED)
+                .stageOrder(0)
+                .job(talentPoolJob)
+                .build();
+        return toResponse(candidateRepository.save(candidate));
     }
 
     @Transactional
@@ -131,6 +148,8 @@ public class CandidateService {
     }
 
     private CandidateResponse toResponse(Candidate c) {
+        boolean isTalentPool = JobService.TALENT_POOL_EMPLOYER.equals(c.getJob().getEmployer())
+                && JobService.TALENT_POOL_TITLE.equals(c.getJob().getTitle());
         return CandidateResponse.builder()
                 .id(c.getId())
                 .firstName(c.getFirstName())
@@ -147,7 +166,8 @@ public class CandidateService {
                 .stage(c.getStage())
                 .stageOrder(c.getStageOrder())
                 .jobId(c.getJob().getId())
-                .jobTitle(c.getJob().getTitle())
+                .jobTitle(isTalentPool ? "Talent Pool" : c.getJob().getTitle())
+                .talentPool(isTalentPool)
                 .appliedAt(c.getAppliedAt())
                 .updatedAt(c.getUpdatedAt())
                 .build();
