@@ -20,6 +20,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -32,6 +33,10 @@ public class TalentPoolController {
             "^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\\.[a-zA-Z0-9]{1,10}$"
     );
 
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+            ".pdf", ".doc", ".docx", ".txt", ".rtf"
+    );
+
     private final CandidateService candidateService;
     private final ResumeParserService resumeParserService;
 
@@ -40,7 +45,7 @@ public class TalentPoolController {
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    public CandidateResponse uploadResume(@RequestParam("file") MultipartFile file) throws IOException {
+    public CandidateResponse uploadResume(@RequestPart("file") MultipartFile file) throws IOException {
         ParsedResume parsed = resumeParserService.parse(file);
 
         String storedFilename = storeFile(file);
@@ -75,11 +80,21 @@ public class TalentPoolController {
 
         String originalName = file.getOriginalFilename();
         String extension = (originalName != null && originalName.contains("."))
-                ? originalName.substring(originalName.lastIndexOf('.'))
+                ? originalName.substring(originalName.lastIndexOf('.')).toLowerCase()
                 : "";
-        String storedFilename = UUID.randomUUID() + extension;
 
-        Files.write(uploadPath.resolve(storedFilename), file.getBytes());
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("Unsupported file extension: " + extension);
+        }
+
+        String storedFilename = UUID.randomUUID() + extension;
+        Path resolvedPath = uploadPath.resolve(storedFilename).normalize();
+
+        if (!resolvedPath.startsWith(uploadPath)) {
+            throw new IOException("Invalid file path");
+        }
+
+        Files.write(resolvedPath, file.getBytes());
         return storedFilename;
     }
 }

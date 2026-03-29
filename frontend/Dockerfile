@@ -10,6 +10,7 @@ COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
 
 # Use production nginx config by default
 # For local development, mount nginx.local.conf to /etc/nginx/conf.d/default.conf
+COPY 00-rate-limit.conf /etc/nginx/conf.d/00-rate-limit.conf
 COPY nginx.prod.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80

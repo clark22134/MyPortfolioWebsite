@@ -47,7 +47,7 @@ class AuthControllerTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void login_shouldReturnToken() throws Exception {
+    void login_shouldReturnEmail() throws Exception {
         Authentication auth = mock(Authentication.class);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(auth);
@@ -61,7 +61,6 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("mock-jwt-token"))
                 .andExpect(jsonPath("$.email").value("test@example.com"));
     }
 
@@ -72,16 +71,16 @@ class AuthControllerTest {
 
         LoginRequest request = new LoginRequest();
         request.setEmail("bad@example.com");
-        request.setPassword("wrong");
+        request.setPassword("wrongpassword");
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void register_shouldReturnTokenForNewUser() throws Exception {
+    void register_shouldReturnEmailForNewUser() throws Exception {
         when(customerRepository.existsByEmail("new@example.com")).thenReturn(false);
         when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
         when(jwtUtils.generateToken("new@example.com")).thenReturn("new-jwt-token");
@@ -92,11 +91,18 @@ class AuthControllerTest {
         request.setFirstName("New");
         request.setLastName("User");
 
+        RegisterRequest.AddressDto shipping = new RegisterRequest.AddressDto();
+        shipping.setStreet("123 Main St");
+        shipping.setCity("TestCity");
+        shipping.setState("CA");
+        shipping.setZipCode("90210");
+        shipping.setCountry("US");
+        request.setShippingAddress(shipping);
+
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("new-jwt-token"))
                 .andExpect(jsonPath("$.email").value("new@example.com"));
     }
 
@@ -146,6 +152,6 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("addr-jwt-token"));
+                .andExpect(jsonPath("$.email").value("withaddr@example.com"));
     }
 }

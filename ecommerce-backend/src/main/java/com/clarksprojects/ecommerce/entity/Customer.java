@@ -63,6 +63,16 @@ public class Customer {
     @Column(name = "card_expiration_year")
     private Integer cardExpirationYear;
 
+    /**
+     * Masks the card number to only retain the last 4 digits.
+     * Must be called before persisting to prevent storing full card numbers.
+     */
+    public void maskCardNumber() {
+        if (this.cardNumber != null && this.cardNumber.length() > 4) {
+            this.cardNumber = this.cardNumber.substring(this.cardNumber.length() - 4);
+        }
+    }
+
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
     private Set<Order> orders = new HashSet<>();
 

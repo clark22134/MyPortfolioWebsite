@@ -38,6 +38,10 @@ public class CheckoutServiceImpl implements CheckoutService {
     // to the correct customer account; fall back to form email for guests
     String email = (authenticatedEmail != null) ? authenticatedEmail : purchase.getCustomer().getEmail();
     Customer customer = customerRepository.findByEmail(email).orElse(purchase.getCustomer());
+
+    // Never store full card numbers — only retain last 4 digits
+    customer.maskCardNumber();
+
     customer.add(order);
     customerRepository.save(customer);
 

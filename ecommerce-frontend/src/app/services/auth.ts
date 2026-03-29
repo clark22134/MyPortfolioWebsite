@@ -1,10 +1,9 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap } from 'rxjs';
+import { Observable, tap, of, catchError } from 'rxjs';
 
 export interface AuthResponse {
-  token: string;
   email: string;
 }
 
@@ -55,14 +54,21 @@ export class AuthService {
   userEmail = computed(() => this.currentUser()?.email ?? null);
 
   constructor() {
+    // Restore email from localStorage (for UI state only - auth is via HTTP-only cookie)
     const stored = this.storage.getItem('authUser');
     if (stored) {
-      this.currentUser.set(JSON.parse(stored));
+      try {
+        this.currentUser.set(JSON.parse(stored));
+      } catch {
+        this.storage.removeItem('authUser');
+      }
     }
   }
 
   login(email: string, password: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>('/api/auth/login', { email, password }).pipe(
+    return this.http.post<AuthResponse>('/api/auth/login', { email, password }, {
+      withCredentials: true
+    }).pipe(
       tap(response => {
         this.currentUser.set(response);
         this.storage.setItem('authUser', JSON.stringify(response));
@@ -71,7 +77,9 @@ export class AuthService {
   }
 
   register(data: RegisterData): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>('/api/auth/register', data).pipe(
+    return this.http.post<AuthResponse>('/api/auth/register', data, {
+      withCredentials: true
+    }).pipe(
       tap(response => {
         this.currentUser.set(response);
         this.storage.setItem('authUser', JSON.stringify(response));
@@ -80,16 +88,21 @@ export class AuthService {
   }
 
   getProfile(): Observable<CustomerProfile> {
-    return this.http.get<CustomerProfile>('/api/auth/profile');
+    return this.http.get<CustomerProfile>('/api/auth/profile', { withCredentials: true });
   }
 
   logout(): void {
-    this.currentUser.set(null);
-    this.storage.removeItem('authUser');
-    this.router.navigate(['/products']);
+    this.http.post('/api/auth/logout', {}, { withCredentials: true }).pipe(
+      catchError(() => of(null))
+    ).subscribe(() => {
+      this.currentUser.set(null);
+      this.storage.removeItem('authUser');
+      this.router.navigate(['/products']);
+    });
   }
 
+  /** @deprecated Token is now in HTTP-only cookie — not accessible from JS */
   getToken(): string | null {
-    return this.currentUser()?.token ?? null;
+    return null;
   }
 }
