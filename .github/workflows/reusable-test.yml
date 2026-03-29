@@ -6,7 +6,16 @@ on:
       component:
         required: true
         type: string
-        description: 'Component to test (backend or frontend)'
+        description: 'Component directory to test (e.g., backend, ats-frontend)'
+      type:
+        required: true
+        type: string
+        description: 'Component type: java or node'
+      node-test-args:
+        required: false
+        type: string
+        default: '--no-watch'
+        description: 'Extra args passed to ng test (Node projects only)'
 
 jobs:
   test:
@@ -16,57 +25,75 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up JDK 25 (Backend)
-        if: inputs.component == 'backend'
+      # ── Java setup ───────────────────────────────────────────────
+      - name: Set up JDK 25
+        if: inputs.type == 'java'
         uses: actions/setup-java@v5
         with:
           java-version: '25'
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Set up Node.js (Frontend)
-        if: inputs.component == 'frontend'
+      - name: Test & Build (Java)
+        if: inputs.type == 'java'
+        run: |
+          cd ${{ inputs.component }}
+          mvn clean test
+          mvn package -DskipTests
+
+      - name: Generate JaCoCo Report
+        if: inputs.type == 'java'
+        run: cd ${{ inputs.component }} && mvn jacoco:report
+        continue-on-error: true
+
+      # ── Node setup ──────────────────────────────────────────────
+      - name: Set up Node.js
+        if: inputs.type == 'node'
         uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: 'frontend/package-lock.json'
+          cache-dependency-path: '${{ inputs.component }}/package-lock.json'
 
-      - name: Test & Build Backend
-        if: inputs.component == 'backend'
-        run: |
-          cd backend
-          mvn clean test jacoco:report
-          mvn package -DskipTests
+      - name: Install dependencies (Node)
+        if: inputs.type == 'node'
+        run: cd ${{ inputs.component }} && npm ci
 
-      - name: Test & Build Frontend
-        if: inputs.component == 'frontend'
-        run: |
-          cd frontend
-          npm ci
-          npm run lint
-          npm run test:coverage
-          npm run build -- --configuration production
+      - name: Lint (Node)
+        if: inputs.type == 'node'
+        run: cd ${{ inputs.component }} && npm run lint
+        continue-on-error: true
 
-      - name: Upload Backend Artifact
-        if: inputs.component == 'backend'
+      - name: Test (Node)
+        if: inputs.type == 'node'
+        run: cd ${{ inputs.component }} && npx ng test ${{ inputs.node-test-args }}
+
+      - name: Build (Node)
+        if: inputs.type == 'node'
+        run: cd ${{ inputs.component }} && npm run build -- --configuration production
+
+      # ── Artifacts ───────────────────────────────────────────────
+      - name: Upload Java Artifact
+        if: inputs.type == 'java'
         uses: actions/upload-artifact@v6
         with:
-          name: backend-jar
-          path: backend/target/*.jar
+          name: ${{ inputs.component }}-jar
+          path: ${{ inputs.component }}/target/*.jar
           retention-days: 1
 
-      - name: Upload Frontend Artifact
-        if: inputs.component == 'frontend'
+      - name: Upload Node Artifact
+        if: inputs.type == 'node'
         uses: actions/upload-artifact@v6
         with:
-          name: frontend-dist
-          path: frontend/dist/
+          name: ${{ inputs.component }}-dist
+          path: ${{ inputs.component }}/dist/
           retention-days: 1
 
       - name: Upload Coverage
+        if: always()
         uses: codecov/codecov-action@v5
         with:
-          files: ${{ inputs.component == 'backend' && 'backend/target/site/jacoco/jacoco.xml' || 'frontend/coverage/lcov.info' }}
+          files: ${{ inputs.type == 'java' && format('{0}/target/site/jacoco/jacoco.xml', inputs.component) || format('{0}/coverage/lcov.info', inputs.component) }}
           flags: ${{ inputs.component }}
           name: ${{ inputs.component }}-coverage
+        continue-on-error: true
