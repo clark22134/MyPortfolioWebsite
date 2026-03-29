@@ -46,9 +46,9 @@ import { AccessibilityService } from '../../services/accessibility.service';
               </a>
             </li>
             <li>
-              <a routerLink="/projects" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Angular Java Projects')">
+              <a routerLink="/projects" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Full Stack Projects')">
                 <span class="nav-icon" aria-hidden="true">💼</span>
-                <span class="nav-text">Angular/Java Projects</span>
+                <span class="nav-text">Full Stack Projects</span>
               </a>
             </li>
             <li>
