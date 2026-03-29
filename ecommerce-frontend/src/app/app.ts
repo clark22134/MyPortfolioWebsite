@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, AfterViewInit, ElementRef, viewChild } from '@angular/core';
 import { RouterOutlet, RouterLink } from '@angular/router';
 import { ProductCategoryMenu } from './components/product-category-menu/product-category-menu';
 import { SearchComponent } from './components/search/search';
@@ -12,10 +12,39 @@ import { LoginStatusComponent } from './components/login-status/login-status';
   templateUrl: './app.html',
   styleUrls: ['./app.css']
 })
-export class App {
+export class App implements AfterViewInit {
   protected readonly title = signal('angular-ecommerce');
   mobileMenuOpen = signal(false);
   showVideoIntro = signal(true);
+  videoPaused = signal(false);
+
+  private introVideo = viewChild<ElementRef<HTMLVideoElement>>('introVideo');
+
+  ngAfterViewInit(): void {
+    this.tryAutoplay();
+  }
+
+  private tryAutoplay(): void {
+    const videoEl = this.introVideo()?.nativeElement;
+    if (!videoEl) return;
+
+    const playPromise = videoEl.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        // Autoplay blocked — show play button
+        this.videoPaused.set(true);
+      });
+    }
+  }
+
+  togglePlayback(video: HTMLVideoElement): void {
+    if (video.paused) {
+      video.play().then(() => this.videoPaused.set(false));
+    } else {
+      video.pause();
+      this.videoPaused.set(true);
+    }
+  }
 
   closeMobileMenu() {
     this.mobileMenuOpen.set(false);

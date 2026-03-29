@@ -4,6 +4,7 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { HomeComponent } from './home.component';
 import { ProjectService } from '../../services/project.service';
+import { TerminalLoaderService } from '../../services/terminal-loader.service';
 import { of } from 'rxjs';
 import { Project } from '../../models/project.model';
 
@@ -40,15 +41,15 @@ describe('HomeComponent', () => {
     projectService = TestBed.inject(ProjectService) as jasmine.SpyObj<ProjectService>;
     projectService.getFeaturedProjects.and.returnValue(of([]));
 
-    // Simulate terminal already complete so component initializes properly
-    (window as any).__terminalComplete = true;
+    // Mark terminal as complete so component initializes properly
+    const terminalService = TestBed.inject(TerminalLoaderService);
+    terminalService.markComplete();
 
     fixture = TestBed.createComponent(HomeComponent);
     component = fixture.componentInstance;
   });
 
   afterEach(() => {
-    delete (window as any).__terminalComplete;
   });
 
   it('should create', () => {

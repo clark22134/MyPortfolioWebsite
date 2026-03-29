@@ -2,11 +2,13 @@ import { environment } from './../../environments/environment.prod';
 import { Component, OnInit, AfterViewInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
 
 import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
 import { NavComponent } from '../nav/nav.component';
 import { AuthService } from '../../services/auth.service';
+import { TerminalLoaderService } from '../../services/terminal-loader.service';
 
 @Component({
   selector: 'app-home',
@@ -1152,7 +1154,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   isTyping = true;
   private fullText = 'WELCOME';
   private typingSpeed = 150;
-  private terminalListener: (() => void) | null = null;
+  private terminalSub: Subscription | null = null;
 
   skillCategories = [
     {
@@ -1201,7 +1203,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   constructor(
     private projectService: ProjectService,
-    private authService: AuthService
+    private authService: AuthService,
+    private terminalLoaderService: TerminalLoaderService
   ) {
     this.authService.currentUser$.subscribe(user => {
       this.isAuthenticated = !!user;
@@ -1214,14 +1217,10 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       error: (err: Error) => console.error('Error loading featured projects', err)
     });
 
-    // Listen for the index.html terminal animation to complete
+    // Listen for the terminal animation to complete
     this.waitForTerminalComplete();
   }
 
-  /**
-   * Wait for the vanilla JS terminal animation in index.html to finish,
-   * then reveal content and start the welcome typing animation.
-   */
   private waitForTerminalComplete(): void {
     const onComplete = () => {
       this.projectsVisible = true;
@@ -1230,22 +1229,20 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       setTimeout(() => this.typeText(), 100);
     };
 
-    // Check if terminal already finished (e.g., Angular bootstrapped after terminal)
-    if ((window as any).__terminalComplete) {
+    if (this.terminalLoaderService.isComplete) {
       onComplete();
     } else {
-      const handler = () => {
-        onComplete();
-        window.removeEventListener('terminal-complete', handler);
-      };
-      this.terminalListener = handler;
-      window.addEventListener('terminal-complete', handler);
+      this.terminalSub = this.terminalLoaderService.complete$.subscribe(complete => {
+        if (complete) {
+          onComplete();
+        }
+      });
     }
   }
 
   ngOnDestroy(): void {
-    if (this.terminalListener) {
-      window.removeEventListener('terminal-complete', this.terminalListener);
+    if (this.terminalSub) {
+      this.terminalSub.unsubscribe();
     }
   }
 
