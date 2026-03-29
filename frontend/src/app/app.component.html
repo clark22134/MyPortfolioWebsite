@@ -1,9 +1,13 @@
-<main id="main-content" role="main" tabindex="-1" aria-label="Main content">
-  <router-outlet></router-outlet>
-</main>
+<app-kali-terminal-loader></app-kali-terminal-loader>
 
-<!-- Footer with contentinfo landmark -->
-<app-footer></app-footer>
+<div [class.content-hidden]="!terminalComplete" [class.content-visible]="terminalComplete">
+  <main id="main-content" role="main" tabindex="-1" aria-label="Main content">
+    <router-outlet></router-outlet>
+  </main>
 
-<!-- Accessibility Toolbar (persistent across all pages) -->
-<app-accessibility-toolbar></app-accessibility-toolbar>
+  <!-- Footer with contentinfo landmark -->
+  <app-footer></app-footer>
+
+  <!-- Accessibility Toolbar (persistent across all pages) -->
+  <app-accessibility-toolbar></app-accessibility-toolbar>
+</div>

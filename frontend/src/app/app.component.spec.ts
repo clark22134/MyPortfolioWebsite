@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './app.component';
 import { provideHttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
+import { TerminalLoaderService } from './services/terminal-loader.service';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
@@ -9,7 +10,8 @@ describe('AppComponent', () => {
       imports: [AppComponent],
       providers: [
         provideHttpClient(),
-        provideRouter([])
+        provideRouter([]),
+        TerminalLoaderService
       ]
     }).compileComponents();
   });

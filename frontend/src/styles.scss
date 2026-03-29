@@ -246,37 +246,5 @@ html.screen-reader-mode {
   }
 }
 
-/* ============================================
-   KALI TERMINAL LOADER COLOR PROTECTION
-   Ensures no global styles override the terminal's
-   color scheme (loaded in index.html before Angular)
-   ============================================ */
-#kali-terminal-loader,
-#kali-terminal-loader * {
-  color: inherit;
-}
-#kali-terminal-body {
-  color: #00cc33 !important;
-}
-#kali-terminal-body .line {
-  color: #00cc33 !important;
-}
-#kali-terminal-body .t-green {
-  color: #00cc33 !important;
-}
-#kali-terminal-body .t-white {
-  color: #ffffff !important;
-}
-#kali-terminal-body .t-grey {
-  color: #808080 !important;
-}
-#kali-terminal-body .t-blue {
-  color: #5555ff !important;
-}
-#kali-terminal-body .t-yellow {
-  color: #ffbd2e !important;
-}
-#kali-terminal-header .title {
-  color: #00cc33 !important;
-}
+
 
