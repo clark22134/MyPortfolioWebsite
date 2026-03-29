@@ -31,7 +31,7 @@ public class ResumeParserService {
     );
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
-            "[a-zA-Z0-9._%+\\-]++@[a-zA-Z0-9.\\-]++\\.[a-zA-Z]{2,6}"
+            "[a-zA-Z0-9_%+\\-]++(?:\\.[a-zA-Z0-9_%+\\-]++)*+@(?:[a-zA-Z0-9\\-]++\\.)++[a-zA-Z]{2,6}"
     );
 
     private static final Pattern PHONE_PATTERN = Pattern.compile(
