@@ -32,7 +32,7 @@ import { AuthService } from '../../services/auth.service';
         <div class="scan-line" aria-hidden="true"></div>
       </div>
 
-      <h1 id="projects-page-title">Full Stack Projects</h1>
+      <h1 id="projects-page-title">Full-Stack Projects</h1>
 
       <div *ngIf="loading" class="loading-container" role="status" aria-live="polite">
         <div class="loading-spinner" aria-hidden="true"></div>

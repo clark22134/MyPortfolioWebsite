@@ -48,7 +48,7 @@ import { AccessibilityService } from '../../services/accessibility.service';
             <li>
               <a routerLink="/projects" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Full Stack Projects')">
                 <span class="nav-icon" aria-hidden="true">💼</span>
-                <span class="nav-text">Full Stack Projects</span>
+                <span class="nav-text">Full-Stack Projects</span>
               </a>
             </li>
             <li>
