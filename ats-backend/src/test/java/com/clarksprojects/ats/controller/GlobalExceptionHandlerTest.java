@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
+import java.io.IOException;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,5 +47,23 @@ class GlobalExceptionHandlerTest {
 
         assertThat(result).containsEntry("title", "Title is required");
         assertThat(result).containsEntry("employer", "Employer is required");
+    }
+
+    @Test
+    void handleMaxUploadSize_returnsErrorMessage() {
+        MaxUploadSizeExceededException ex = new MaxUploadSizeExceededException(10_000_000L);
+
+        Map<String, String> result = handler.handleMaxUploadSize(ex);
+
+        assertThat(result).containsEntry("error", "File is too large. Maximum upload size is 10 MB.");
+    }
+
+    @Test
+    void handleIOException_returnsErrorMessage() {
+        IOException ex = new IOException("Disk full");
+
+        Map<String, String> result = handler.handleIOException(ex);
+
+        assertThat(result).containsEntry("error", "Failed to process the uploaded file. Please try again.");
     }
 }

@@ -1,18 +1,13 @@
 import { HttpInterceptorFn } from '@angular/common/http';
-import { inject } from '@angular/core';
-import { AuthService } from './auth';
 
+/**
+ * Interceptor that ensures credentials (cookies) are sent with API requests.
+ * JWT is stored in HTTP-only cookies by the backend.
+ * CSRF (XSRF) token handling is provided by Angular's built-in withXsrfConfiguration().
+ */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const authService = inject(AuthService);
-  const token = authService.getToken();
-
-  const securedEndpoints = ['/api/orders', '/api/checkout/purchase', '/api/auth/profile'];
-
-  if (token && securedEndpoints.some(url => req.url.includes(url))) {
-    req = req.clone({
-      setHeaders: { Authorization: `Bearer ${token}` }
-    });
+  if (req.url.startsWith('/api/')) {
+    req = req.clone({ withCredentials: true });
   }
-
   return next(req);
 };

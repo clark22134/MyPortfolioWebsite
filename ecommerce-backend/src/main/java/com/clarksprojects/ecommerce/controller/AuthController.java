@@ -7,8 +7,12 @@ import com.clarksprojects.ecommerce.dto.LoginRequest;
 import com.clarksprojects.ecommerce.dto.RegisterRequest;
 import com.clarksprojects.ecommerce.entity.Address;
 import com.clarksprojects.ecommerce.entity.Customer;
+import com.clarksprojects.ecommerce.security.CookieUtil;
 import com.clarksprojects.ecommerce.security.jwt.JwtUtils;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,19 +32,26 @@ public class AuthController {
     private final CustomerRepository customerRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final CookieUtil cookieUtil;
+
+    @Value("${app.jwt.expiration-ms}")
+    private long jwtExpirationMs;
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,
+                                               HttpServletResponse response) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String token = jwtUtils.generateToken(request.getEmail());
-        return ResponseEntity.ok(new AuthResponse(token, request.getEmail()));
+        cookieUtil.addJwtCookie(response, token, (int) (jwtExpirationMs / 1000));
+        return ResponseEntity.ok(new AuthResponse(request.getEmail()));
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request,
+                                       HttpServletResponse response) {
         if (customerRepository.existsByEmail(request.getEmail())) {
             return ResponseEntity.badRequest().body("Email is already in use");
         }
@@ -61,11 +72,12 @@ public class AuthController {
             customer.setDefaultBillingAddress(buildAddress(request.getBillingAddress()));
         }
 
-        // Credit card info (optional)
+        // Credit card info (optional) — only store last 4 digits
         if (request.getCardNumber() != null && !request.getCardNumber().isBlank()) {
             customer.setCardType(request.getCardType());
             customer.setNameOnCard(request.getNameOnCard());
             customer.setCardNumber(request.getCardNumber());
+            customer.maskCardNumber();
             customer.setCardExpirationMonth(request.getCardExpirationMonth());
             customer.setCardExpirationYear(request.getCardExpirationYear());
         }
@@ -73,7 +85,8 @@ public class AuthController {
         customerRepository.save(customer);
 
         String token = jwtUtils.generateToken(request.getEmail());
-        return ResponseEntity.ok(new AuthResponse(token, request.getEmail()));
+        cookieUtil.addJwtCookie(response, token, (int) (jwtExpirationMs / 1000));
+        return ResponseEntity.ok(new AuthResponse(request.getEmail()));
     }
 
     @GetMapping("/profile")
@@ -97,13 +110,19 @@ public class AuthController {
         if (customer.getCardNumber() != null) {
             profile.setCardType(customer.getCardType());
             profile.setNameOnCard(customer.getNameOnCard());
-            String num = customer.getCardNumber();
-            profile.setCardNumberLast4(num.length() >= 4 ? num.substring(num.length() - 4) : num);
+            // cardNumber is already stored as last 4 digits only
+            profile.setCardNumberLast4(customer.getCardNumber());
             profile.setCardExpirationMonth(customer.getCardExpirationMonth());
             profile.setCardExpirationYear(customer.getCardExpirationYear());
         }
 
         return ResponseEntity.ok(profile);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletResponse response) {
+        cookieUtil.clearJwtCookie(response);
+        return ResponseEntity.ok().build();
     }
 
     private Address buildAddress(RegisterRequest.AddressDto dto) {

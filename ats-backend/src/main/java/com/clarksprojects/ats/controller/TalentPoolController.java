@@ -40,7 +40,7 @@ public class TalentPoolController {
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    public CandidateResponse uploadResume(@RequestParam("file") MultipartFile file) throws IOException {
+    public CandidateResponse uploadResume(@RequestPart("file") MultipartFile file) throws IOException {
         ParsedResume parsed = resumeParserService.parse(file);
 
         String storedFilename = storeFile(file);
