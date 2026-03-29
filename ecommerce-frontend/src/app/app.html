@@ -1,3 +1,15 @@
+<!-- VIDEO INTRO OVERLAY -->
+@if (showVideoIntro()) {
+	<div class="video-intro-overlay" (click)="dismissVideo()">
+		<video class="intro-video" autoplay muted playsinline (ended)="onVideoEnded()">
+			<source src="grok-video.mp4" type="video/mp4">
+		</video>
+		<button class="skip-video-btn" (click)="dismissVideo()" aria-label="Skip intro video">
+			Skip Intro <i class="fa fa-forward"></i>
+		</button>
+	</div>
+}
+
 <div class="page-wrapper">
 
 	<!-- MOBILE HEADER (visible below lg breakpoint) -->

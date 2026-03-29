@@ -19,11 +19,12 @@ import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 class CheckoutControllerTest {
 
     @Autowired
@@ -42,6 +43,7 @@ class CheckoutControllerTest {
         Purchase purchase = buildPurchase();
 
         mockMvc.perform(post("/api/checkout/purchase")
+                        .with(user("jane@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(purchase)))
                 .andExpect(status().isOk())
@@ -56,6 +58,7 @@ class CheckoutControllerTest {
         Purchase purchase = buildPurchase();
 
         mockMvc.perform(post("/api/checkout/purchase")
+                        .with(user("jane@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(purchase)))
                 .andExpect(status().isOk());

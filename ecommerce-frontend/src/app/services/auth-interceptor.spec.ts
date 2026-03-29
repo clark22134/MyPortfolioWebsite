@@ -32,50 +32,38 @@ describe('authInterceptor', () => {
     vi.restoreAllMocks();
   });
 
-  it('should not add Authorization header for public endpoints', () => {
+  it('should not add withCredentials for non-API endpoints', () => {
+    httpClient.get('/other/resource').subscribe();
+    const req = httpMock.expectOne('/other/resource');
+    expect(req.request.withCredentials).toBe(false);
+    req.flush([]);
+  });
+
+  it('should add withCredentials for API endpoints', () => {
     httpClient.get('/api/products').subscribe();
     const req = httpMock.expectOne('/api/products');
-    expect(req.request.headers.has('Authorization')).toBe(false);
+    expect(req.request.withCredentials).toBe(true);
     req.flush([]);
   });
 
-  it('should not add Authorization header when not authenticated', () => {
+  it('should add withCredentials for secured endpoints', () => {
     httpClient.get('/api/orders').subscribe();
     const req = httpMock.expectOne('/api/orders');
-    expect(req.request.headers.has('Authorization')).toBe(false);
+    expect(req.request.withCredentials).toBe(true);
     req.flush([]);
   });
 
-  it('should add Authorization header for secured endpoints when authenticated', () => {
-    // Login first
-    authService.login('test@test.com', 'pass').subscribe();
-    const loginReq = httpMock.expectOne('/api/auth/login');
-    loginReq.flush({ token: 'my-jwt-token', email: 'test@test.com' });
-
-    // Now make a secured request
-    httpClient.get('/api/orders').subscribe();
-    const req = httpMock.expectOne('/api/orders');
-    expect(req.request.headers.get('Authorization')).toBe('Bearer my-jwt-token');
-    req.flush([]);
-  });
-
-  it('should add Authorization for checkout endpoint', () => {
-    authService.login('test@test.com', 'pass').subscribe();
-    httpMock.expectOne('/api/auth/login').flush({ token: 'tok', email: 'test@test.com' });
-
+  it('should add withCredentials for checkout endpoint', () => {
     httpClient.post('/api/checkout/purchase', {}).subscribe();
     const req = httpMock.expectOne('/api/checkout/purchase');
-    expect(req.request.headers.get('Authorization')).toBe('Bearer tok');
+    expect(req.request.withCredentials).toBe(true);
     req.flush({});
   });
 
-  it('should add Authorization for profile endpoint', () => {
-    authService.login('test@test.com', 'pass').subscribe();
-    httpMock.expectOne('/api/auth/login').flush({ token: 'tok', email: 'test@test.com' });
-
+  it('should add withCredentials for profile endpoint', () => {
     httpClient.get('/api/auth/profile').subscribe();
     const req = httpMock.expectOne('/api/auth/profile');
-    expect(req.request.headers.get('Authorization')).toBe('Bearer tok');
+    expect(req.request.withCredentials).toBe(true);
     req.flush({});
   });
 });

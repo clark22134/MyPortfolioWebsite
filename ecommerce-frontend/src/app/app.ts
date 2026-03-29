@@ -15,9 +15,18 @@ import { LoginStatusComponent } from './components/login-status/login-status';
 export class App {
   protected readonly title = signal('angular-ecommerce');
   mobileMenuOpen = signal(false);
+  showVideoIntro = signal(true);
 
   closeMobileMenu() {
     this.mobileMenuOpen.set(false);
+  }
+
+  dismissVideo() {
+    this.showVideoIntro.set(false);
+  }
+
+  onVideoEnded() {
+    this.showVideoIntro.set(false);
   }
 }
 

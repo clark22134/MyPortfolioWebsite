@@ -70,8 +70,9 @@ import { AuthService } from '../../services/auth.service';
               </svg>
               GitHub
             </a>
-            <a *ngIf="project.demoUrl" [href]="project.demoUrl" target="_blank" rel="noopener noreferrer" class="link"
+            <a *ngIf="project.demoUrl" [href]="project.demoUrl" target="_blank" rel="noopener noreferrer" class="link link-demo"
                [attr.aria-label]="'View live demo of ' + project.title + ' (opens in new tab)'">
+              <span class="demo-icon" aria-hidden="true">&#9654;</span>
               Live Demo
             </a>
           </div>
@@ -365,6 +366,104 @@ import { AuthService } from '../../services/auth.service';
       border-color: rgba(0, 204, 51, 0.6);
       transform: translateX(3px);
       box-shadow: 0 0 10px rgba(0, 204, 51, 0.3);
+    }
+
+    /* Live Demo button eye-catching animation */
+    .link-demo {
+      position: relative;
+      background: linear-gradient(135deg, rgba(0, 204, 51, 0.15) 0%, rgba(0, 255, 102, 0.08) 100%);
+      border: 1px solid rgba(0, 204, 51, 0.5);
+      overflow: hidden;
+      animation: demoPulse 2.5s ease-in-out infinite, demoEntrance 0.6s ease-out;
+    }
+
+    .link-demo::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(0, 255, 102, 0.25),
+        transparent
+      );
+      animation: shimmer 2.5s ease-in-out infinite;
+    }
+
+    .link-demo::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 10px;
+      background: linear-gradient(45deg, #00cc33, #00ff66, #00cc33, #00ff99);
+      background-size: 300% 300%;
+      animation: borderGlow 3s ease infinite;
+      z-index: -1;
+      opacity: 0.5;
+    }
+
+    .link-demo:hover {
+      background: linear-gradient(135deg, rgba(0, 204, 51, 0.35) 0%, rgba(0, 255, 102, 0.2) 100%);
+      border-color: rgba(0, 255, 102, 0.8);
+      transform: translateY(-3px) scale(1.05);
+      box-shadow:
+        0 0 20px rgba(0, 204, 51, 0.5),
+        0 0 40px rgba(0, 204, 51, 0.2),
+        0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .link-demo:hover::after {
+      opacity: 0.8;
+    }
+
+    .demo-icon {
+      display: inline-block;
+      font-size: 0.75rem;
+      animation: playBounce 1.5s ease-in-out infinite;
+    }
+
+    @keyframes demoPulse {
+      0%, 100% {
+        box-shadow:
+          0 0 8px rgba(0, 204, 51, 0.3),
+          0 0 20px rgba(0, 204, 51, 0.1);
+      }
+      50% {
+        box-shadow:
+          0 0 15px rgba(0, 204, 51, 0.5),
+          0 0 35px rgba(0, 204, 51, 0.2);
+      }
+    }
+
+    @keyframes shimmer {
+      0% { left: -100%; }
+      50% { left: 100%; }
+      100% { left: 100%; }
+    }
+
+    @keyframes borderGlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes demoEntrance {
+      from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes playBounce {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(3px); }
     }
 
     @media (max-width: 768px) {
