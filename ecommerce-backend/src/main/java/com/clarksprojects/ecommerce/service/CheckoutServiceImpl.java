@@ -22,10 +22,11 @@ public class CheckoutServiceImpl implements CheckoutService {
 
   @Override
   @Transactional
-  public PurchaseResponse placeOrder(Purchase purchase) {
+  public PurchaseResponse placeOrder(Purchase purchase, String authenticatedEmail) {
 
     Order order = purchase.getOrder();
     order.setOrderTrackingNumber(generateOrderTrackingNumber());
+    order.setStatus("Processing");
 
     Set<OrderItem> orderItems = purchase.getOrderItems();
     orderItems.forEach(order::add);
@@ -33,7 +34,9 @@ public class CheckoutServiceImpl implements CheckoutService {
     order.setBillingAddress(purchase.getBillingAddress());
     order.setShippingAddress(purchase.getShippingAddress());
 
-    String email = purchase.getCustomer().getEmail();
+    // Use the authenticated email when available to ensure order is linked
+    // to the correct customer account; fall back to form email for guests
+    String email = (authenticatedEmail != null) ? authenticatedEmail : purchase.getCustomer().getEmail();
     Customer customer = customerRepository.findByEmail(email).orElse(purchase.getCustomer());
     customer.add(order);
     customerRepository.save(customer);

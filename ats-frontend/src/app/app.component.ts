@@ -10,7 +10,10 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
       <nav class="sidebar" aria-label="Main navigation">
         <div class="sidebar-brand">
           <span class="brand-icon">H</span>
-          <span class="brand-text">HireFlow</span>
+          <span class="brand-text">
+            HireFlow
+            <span class="brand-subtitle">by Clark</span>
+          </span>
         </div>
         <ul class="nav-links">
           <li>
@@ -76,6 +79,16 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
       font-size: 1.25rem;
       font-weight: 700;
       letter-spacing: -0.02em;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
     }
 
     .nav-links {

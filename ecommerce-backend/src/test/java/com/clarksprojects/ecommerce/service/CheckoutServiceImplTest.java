@@ -86,7 +86,7 @@ class CheckoutServiceImplTest {
         when(customerRepository.findByEmail("john@example.com")).thenReturn(Optional.empty());
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
 
-        PurchaseResponse response = checkoutService.placeOrder(purchase);
+        PurchaseResponse response = checkoutService.placeOrder(purchase, null);
 
         assertNotNull(response);
         assertNotNull(response.getOrderTrackingNumber());
@@ -98,7 +98,7 @@ class CheckoutServiceImplTest {
         when(customerRepository.findByEmail("john@example.com")).thenReturn(Optional.empty());
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
 
-        PurchaseResponse response = checkoutService.placeOrder(purchase);
+        PurchaseResponse response = checkoutService.placeOrder(purchase, null);
 
         String uuid = response.getOrderTrackingNumber();
         assertEquals(36, uuid.length());
@@ -110,7 +110,7 @@ class CheckoutServiceImplTest {
         when(customerRepository.findByEmail("john@example.com")).thenReturn(Optional.empty());
         when(customerRepository.save(any(Customer.class))).thenReturn(customer);
 
-        checkoutService.placeOrder(purchase);
+        checkoutService.placeOrder(purchase, null);
 
         ArgumentCaptor<Customer> captor = ArgumentCaptor.forClass(Customer.class);
         verify(customerRepository).save(captor.capture());
@@ -125,7 +125,7 @@ class CheckoutServiceImplTest {
         when(customerRepository.findByEmail("john@example.com")).thenReturn(Optional.of(existing));
         when(customerRepository.save(any(Customer.class))).thenReturn(existing);
 
-        checkoutService.placeOrder(purchase);
+        checkoutService.placeOrder(purchase, null);
 
         ArgumentCaptor<Customer> captor = ArgumentCaptor.forClass(Customer.class);
         verify(customerRepository).save(captor.capture());
@@ -137,7 +137,7 @@ class CheckoutServiceImplTest {
         when(customerRepository.findByEmail("john@example.com")).thenReturn(Optional.empty());
         when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        checkoutService.placeOrder(purchase);
+        checkoutService.placeOrder(purchase, null);
 
         assertEquals("123 Main St", order.getShippingAddress().getStreet());
         assertEquals("456 Oak Ave", order.getBillingAddress().getStreet());
@@ -148,9 +148,35 @@ class CheckoutServiceImplTest {
         when(customerRepository.findByEmail("john@example.com")).thenReturn(Optional.empty());
         when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        checkoutService.placeOrder(purchase);
+        checkoutService.placeOrder(purchase, null);
 
         assertEquals(2, order.getOrderItems().size());
         order.getOrderItems().forEach(item -> assertEquals(order, item.getOrder()));
+    }
+
+    @Test
+    void placeOrder_shouldUseAuthenticatedEmailOverFormEmail() {
+        Customer authCustomer = new Customer();
+        authCustomer.setId(42L);
+        authCustomer.setEmail("auth@example.com");
+        when(customerRepository.findByEmail("auth@example.com")).thenReturn(Optional.of(authCustomer));
+        when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        checkoutService.placeOrder(purchase, "auth@example.com");
+
+        ArgumentCaptor<Customer> captor = ArgumentCaptor.forClass(Customer.class);
+        verify(customerRepository).save(captor.capture());
+        assertEquals(42L, captor.getValue().getId());
+        verify(customerRepository).findByEmail("auth@example.com");
+    }
+
+    @Test
+    void placeOrder_shouldSetStatusToProcessing() {
+        when(customerRepository.findByEmail("john@example.com")).thenReturn(Optional.empty());
+        when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        checkoutService.placeOrder(purchase, null);
+
+        assertEquals("Processing", order.getStatus());
     }
 }

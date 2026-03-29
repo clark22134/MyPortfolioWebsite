@@ -25,11 +25,13 @@ describe('AppComponent', () => {
     expect(nav).toBeTruthy();
   });
 
-  it('should have brand text HireFlow', () => {
+  it('should have brand text HireFlow by Clark', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const brandText = fixture.nativeElement.querySelector('.brand-text');
-    expect(brandText?.textContent).toBe('HireFlow');
+    expect(brandText?.textContent?.trim()).toContain('HireFlow');
+    const subtitle = fixture.nativeElement.querySelector('.brand-subtitle');
+    expect(subtitle?.textContent?.trim()).toBe('by Clark');
   });
 
   it('should render router outlet', () => {
