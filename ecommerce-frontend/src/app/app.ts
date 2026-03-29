@@ -28,6 +28,10 @@ export class App implements AfterViewInit {
     const videoEl = this.introVideo()?.nativeElement;
     if (!videoEl) return;
 
+    // Explicitly set muted via JS — some browsers ignore the HTML attribute
+    videoEl.muted = true;
+    videoEl.playsInline = true;
+
     const playPromise = videoEl.play();
     if (playPromise !== undefined) {
       playPromise.catch(() => {

@@ -13,12 +13,12 @@ public interface CandidateRepository extends JpaRepository<Candidate, Long> {
     List<Candidate> findByJobIdAndStageOrderByStageOrderAsc(Long jobId, PipelineStage stage);
     long countByStage(PipelineStage stage);
 
-    @Query("SELECT c FROM Candidate c WHERE " +
-           "(:name IS NULL OR LOWER(CONCAT(c.firstName, ' ', c.lastName)) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
-           "(:stage IS NULL OR c.stage = :stage) AND " +
-           "(:jobId IS NULL OR c.job.id = :jobId) " +
-           "ORDER BY c.lastName ASC, c.firstName ASC")
+    @Query(value = "SELECT * FROM candidate c WHERE " +
+           "(CAST(:name AS text) IS NULL OR LOWER(c.first_name || ' ' || c.last_name) LIKE LOWER('%' || CAST(:name AS text) || '%')) AND " +
+           "(CAST(:stage AS varchar) IS NULL OR c.stage = CAST(:stage AS varchar)) AND " +
+           "(CAST(:jobId AS bigint) IS NULL OR c.job_id = CAST(:jobId AS bigint)) " +
+           "ORDER BY c.last_name ASC, c.first_name ASC", nativeQuery = true)
     List<Candidate> search(@Param("name") String name,
-                           @Param("stage") PipelineStage stage,
+                           @Param("stage") String stage,
                            @Param("jobId") Long jobId);
 }

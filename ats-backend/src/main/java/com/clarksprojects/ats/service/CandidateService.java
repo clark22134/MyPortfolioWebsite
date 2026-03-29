@@ -26,7 +26,8 @@ public class CandidateService {
     @Transactional(readOnly = true)
     public List<CandidateResponse> searchCandidates(String name, String skills, PipelineStage stage, Long jobId) {
         String nameParam = (name == null || name.isBlank()) ? null : name.trim();
-        List<Candidate> candidates = candidateRepository.search(nameParam, stage, jobId);
+        String stageParam = stage != null ? stage.name() : null;
+        List<Candidate> candidates = candidateRepository.search(nameParam, stageParam, jobId);
         if (skills == null || skills.isBlank()) {
             return candidates.stream().map(this::toResponse).toList();
         }
