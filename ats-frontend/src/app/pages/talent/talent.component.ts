@@ -22,7 +22,10 @@ import {
           <h1>Talent Pool</h1>
           <p class="subtitle">{{ totalCount }} candidate{{ totalCount !== 1 ? 's' : '' }} across all jobs</p>
         </div>
-        <button class="btn-primary" (click)="openAdd()">+ Add Candidate</button>
+        <div class="header-actions">
+          <button class="btn-outline" (click)="openUpload()">⬆ Upload Resume</button>
+          <button class="btn-primary" (click)="openAdd()">+ Add Candidate</button>
+        </div>
       </div>
 
       <!-- Search & Filters -->
@@ -137,7 +140,9 @@ import {
 
               <div class="card-footer">
                 <span class="applied-date">Applied {{ formatDate(c.appliedAt) }}</span>
-                <a [routerLink]="['/jobs', c.jobId, 'pipeline']" class="pipeline-link" (click)="$event.stopPropagation()">View in Pipeline →</a>
+                @if (!c.talentPool) {
+                  <a [routerLink]="['/jobs', c.jobId, 'pipeline']" class="pipeline-link" (click)="$event.stopPropagation()">View in Pipeline →</a>
+                }
               </div>
             </div>
           }
@@ -382,8 +387,45 @@ import {
               </div>
             }
             <div class="detail-actions">
-              <a [routerLink]="['/jobs', selectedCandidate.jobId, 'pipeline']" class="btn-primary" (click)="closeCandidateDetail()">View in Pipeline →</a>
+              @if (!selectedCandidate.talentPool) {
+                <a [routerLink]="['/jobs', selectedCandidate.jobId, 'pipeline']" class="btn-primary" (click)="closeCandidateDetail()">View in Pipeline →</a>
+              }
               <button class="btn-outline-detail" (click)="openEdit(selectedCandidate); closeCandidateDetail()">Edit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (showUploadModal) {
+      <div class="modal-backdrop" (click)="closeUpload()">
+        <div class="modal modal-upload" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Upload Resume">
+          <div class="modal-header">
+            <h2>Upload Resume to Talent Pool</h2>
+            <button class="modal-close" (click)="closeUpload()" aria-label="Close">×</button>
+          </div>
+          <div class="upload-body">
+            <p class="upload-hint">Upload a PDF, DOCX, or TXT resume. The candidate's name, email, phone, and skills will be extracted automatically.</p>
+            <label class="drop-zone" [class.has-file]="uploadFile" (dragover)="onDragOver($event)" (drop)="onDrop($event)">
+              @if (uploadFile) {
+                <span class="drop-zone-icon">📄</span>
+                <span class="drop-zone-name">{{ uploadFile.name }}</span>
+                <span class="drop-zone-size">{{ formatFileSize(uploadFile.size) }}</span>
+              } @else {
+                <span class="drop-zone-icon">⬆</span>
+                <span class="drop-zone-text">Drag &amp; drop a file here, or click to browse</span>
+                <span class="drop-zone-sub">PDF, DOCX, TXT · Max 10 MB</span>
+              }
+              <input type="file" accept=".pdf,.docx,.txt" (change)="onFileChange($event)" class="file-input" aria-label="Choose resume file">
+            </label>
+            @if (uploadError) {
+              <div class="upload-error">{{ uploadError }}</div>
+            }
+            <div class="modal-actions">
+              <button type="button" class="btn-cancel" (click)="closeUpload()">Cancel</button>
+              <button type="button" class="btn-primary" [disabled]="!uploadFile || uploading" (click)="submitUpload()">
+                @if (uploading) { Uploading… } @else { Upload &amp; Add to Talent Pool }
+              </button>
             </div>
           </div>
         </div>
@@ -401,6 +443,24 @@ import {
     }
     h1 { font-size: 1.75rem; font-weight: 700; }
     .subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.2rem; }
+    .header-actions {
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+    }
+    .btn-outline {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 0.6rem 1.1rem;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
 
     /* Search bar */
     .search-bar-wrapper {
@@ -856,8 +916,37 @@ import {
     .pg-ellipsis { color: var(--text-secondary); font-size: 0.88rem; padding: 0 0.1rem; line-height: 2rem; }
     .pg-info { font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.4rem; white-space: nowrap; }
 
+    /* Upload modal */
+    .modal-upload { max-width: 480px; }
+    .upload-body { padding: 1.25rem 1.5rem; }
+    .upload-hint { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.5; }
+    .drop-zone {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 2rem 1.5rem;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: var(--bg-primary);
+      text-align: center;
+    }
+    .drop-zone:hover, .drop-zone.has-file { border-color: var(--accent); background: rgba(99,102,241,0.04); }
+    .drop-zone-icon { font-size: 2rem; }
+    .drop-zone-text { font-size: 0.9rem; font-weight: 500; color: var(--text-primary); }
+    .drop-zone-sub { font-size: 0.78rem; color: var(--text-secondary); }
+    .drop-zone-name { font-size: 0.9rem; font-weight: 600; color: var(--accent); }
+    .drop-zone-size { font-size: 0.78rem; color: var(--text-secondary); }
+    .file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .upload-error { color: var(--danger); font-size: 0.85rem; margin-top: 0.75rem; }
+
     @media (max-width: 768px) {
       .page-header { flex-wrap: wrap; gap: 0.75rem; }
+      .header-actions { width: 100%; }
       .search-bar-wrapper { flex-direction: column; }
       .search-input-wrap { min-width: 100%; }
       .filter-select { width: 100%; }
@@ -873,6 +962,10 @@ export class TalentComponent implements OnInit, OnDestroy {
   totalCount = 0;
 
   showAddModal = false;
+  showUploadModal = false;
+  uploadFile: File | null = null;
+  uploading = false;
+  uploadError: string | null = null;
   addForm: Partial<CandidateRequest> = {};
   editingCandidate: Candidate | null = null;
   editForm: Partial<CandidateRequest> = {};
@@ -1076,6 +1169,62 @@ export class TalentComponent implements OnInit, OnDestroy {
     if (confirm('Delete this candidate from the talent pool? This cannot be undone.')) {
       this.candidateService.delete(id).subscribe(() => this.runSearch());
     }
+  }
+
+  openUpload(): void {
+    this.uploadFile = null;
+    this.uploadError = null;
+    this.showUploadModal = true;
+  }
+
+  closeUpload(): void {
+    if (this.uploading) return;
+    this.showUploadModal = false;
+    this.uploadFile = null;
+    this.uploadError = null;
+  }
+
+  onFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.uploadFile = input.files?.[0] ?? null;
+    this.uploadError = null;
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.uploadFile = event.dataTransfer?.files[0] ?? null;
+    this.uploadError = null;
+  }
+
+  submitUpload(): void {
+    if (!this.uploadFile) return;
+    this.uploading = true;
+    this.uploadError = null;
+    this.cdr.detectChanges();
+    this.candidateService.uploadResume(this.uploadFile).subscribe({
+      next: () => {
+        this.uploading = false;
+        this.showUploadModal = false;
+        this.uploadFile = null;
+        this.runSearch();
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.uploading = false;
+        this.uploadError = err?.error?.error ?? 'Upload failed. Please try again.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   openCandidateDetail(candidate: Candidate): void {

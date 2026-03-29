@@ -100,7 +100,7 @@ class AuthServiceTest {
                 .hasMessageContaining("Invalid credentials");
 
         verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(jwtUtil, never()).generateToken(any(UserDetails.class));
+        verify(jwtUtil, never()).generateAccessToken(any(UserDetails.class));
     }
 
     @Test

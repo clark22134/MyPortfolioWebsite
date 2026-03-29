@@ -2,61 +2,47 @@ name: Deploy to Production
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    types: [closed]
-    branches:
-      - main
+    branches: [main]
+
+# Serialize production deployments — queue, never cancel in-progress
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 env:
   AWS_REGION: us-east-1
-  ECR_BACKEND_REPOSITORY: portfolio-backend
-  ECR_FRONTEND_REPOSITORY: portfolio-frontend
-  ECR_ECOM_BACKEND_REPOSITORY: ecommerce-backend
-  ECR_ECOM_FRONTEND_REPOSITORY: ecommerce-frontend
-  ECR_ECOM_DB_REPOSITORY: ecommerce-db
-  ECR_ATS_BACKEND_REPOSITORY: ats-backend
-  ECR_ATS_FRONTEND_REPOSITORY: ats-frontend
-  ECR_ATS_DB_REPOSITORY: ats-db
   ECS_CLUSTER: prod-portfolio-cluster
-  ECS_BACKEND_SERVICE: prod-portfolio-backend
-  ECS_FRONTEND_SERVICE: prod-portfolio-frontend
-  ECS_ECOM_BACKEND_SERVICE: prod-ecommerce-backend
-  ECS_ECOM_FRONTEND_SERVICE: prod-ecommerce-frontend
-  ECS_ATS_BACKEND_SERVICE: prod-ats-backend
-  ECS_ATS_FRONTEND_SERVICE: prod-ats-frontend
 
 jobs:
-  security-and-quality:
-    name: Security & Quality Checks
+  # ── Quality gates (all run in parallel) ──────────────────────────
+  security:
+    name: Security Scan
     permissions:
       security-events: write
       contents: read
     uses: ./.github/workflows/reusable-security.yml
 
   code-quality:
-    name: Code Quality Analysis
+    name: Code Quality (SonarCloud)
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 25
-        uses: actions/setup-java@v5
+      - uses: actions/setup-java@v5
         with:
           java-version: '25'
           distribution: 'temurin'
           cache: maven
 
-      - name: Build Java classes for analysis
+      - name: Compile backends for analysis
         run: |
-          cd backend
-          mvn compile -DskipTests -q
+          cd backend && mvn compile -DskipTests -q
+          cd ../ats-backend && mvn compile -DskipTests -q
+          cd ../ecommerce-backend && mvn compile -DskipTests -q
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v7
@@ -67,43 +53,67 @@ jobs:
 
   test-backend:
     name: Backend Tests
-    needs: [security-and-quality]
     uses: ./.github/workflows/reusable-test.yml
     with:
       component: backend
+      type: java
 
   test-frontend:
     name: Frontend Tests
-    needs: [security-and-quality]
     uses: ./.github/workflows/reusable-test.yml
     with:
       component: frontend
+      type: node
+      node-test-args: '--no-watch --code-coverage --browsers=ChromeHeadless'
 
+  test-ats-backend:
+    name: ATS Backend Tests
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      component: ats-backend
+      type: java
+
+  test-ats-frontend:
+    name: ATS Frontend Tests
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      component: ats-frontend
+      type: node
+
+  test-ecommerce-backend:
+    name: Ecommerce Backend Tests
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      component: ecommerce-backend
+      type: java
+
+  test-ecommerce-frontend:
+    name: Ecommerce Frontend Tests
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      component: ecommerce-frontend
+      type: node
+
+  # ── Infrastructure ───────────────────────────────────────────────
   deploy-infrastructure:
     name: Deploy Infrastructure (Terraform)
     runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend, code-quality]
+    needs: [test-backend, test-frontend, test-ats-backend, test-ats-frontend, test-ecommerce-backend, test-ecommerce-frontend, code-quality, security]
     permissions:
       id-token: write
       contents: read
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.base_ref == 'main')
     defaults:
       run:
         working-directory: terraform
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.0
           terraform_wrapper: false
@@ -113,41 +123,29 @@ jobs:
 
       - name: Clear stale Terraform locks
         run: |
-          # Check if there's a stale lock older than 30 minutes
           LOCK_INFO=$(aws dynamodb get-item \
             --table-name portfolio-terraform-locks \
             --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
-            --region eu-west-2 \
-            --output json 2>/dev/null || echo '{}')
-          
+            --region eu-west-2 --output json 2>/dev/null || echo '{}')
+
           if [ "$LOCK_INFO" != "{}" ] && [ "$(echo $LOCK_INFO | jq -r '.Item')" != "null" ]; then
             LOCK_CREATED=$(echo $LOCK_INFO | jq -r '.Item.Info.S' | jq -r '.Created' 2>/dev/null || echo "")
-            
             if [ -n "$LOCK_CREATED" ]; then
-              LOCK_TIMESTAMP=$(date -d "$LOCK_CREATED" +%s 2>/dev/null || echo "0")
-              CURRENT_TIMESTAMP=$(date +%s)
-              LOCK_AGE=$((CURRENT_TIMESTAMP - LOCK_TIMESTAMP))
-              
-              echo "Found existing lock, age: ${LOCK_AGE} seconds"
-              
-              # If lock is older than 30 minutes (1800 seconds), clear it
+              LOCK_AGE=$(( $(date +%s) - $(date -d "$LOCK_CREATED" +%s 2>/dev/null || echo "0") ))
+              echo "Lock age: ${LOCK_AGE}s"
               if [ $LOCK_AGE -gt 1800 ]; then
-                echo "Lock is stale (>30 min), clearing..."
+                echo "Stale lock (>30 min), clearing..."
                 aws dynamodb delete-item \
                   --table-name portfolio-terraform-locks \
                   --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
                   --region eu-west-2
-                echo "Stale lock cleared"
-              else
-                echo "Lock is recent, will attempt to acquire normally"
               fi
             else
-              echo "Could not parse lock timestamp, clearing lock as precaution..."
+              echo "Cannot parse lock timestamp, clearing..."
               aws dynamodb delete-item \
                 --table-name portfolio-terraform-locks \
                 --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
                 --region eu-west-2
-              echo "Lock cleared"
             fi
           else
             echo "No existing lock found"
@@ -159,465 +157,268 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
-          # Run terraform plan and capture exit code properly
-          # Exit codes: 0 = no changes, 1 = error, 2 = changes present
           set +e
           terraform plan -out=tfplan -input=false -detailed-exitcode -no-color 2>&1 | tee plan_output.txt
           PLAN_EXIT_CODE=${PIPESTATUS[0]}
           set -e
-          
           echo "plan_exit_code=$PLAN_EXIT_CODE" >> $GITHUB_OUTPUT
-          
           if [ $PLAN_EXIT_CODE -eq 1 ]; then
-            echo "::error::Terraform plan failed with errors"
-            cat plan_output.txt
+            echo "::error::Terraform plan failed"
             exit 1
           fi
-          
-          # Exit code 0 or 2 are both success (no changes or changes present)
-          echo "Terraform plan completed successfully (exit code: $PLAN_EXIT_CODE)"
-          
-          echo "plan_output<<EOF" >> $GITHUB_OUTPUT
-          cat plan_output.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Terraform Apply
         if: steps.plan.outputs.plan_exit_code == '2'
         run: terraform apply -auto-approve -input=false tfplan
 
-  build-and-push-images:
+  # ── Docker build, push & scan ────────────────────────────────────
+  build-and-push:
     name: Build & Push Docker Images
     runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend, code-quality, deploy-infrastructure]
+    needs: [test-backend, test-frontend, test-ats-backend, test-ats-frontend, test-ecommerce-backend, test-ecommerce-frontend, code-quality, deploy-infrastructure]
     permissions:
       id-token: write
       contents: read
       security-events: write
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.base_ref == 'main')
-    outputs:
-      backend-image: ${{ steps.build-backend.outputs.image }}
-      frontend-image: ${{ steps.build-frontend.outputs.image }}
-      ecom-backend-image: ${{ steps.build-ecom-backend.outputs.image }}
-      ecom-frontend-image: ${{ steps.build-ecom-frontend.outputs.image }}
-      ecom-db-image: ${{ steps.build-ecom-db.outputs.image }}
-      ats-backend-image: ${{ steps.build-ats-backend.outputs.image }}
-      ats-frontend-image: ${{ steps.build-ats-frontend.outputs.image }}
-      ats-db-image: ${{ steps.build-ats-db.outputs.image }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076  # v2.0.1
+      - id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Build and push backend image
-        id: build-backend
+      - name: Build and push all images
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          cd backend
-          docker build --build-arg GIT_COMMIT=${{ github.sha }} -t $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          # directory | ecr-repo | needs --build-arg GIT_COMMIT
+          IMAGES=(
+            "backend|portfolio-backend|true"
+            "frontend|portfolio-frontend|false"
+            "ecommerce-backend|ecommerce-backend|true"
+            "ecommerce-frontend|ecommerce-frontend|false"
+            "ecommerce-db|ecommerce-db|false"
+            "ats-backend|ats-backend|true"
+            "ats-frontend|ats-frontend|false"
+            "ats-db|ats-db|false"
+          )
+          for entry in "${IMAGES[@]}"; do
+            IFS='|' read -r dir repo needs_git_arg <<< "$entry"
+            BUILD_ARGS=""
+            [[ "$needs_git_arg" == "true" ]] && BUILD_ARGS="--build-arg GIT_COMMIT=${IMAGE_TAG}"
+            echo "::group::Building $repo from ./$dir"
+            docker buildx build $BUILD_ARGS --provenance=false \
+              -t "$ECR_REGISTRY/$repo:$IMAGE_TAG" --push "./$dir"
+            echo "::endgroup::"
+          done
 
-      - name: Build and push frontend image
-        id: build-frontend
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+
+      - name: Scan all images with Trivy
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          cd frontend
-          docker build -t $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_FRONTEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Build and push e-commerce backend image
-        id: build-ecom-backend
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          cd ecommerce-backend
-          docker build --build-arg GIT_COMMIT=${{ github.sha }} -t $ECR_REGISTRY/$ECR_ECOM_BACKEND_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_ECOM_BACKEND_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_ECOM_BACKEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Build and push e-commerce frontend image
-        id: build-ecom-frontend
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          cd ecommerce-frontend
-          docker build -t $ECR_REGISTRY/$ECR_ECOM_FRONTEND_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_ECOM_FRONTEND_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_ECOM_FRONTEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Build and push e-commerce DB image
-        id: build-ecom-db
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          cd ecommerce-db
-          docker build -t $ECR_REGISTRY/$ECR_ECOM_DB_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_ECOM_DB_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_ECOM_DB_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Build and push ATS backend image
-        id: build-ats-backend
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          cd ats-backend
-          docker build --build-arg GIT_COMMIT=${{ github.sha }} -t $ECR_REGISTRY/$ECR_ATS_BACKEND_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_ATS_BACKEND_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_ATS_BACKEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Build and push ATS frontend image
-        id: build-ats-frontend
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          cd ats-frontend
-          docker build -t $ECR_REGISTRY/$ECR_ATS_FRONTEND_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_ATS_FRONTEND_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_ATS_FRONTEND_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Build and push ATS DB image
-        id: build-ats-db
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          cd ats-db
-          docker build -t $ECR_REGISTRY/$ECR_ATS_DB_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_ATS_DB_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_ATS_DB_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Scan backend image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.build-backend.outputs.image }}
-          format: 'sarif'
-          output: 'backend-trivy-results.sarif'
+          mkdir -p trivy-results
+          REPOS=(
+            "portfolio-backend" "portfolio-frontend"
+            "ecommerce-backend" "ecommerce-frontend" "ecommerce-db"
+            "ats-backend" "ats-frontend" "ats-db"
+          )
+          for repo in "${REPOS[@]}"; do
+            echo "::group::Scanning $repo"
+            trivy image --format sarif --output "trivy-results/${repo}.sarif" \
+              --severity CRITICAL,HIGH \
+              "$ECR_REGISTRY/$repo:$IMAGE_TAG" || true
+            echo "::endgroup::"
+          done
         continue-on-error: true
 
-      - name: Scan frontend image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.build-frontend.outputs.image }}
-          format: 'sarif'
-          output: 'frontend-trivy-results.sarif'
-        continue-on-error: true
-
-      - name: Upload backend scan results
+      - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: 'backend-trivy-results.sarif'
-          category: 'backend-image'
+          sarif_file: trivy-results
         continue-on-error: true
 
-      - name: Upload frontend scan results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: 'frontend-trivy-results.sarif'
-          category: 'frontend-image'
-        continue-on-error: true
-
-      - name: Scan e-commerce backend image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.build-ecom-backend.outputs.image }}
-          format: 'sarif'
-          output: 'ecom-backend-trivy-results.sarif'
-        continue-on-error: true
-
-      - name: Scan e-commerce frontend image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.build-ecom-frontend.outputs.image }}
-          format: 'sarif'
-          output: 'ecom-frontend-trivy-results.sarif'
-        continue-on-error: true
-
-      - name: Upload e-commerce backend scan results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: 'ecom-backend-trivy-results.sarif'
-          category: 'ecom-backend-image'
-        continue-on-error: true
-
-      - name: Upload e-commerce frontend scan results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: 'ecom-frontend-trivy-results.sarif'
-          category: 'ecom-frontend-image'
-        continue-on-error: true
-
-      - name: Scan ATS backend image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.build-ats-backend.outputs.image }}
-          format: 'sarif'
-          output: 'ats-backend-trivy-results.sarif'
-        continue-on-error: true
-
-      - name: Scan ATS frontend image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.build-ats-frontend.outputs.image }}
-          format: 'sarif'
-          output: 'ats-frontend-trivy-results.sarif'
-        continue-on-error: true
-
-      - name: Upload ATS backend scan results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: 'ats-backend-trivy-results.sarif'
-          category: 'ats-backend-image'
-        continue-on-error: true
-
-      - name: Upload ATS frontend scan results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: 'ats-frontend-trivy-results.sarif'
-          category: 'ats-frontend-image'
-        continue-on-error: true
-
-  deploy-to-aws:
-    name: Deploy to AWS ECS
+  # ── ECS deployment ───────────────────────────────────────────────
+  deploy:
+    name: Deploy to ECS
     runs-on: ubuntu-latest
-    needs: [build-and-push-images, deploy-infrastructure]
+    needs: [build-and-push]
     permissions:
       id-token: write
       contents: read
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.base_ref == 'main')
     environment:
       name: production
       url: https://clarkfoster.com
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # ============================================================
-      # BACKEND DEPLOYMENT - Using official AWS ECS Deploy Action
-      # ============================================================
-      - name: Update backend task definition with new image
-        id: backend-task-def
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ── Portfolio ──
+      - name: Render backend task definition
+        id: backend-td
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ecs-task-definitions/backend.json
           container-name: backend
-          image: ${{ needs.build-and-push-images.outputs.backend-image }}
+          image: ${{ steps.ecr.outputs.registry }}/portfolio-backend:${{ github.sha }}
 
-      - name: Deploy backend to ECS
+      - name: Deploy backend
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: ${{ steps.backend-task-def.outputs.task-definition }}
-          service: ${{ env.ECS_BACKEND_SERVICE }}
+          task-definition: ${{ steps.backend-td.outputs.task-definition }}
+          service: prod-portfolio-backend
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
           wait-for-minutes: 15
 
-      # ============================================================
-      # FRONTEND DEPLOYMENT - Using official AWS ECS Deploy Action
-      # ============================================================
-      - name: Update frontend task definition with new image
-        id: frontend-task-def
+      - name: Render frontend task definition
+        id: frontend-td
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ecs-task-definitions/frontend.json
           container-name: frontend
-          image: ${{ needs.build-and-push-images.outputs.frontend-image }}
+          image: ${{ steps.ecr.outputs.registry }}/portfolio-frontend:${{ github.sha }}
 
-      - name: Deploy frontend to ECS
+      - name: Deploy frontend
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: ${{ steps.frontend-task-def.outputs.task-definition }}
-          service: ${{ env.ECS_FRONTEND_SERVICE }}
+          task-definition: ${{ steps.frontend-td.outputs.task-definition }}
+          service: prod-portfolio-frontend
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
           wait-for-minutes: 15
 
-      # ============================================================
-      # E-COMMERCE BACKEND DEPLOYMENT (with MySQL sidecar)
-      # ============================================================
-      - name: Update e-commerce backend task definition with new image
-        id: ecom-backend-task-def
+      # ── E-Commerce (backend + DB sidecar) ──
+      - name: Render e-commerce backend task definition
+        id: ecom-backend-td
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ecs-task-definitions/ecommerce-backend.json
           container-name: ecommerce-backend
-          image: ${{ needs.build-and-push-images.outputs.ecom-backend-image }}
+          image: ${{ steps.ecr.outputs.registry }}/ecommerce-backend:${{ github.sha }}
 
-      - name: Update e-commerce DB sidecar image in task definition
-        id: ecom-backend-task-def-with-db
+      - name: Render e-commerce DB sidecar into task definition
+        id: ecom-backend-td-db
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ${{ steps.ecom-backend-task-def.outputs.task-definition }}
+          task-definition: ${{ steps.ecom-backend-td.outputs.task-definition }}
           container-name: ecommerce-db
-          image: ${{ needs.build-and-push-images.outputs.ecom-db-image }}
+          image: ${{ steps.ecr.outputs.registry }}/ecommerce-db:${{ github.sha }}
 
-      - name: Deploy e-commerce backend to ECS
+      - name: Deploy e-commerce backend
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: ${{ steps.ecom-backend-task-def-with-db.outputs.task-definition }}
-          service: ${{ env.ECS_ECOM_BACKEND_SERVICE }}
+          task-definition: ${{ steps.ecom-backend-td-db.outputs.task-definition }}
+          service: prod-ecommerce-backend
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
           wait-for-minutes: 15
 
-      # ============================================================
-      # E-COMMERCE FRONTEND DEPLOYMENT
-      # ============================================================
-      - name: Update e-commerce frontend task definition with new image
-        id: ecom-frontend-task-def
+      - name: Render e-commerce frontend task definition
+        id: ecom-frontend-td
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ecs-task-definitions/ecommerce-frontend.json
           container-name: ecommerce-frontend
-          image: ${{ needs.build-and-push-images.outputs.ecom-frontend-image }}
+          image: ${{ steps.ecr.outputs.registry }}/ecommerce-frontend:${{ github.sha }}
 
-      - name: Deploy e-commerce frontend to ECS
+      - name: Deploy e-commerce frontend
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: ${{ steps.ecom-frontend-task-def.outputs.task-definition }}
-          service: ${{ env.ECS_ECOM_FRONTEND_SERVICE }}
+          task-definition: ${{ steps.ecom-frontend-td.outputs.task-definition }}
+          service: prod-ecommerce-frontend
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
           wait-for-minutes: 15
 
-      # ============================================================
-      # ATS BACKEND DEPLOYMENT (with PostgreSQL sidecar)
-      # ============================================================
-      - name: Update ATS backend task definition with new image
-        id: ats-backend-task-def
+      # ── ATS (backend + DB sidecar) ──
+      - name: Render ATS backend task definition
+        id: ats-backend-td
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ecs-task-definitions/ats-backend.json
           container-name: ats-backend
-          image: ${{ needs.build-and-push-images.outputs.ats-backend-image }}
+          image: ${{ steps.ecr.outputs.registry }}/ats-backend:${{ github.sha }}
 
-      - name: Update ATS DB sidecar image in task definition
-        id: ats-backend-task-def-with-db
+      - name: Render ATS DB sidecar into task definition
+        id: ats-backend-td-db
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ${{ steps.ats-backend-task-def.outputs.task-definition }}
+          task-definition: ${{ steps.ats-backend-td.outputs.task-definition }}
           container-name: ats-db
-          image: ${{ needs.build-and-push-images.outputs.ats-db-image }}
+          image: ${{ steps.ecr.outputs.registry }}/ats-db:${{ github.sha }}
 
-      - name: Deploy ATS backend to ECS
+      - name: Deploy ATS backend
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: ${{ steps.ats-backend-task-def-with-db.outputs.task-definition }}
-          service: ${{ env.ECS_ATS_BACKEND_SERVICE }}
+          task-definition: ${{ steps.ats-backend-td-db.outputs.task-definition }}
+          service: prod-ats-backend
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
           wait-for-minutes: 15
 
-      # ============================================================
-      # ATS FRONTEND DEPLOYMENT
-      # ============================================================
-      - name: Update ATS frontend task definition with new image
-        id: ats-frontend-task-def
+      - name: Render ATS frontend task definition
+        id: ats-frontend-td
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ecs-task-definitions/ats-frontend.json
           container-name: ats-frontend
-          image: ${{ needs.build-and-push-images.outputs.ats-frontend-image }}
+          image: ${{ steps.ecr.outputs.registry }}/ats-frontend:${{ github.sha }}
 
-      - name: Deploy ATS frontend to ECS
+      - name: Deploy ATS frontend
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          task-definition: ${{ steps.ats-frontend-task-def.outputs.task-definition }}
-          service: ${{ env.ECS_ATS_FRONTEND_SERVICE }}
+          task-definition: ${{ steps.ats-frontend-td.outputs.task-definition }}
+          service: prod-ats-frontend
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
           wait-for-minutes: 15
 
-      - name: Final health check
+      - name: Health check
         run: |
-          echo "Verifying websites are accessible..."
           curl -f https://clarkfoster.com || exit 1
-          echo "✅ Portfolio site is healthy!"
-          curl -f https://shop.clarkfoster.com || echo "⚠️ E-commerce site not yet accessible (may still be starting)"
-          echo "✅ Deployment successful!"
+          echo "Portfolio site is healthy"
+          curl -f https://shop.clarkfoster.com || echo "E-commerce site not yet accessible (may still be starting)"
 
-  post-deployment-tests:
+  # ── Post-deploy verification ─────────────────────────────────────
+  post-deploy:
     name: Post-Deployment Verification
     runs-on: ubuntu-latest
-    needs: [deploy-to-aws]
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.base_ref == 'main')
+    needs: [deploy]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Run smoke tests
+      - name: Smoke tests
         run: |
-          echo "Running smoke tests against production..."
-          
-          # Test API version endpoint and verify commit SHA
-          echo "Checking deployed version..."
           API_VERSION=$(curl -s https://clarkfoster.com/api/version)
           DEPLOYED_COMMIT=$(echo $API_VERSION | jq -r '.commit')
-          EXPECTED_COMMIT="${{ github.sha }}"
-          
-          echo "API Version Response: $API_VERSION"
-          echo "Expected commit: $EXPECTED_COMMIT"
-          echo "Deployed commit: $DEPLOYED_COMMIT"
-          
-          if [[ "$DEPLOYED_COMMIT" != "$EXPECTED_COMMIT" ]]; then
-            echo "⚠️  Warning: Deployed commit ($DEPLOYED_COMMIT) doesn't match expected ($EXPECTED_COMMIT)"
-            echo "This may indicate the backend hasn't fully restarted yet"
+          echo "Expected: ${{ github.sha }}, Deployed: $DEPLOYED_COMMIT"
+          if [[ "$DEPLOYED_COMMIT" != "${{ github.sha }}" ]]; then
+            echo "Warning: version mismatch — backend may still be restarting"
           else
-            echo "✅ Version verified: Deployed commit matches expected commit"
+            echo "Version verified"
           fi
-          
-          # Test SSL certificate
           echo | openssl s_client -servername clarkfoster.com -connect clarkfoster.com:443 2>/dev/null | openssl x509 -noout -dates
-          
-          echo "All smoke tests passed!"
-
-      - name: Performance test
-        run: |
-          echo "Running basic performance check..."
           time curl -s https://clarkfoster.com > /dev/null
 
-      - name: Send deployment notification
+      - name: Deployment notification
         if: always()
-        run: |
-          echo "Deployment completed at $(date)"
-          echo "Status: ${{ job.status }}"
-          echo "Version: ${{ github.sha }}"
+        run: echo "Deployment ${{ job.status }} at $(date) — ${{ github.sha }}"

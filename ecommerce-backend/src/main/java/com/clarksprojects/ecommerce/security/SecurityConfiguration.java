@@ -1,6 +1,7 @@
 package com.clarksprojects.ecommerce.security;
 
 import com.clarksprojects.ecommerce.security.jwt.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -8,6 +9,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,27 +26,29 @@ import java.util.List;
 public class SecurityConfiguration {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final List<String> allowedOrigins;
 
-    public SecurityConfiguration(JwtAuthenticationFilter jwtAuthFilter) {
+    public SecurityConfiguration(
+            JwtAuthenticationFilter jwtAuthFilter,
+            @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.allowedOrigins = allowedOrigins;
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf().disable()
-            .cors()
-            .and()
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            .and()
-            .authorizeRequests()
-                .antMatchers("/api/auth/login", "/api/auth/register").permitAll()
-                .antMatchers("/api/auth/profile").authenticated()
-                .antMatchers(HttpMethod.GET, "/api/**").permitAll()
-                .antMatchers("/api/checkout/purchase").permitAll()
-                .antMatchers("/api/orders/**").authenticated()
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                .requestMatchers("/api/auth/profile").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
+                .requestMatchers("/api/checkout/purchase").permitAll()
+                .requestMatchers("/api/orders/**").authenticated()
                 .anyRequest().permitAll()
-            .and()
+            )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -53,10 +57,7 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(
-                "https://localhost:4200", "http://localhost:4200",
-                "https://shop.clarkfoster.com", "http://localhost"
-        ));
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

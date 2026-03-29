@@ -16,6 +16,7 @@ class JwtUtilsTest {
         ReflectionTestUtils.setField(jwtUtils, "jwtSecret",
                 "dGhpc0lzQVRlc3RKd3RTaWduaW5nS2V5Rm9yVW5pdFRlc3RzT25seVRoaXNJc05vdFByb2R1Y3Rpb24=");
         ReflectionTestUtils.setField(jwtUtils, "jwtExpirationMs", 3600000L);
+        ReflectionTestUtils.invokeMethod(jwtUtils, "initSigningKey");
     }
 
     @Test
@@ -59,6 +60,7 @@ class JwtUtilsTest {
         ReflectionTestUtils.setField(shortLivedUtils, "jwtSecret",
                 "dGhpc0lzQVRlc3RKd3RTaWduaW5nS2V5Rm9yVW5pdFRlc3RzT25seVRoaXNJc05vdFByb2R1Y3Rpb24=");
         ReflectionTestUtils.setField(shortLivedUtils, "jwtExpirationMs", -1000L);
+        ReflectionTestUtils.invokeMethod(shortLivedUtils, "initSigningKey");
 
         String token = shortLivedUtils.generateToken("expired@example.com");
         assertFalse(jwtUtils.validateToken(token));

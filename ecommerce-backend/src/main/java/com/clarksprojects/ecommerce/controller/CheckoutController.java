@@ -1,6 +1,7 @@
 package com.clarksprojects.ecommerce.controller;
 
 import org.springframework.web.bind.annotation.RequestMapping;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.clarksprojects.ecommerce.dto.Purchase;
@@ -12,13 +13,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/checkout")
+@RequiredArgsConstructor
 public class CheckoutController {
 
-  private CheckoutService checkoutService;
-
-  public CheckoutController(CheckoutService checkoutService) {
-    this.checkoutService = checkoutService;
-  }
+  private final CheckoutService checkoutService;
 
   @PostMapping("/purchase")
   public PurchaseResponse placeOrder(@RequestBody Purchase purchase) {

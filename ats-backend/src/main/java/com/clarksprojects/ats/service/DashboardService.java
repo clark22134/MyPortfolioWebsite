@@ -1,7 +1,6 @@
 package com.clarksprojects.ats.service;
 
 import com.clarksprojects.ats.dto.DashboardStats;
-import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.JobStatus;
 import com.clarksprojects.ats.entity.PipelineStage;
 import com.clarksprojects.ats.repository.CandidateRepository;
@@ -27,11 +26,13 @@ public class DashboardService {
         for (PipelineStage stage : PipelineStage.values()) {
             byStage.put(stage.name(), candidateRepository.countByStage(stage));
         }
-        Map<String, Long> byEmployer = jobRepository.findAll().stream()
-                .filter(job -> job.getEmployer() != null && !job.getEmployer().isBlank())
-                .collect(Collectors.groupingBy(Job::getEmployer, Collectors.counting()));
+        Map<String, Long> byEmployer = jobRepository
+                .countJobsGroupedByEmployer(JobService.TALENT_POOL_EMPLOYER)
+                .stream()
+                .collect(Collectors.toMap(row -> (String) row[0], row -> (Long) row[1]));
+
         return DashboardStats.builder()
-                .totalJobs(jobRepository.count())
+                .totalJobs(jobRepository.countByEmployerNot(JobService.TALENT_POOL_EMPLOYER))
                 .openJobs(jobRepository.countByStatus(JobStatus.OPEN))
                 .totalCandidates(candidateRepository.count())
                 .candidatesByStage(byStage)

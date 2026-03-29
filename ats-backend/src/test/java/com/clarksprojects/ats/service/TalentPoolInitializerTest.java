@@ -1,0 +1,30 @@
+package com.clarksprojects.ats.service;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.ApplicationArguments;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+
+@ExtendWith(MockitoExtension.class)
+class TalentPoolInitializerTest {
+
+    @Mock
+    private JobService jobService;
+
+    @InjectMocks
+    private TalentPoolInitializer talentPoolInitializer;
+
+    @Test
+    void run_callsFindOrCreateTalentPoolJob() throws Exception {
+        ApplicationArguments args = mock(ApplicationArguments.class);
+
+        talentPoolInitializer.run(args);
+
+        verify(jobService).findOrCreateTalentPoolJob();
+    }
+}

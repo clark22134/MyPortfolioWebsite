@@ -8,6 +8,7 @@ import com.clarksprojects.ecommerce.dto.RegisterRequest;
 import com.clarksprojects.ecommerce.entity.Address;
 import com.clarksprojects.ecommerce.entity.Customer;
 import com.clarksprojects.ecommerce.security.jwt.JwtUtils;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,22 +21,13 @@ import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final CustomerRepository customerRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
-
-    public AuthController(AuthenticationManager authenticationManager,
-                          CustomerRepository customerRepository,
-                          PasswordEncoder passwordEncoder,
-                          JwtUtils jwtUtils) {
-        this.authenticationManager = authenticationManager;
-        this.customerRepository = customerRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtUtils = jwtUtils;
-    }
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
@@ -61,24 +53,12 @@ public class AuthController {
 
         // Default shipping address (required)
         if (request.getShippingAddress() != null) {
-            Address shipping = new Address();
-            shipping.setStreet(request.getShippingAddress().getStreet());
-            shipping.setCity(request.getShippingAddress().getCity());
-            shipping.setState(request.getShippingAddress().getState());
-            shipping.setZipCode(request.getShippingAddress().getZipCode());
-            shipping.setCountry(request.getShippingAddress().getCountry());
-            customer.setDefaultShippingAddress(shipping);
+            customer.setDefaultShippingAddress(buildAddress(request.getShippingAddress()));
         }
 
         // Default billing address (optional)
         if (request.getBillingAddress() != null) {
-            Address billing = new Address();
-            billing.setStreet(request.getBillingAddress().getStreet());
-            billing.setCity(request.getBillingAddress().getCity());
-            billing.setState(request.getBillingAddress().getState());
-            billing.setZipCode(request.getBillingAddress().getZipCode());
-            billing.setCountry(request.getBillingAddress().getCountry());
-            customer.setDefaultBillingAddress(billing);
+            customer.setDefaultBillingAddress(buildAddress(request.getBillingAddress()));
         }
 
         // Credit card info (optional)
@@ -107,23 +87,11 @@ public class AuthController {
         profile.setEmail(customer.getEmail());
 
         if (customer.getDefaultShippingAddress() != null) {
-            CustomerProfileResponse.AddressDto shipping = new CustomerProfileResponse.AddressDto();
-            shipping.setStreet(customer.getDefaultShippingAddress().getStreet());
-            shipping.setCity(customer.getDefaultShippingAddress().getCity());
-            shipping.setState(customer.getDefaultShippingAddress().getState());
-            shipping.setZipCode(customer.getDefaultShippingAddress().getZipCode());
-            shipping.setCountry(customer.getDefaultShippingAddress().getCountry());
-            profile.setDefaultShippingAddress(shipping);
+            profile.setDefaultShippingAddress(buildAddressDto(customer.getDefaultShippingAddress()));
         }
 
         if (customer.getDefaultBillingAddress() != null) {
-            CustomerProfileResponse.AddressDto billing = new CustomerProfileResponse.AddressDto();
-            billing.setStreet(customer.getDefaultBillingAddress().getStreet());
-            billing.setCity(customer.getDefaultBillingAddress().getCity());
-            billing.setState(customer.getDefaultBillingAddress().getState());
-            billing.setZipCode(customer.getDefaultBillingAddress().getZipCode());
-            billing.setCountry(customer.getDefaultBillingAddress().getCountry());
-            profile.setDefaultBillingAddress(billing);
+            profile.setDefaultBillingAddress(buildAddressDto(customer.getDefaultBillingAddress()));
         }
 
         if (customer.getCardNumber() != null) {
@@ -136,5 +104,25 @@ public class AuthController {
         }
 
         return ResponseEntity.ok(profile);
+    }
+
+    private Address buildAddress(RegisterRequest.AddressDto dto) {
+        Address address = new Address();
+        address.setStreet(dto.getStreet());
+        address.setCity(dto.getCity());
+        address.setState(dto.getState());
+        address.setZipCode(dto.getZipCode());
+        address.setCountry(dto.getCountry());
+        return address;
+    }
+
+    private CustomerProfileResponse.AddressDto buildAddressDto(Address address) {
+        CustomerProfileResponse.AddressDto dto = new CustomerProfileResponse.AddressDto();
+        dto.setStreet(address.getStreet());
+        dto.setCity(address.getCity());
+        dto.setState(address.getState());
+        dto.setZipCode(address.getZipCode());
+        dto.setCountry(address.getCountry());
+        return dto;
     }
 }

@@ -51,6 +51,7 @@ export interface Candidate {
   stageOrder: number;
   jobId: number;
   jobTitle: string;
+  talentPool: boolean;
   appliedAt: string;
   updatedAt: string;
 }

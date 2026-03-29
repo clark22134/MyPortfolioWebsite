@@ -25,6 +25,7 @@ public class CandidateResponse {
     private Integer stageOrder;
     private Long jobId;
     private String jobTitle;
+    private boolean talentPool;
     private LocalDateTime appliedAt;
     private LocalDateTime updatedAt;
 }

@@ -30,29 +30,61 @@ help:
 install:
 	@echo "Installing backend dependencies..."
 	cd backend && mvn clean install -DskipTests
+	@echo "Installing ATS backend dependencies..."
+	cd ats-backend && mvn clean install -DskipTests
+	@echo "Installing ecommerce backend dependencies..."
+	cd ecommerce-backend && mvn clean install -DskipTests
 	@echo "Installing frontend dependencies..."
 	cd frontend && npm install
+	@echo "Installing ATS frontend dependencies..."
+	cd ats-frontend && npm install
+	@echo "Installing ecommerce frontend dependencies..."
+	cd ecommerce-frontend && npm install
 
 # Build applications
 build:
 	@echo "Building backend..."
 	cd backend && mvn clean package -DskipTests
+	@echo "Building ATS backend..."
+	cd ats-backend && mvn clean package -DskipTests
+	@echo "Building ecommerce backend..."
+	cd ecommerce-backend && mvn clean package -DskipTests
 	@echo "Building frontend..."
 	cd frontend && npm run build
+	@echo "Building ATS frontend..."
+	cd ats-frontend && npm run build
+	@echo "Building ecommerce frontend..."
+	cd ecommerce-frontend && npm run build
 
 # Run tests
 test:
 	@echo "Running backend tests..."
 	cd backend && mvn test
+	@echo "Running ATS backend tests..."
+	cd ats-backend && mvn test
+	@echo "Running ecommerce backend tests..."
+	cd ecommerce-backend && mvn test
 	@echo "Running frontend tests..."
 	cd frontend && npm test
+	@echo "Running ATS frontend tests..."
+	cd ats-frontend && npm test
+	@echo "Running ecommerce frontend tests..."
+	cd ecommerce-frontend && npm test
 
 # Clean build artifacts
 clean:
 	@echo "Cleaning backend..."
 	cd backend && mvn clean
+	@echo "Cleaning ATS backend..."
+	cd ats-backend && mvn clean
+	@echo "Cleaning ecommerce backend..."
+	cd ecommerce-backend && mvn clean
 	@echo "Cleaning frontend..."
 	cd frontend && rm -rf dist node_modules
+	@echo "Cleaning ATS frontend..."
+	cd ats-frontend && rm -rf dist node_modules
+	@echo "Cleaning ecommerce frontend..."
+	cd ecommerce-frontend && rm -rf dist node_modules
 
 # Local deployment
 deploy-local: start-backend start-frontend
