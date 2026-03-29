@@ -36,7 +36,7 @@ class CheckoutControllerTest {
 
     @Test
     void placeOrder_shouldReturnTrackingNumber() throws Exception {
-        when(checkoutService.placeOrder(any(Purchase.class)))
+        when(checkoutService.placeOrder(any(Purchase.class), any()))
                 .thenReturn(new PurchaseResponse("test-tracking-123"));
 
         Purchase purchase = buildPurchase();
@@ -50,7 +50,7 @@ class CheckoutControllerTest {
 
     @Test
     void placeOrder_shouldAcceptValidPurchase() throws Exception {
-        when(checkoutService.placeOrder(any(Purchase.class)))
+        when(checkoutService.placeOrder(any(Purchase.class), any()))
                 .thenReturn(new PurchaseResponse("uuid-1234"));
 
         Purchase purchase = buildPurchase();

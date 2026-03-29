@@ -60,7 +60,7 @@ import { AuthService } from '../../services/auth.service';
           </p>
           <div class="hero-buttons" role="group" aria-label="Quick navigation links">
             <div class="button-row">
-              <a routerLink="/projects" class="btn btn-primary">Angular/Java Projects</a>
+              <a routerLink="/projects" class="btn btn-primary">Full-Stack Projects</a>
               <a routerLink="/admin/interactive-projects" class="btn btn-outline">AI Projects</a>
             </div>
             <div class="button-row">
