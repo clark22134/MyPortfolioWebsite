@@ -32,19 +32,17 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf().disable()
-            .cors()
-            .and()
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            .and()
-            .authorizeRequests()
-                .antMatchers("/api/auth/login", "/api/auth/register").permitAll()
-                .antMatchers("/api/auth/profile").authenticated()
-                .antMatchers(HttpMethod.GET, "/api/**").permitAll()
-                .antMatchers("/api/checkout/purchase").permitAll()
-                .antMatchers("/api/orders/**").authenticated()
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                .requestMatchers("/api/auth/profile").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
+                .requestMatchers("/api/checkout/purchase").permitAll()
+                .requestMatchers("/api/orders/**").authenticated()
                 .anyRequest().permitAll()
-            .and()
+            )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
