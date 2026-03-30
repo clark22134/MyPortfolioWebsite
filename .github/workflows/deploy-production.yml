@@ -278,7 +278,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ecs-task-definitions/portfolio-backend.json
-          container-name: portfolio-backend
+          container-name: backend
           image: ${{ steps.ecr.outputs.registry }}/portfolio-backend:${{ github.sha }}
 
       - name: Deploy backend
@@ -295,7 +295,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ecs-task-definitions/portfolio-frontend.json
-          container-name: portfolio-frontend
+          container-name: frontend
           image: ${{ steps.ecr.outputs.registry }}/portfolio-frontend:${{ github.sha }}
 
       - name: Deploy frontend
