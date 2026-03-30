@@ -75,7 +75,7 @@ jobs:
       # ── Artifacts ───────────────────────────────────────────────
       - name: Upload Java Artifact
         if: inputs.type == 'java'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.component }}-jar
           path: ${{ inputs.component }}/target/*.jar
@@ -83,7 +83,7 @@ jobs:
 
       - name: Upload Node Artifact
         if: inputs.type == 'node'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.component }}-dist
           path: ${{ inputs.component }}/dist/
@@ -91,7 +91,7 @@ jobs:
 
       - name: Upload Coverage
         if: always()
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: ${{ inputs.type == 'java' && format('{0}/target/site/jacoco/jacoco.xml', inputs.component) || format('{0}/coverage/lcov.info', inputs.component) }}
           flags: ${{ inputs.component }}
