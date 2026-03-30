@@ -100,9 +100,4 @@ export class AuthService {
       this.router.navigate(['/products']);
     });
   }
-
-  /** @deprecated Token is now in HTTP-only cookie — not accessible from JS */
-  getToken(): string | null {
-    return null;
-  }
 }

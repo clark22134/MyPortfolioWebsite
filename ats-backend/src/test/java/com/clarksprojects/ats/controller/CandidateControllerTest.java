@@ -4,6 +4,7 @@ import com.clarksprojects.ats.dto.CandidateRequest;
 import com.clarksprojects.ats.dto.CandidateResponse;
 import com.clarksprojects.ats.dto.StageMoveRequest;
 import com.clarksprojects.ats.entity.PipelineStage;
+import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.service.CandidateService;
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -91,7 +92,7 @@ class CandidateControllerTest {
 
     @Test
     void getCandidate_nonExistentId_returnsNotFound() throws Exception {
-        when(candidateService.getCandidate(99L)).thenThrow(new IllegalArgumentException("Candidate not found: 99"));
+        when(candidateService.getCandidate(99L)).thenThrow(new ResourceNotFoundException("Candidate not found: 99"));
 
         mockMvc.perform(get("/api/candidates/99"))
                 .andExpect(status().isNotFound())
@@ -206,7 +207,7 @@ class CandidateControllerTest {
 
     @Test
     void deleteCandidate_nonExistentId_returnsNotFound() throws Exception {
-        doThrow(new IllegalArgumentException("Candidate not found: 99")).when(candidateService).deleteCandidate(99L);
+        doThrow(new ResourceNotFoundException("Candidate not found: 99")).when(candidateService).deleteCandidate(99L);
 
         mockMvc.perform(delete("/api/candidates/99"))
                 .andExpect(status().isNotFound());

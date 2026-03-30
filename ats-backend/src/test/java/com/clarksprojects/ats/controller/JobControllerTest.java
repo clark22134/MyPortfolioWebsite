@@ -4,6 +4,7 @@ import com.clarksprojects.ats.dto.JobRequest;
 import com.clarksprojects.ats.dto.JobResponse;
 import com.clarksprojects.ats.entity.EmploymentType;
 import com.clarksprojects.ats.entity.JobStatus;
+import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.service.JobService;
 import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -92,7 +93,7 @@ class JobControllerTest {
 
     @Test
     void getJob_nonExistentId_returnsNotFound() throws Exception {
-        when(jobService.getJob(99L)).thenThrow(new IllegalArgumentException("Job not found: 99"));
+        when(jobService.getJob(99L)).thenThrow(new ResourceNotFoundException("Job not found: 99"));
 
         mockMvc.perform(get("/api/jobs/99"))
                 .andExpect(status().isNotFound())
@@ -177,7 +178,7 @@ class JobControllerTest {
                 .status(JobStatus.OPEN).employmentType(EmploymentType.FULL_TIME)
                 .build();
 
-        when(jobService.updateJob(eq(99L), any())).thenThrow(new IllegalArgumentException("Job not found: 99"));
+        when(jobService.updateJob(eq(99L), any())).thenThrow(new ResourceNotFoundException("Job not found: 99"));
 
         mockMvc.perform(put("/api/jobs/99")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -197,7 +198,7 @@ class JobControllerTest {
 
     @Test
     void deleteJob_nonExistentId_returnsNotFound() throws Exception {
-        doThrow(new IllegalArgumentException("Job not found: 99")).when(jobService).deleteJob(99L);
+        doThrow(new ResourceNotFoundException("Job not found: 99")).when(jobService).deleteJob(99L);
 
         mockMvc.perform(delete("/api/jobs/99"))
                 .andExpect(status().isNotFound());

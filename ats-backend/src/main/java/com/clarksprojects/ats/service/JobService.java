@@ -7,6 +7,7 @@ import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.EmploymentType;
 import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.JobStatus;
+import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.repository.CandidateRepository;
 import com.clarksprojects.ats.repository.JobRepository;
 import lombok.RequiredArgsConstructor;
@@ -195,7 +196,7 @@ public class JobService {
 
     Job findJobOrThrow(Long id) {
         return jobRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Job not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + id));
     }
 
     private JobResponse toResponse(Job job) {

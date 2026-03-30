@@ -48,7 +48,6 @@ export class DashboardComponent implements OnInit {
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('Failed to load dashboard stats:', err);
         this.error = 'Failed to load dashboard data. Please try again.';
         this.cdr.detectChanges();
       }

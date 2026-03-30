@@ -88,17 +88,17 @@ describe('AuthService', () => {
 
     expect(service.isAuthenticated()).toBe(false);
     expect(service.userEmail()).toBeNull();
-    expect(service.getToken()).toBeNull();
     expect(mockStorage['authUser']).toBeUndefined();
     expect(router.navigate).toHaveBeenCalledWith(['/products']);
   });
 
-  it('should return null token (cookie-based auth)', () => {
+  it('should use cookie-based auth (no token stored)', () => {
     const mockResponse: AuthResponse = { email: 'test@test.com' };
     service.login('test@test.com', 'password').subscribe();
     httpMock.expectOne('/api/auth/login').flush(mockResponse);
 
-    expect(service.getToken()).toBeNull();
+    // Auth is cookie-based, so no token property exists on the service
+    expect(service.isAuthenticated()).toBe(true);
   });
 
   it('should fetch user profile', () => {
