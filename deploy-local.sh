@@ -14,8 +14,8 @@ docker compose build --no-cache
 
 # Step 2: Tag images for ECR
 echo "🏷️  Step 2/7: Tagging images for ECR..."
-docker tag myportfoliowebsite-backend:latest ${ECR_REGISTRY}/portfolio-backend:latest
-docker tag myportfoliowebsite-frontend:latest ${ECR_REGISTRY}/portfolio-frontend:latest
+docker tag myportfoliowebsite-portfolio-backend:latest ${ECR_REGISTRY}/portfolio-backend:latest
+docker tag myportfoliowebsite-portfolio-frontend:latest ${ECR_REGISTRY}/portfolio-frontend:latest
 docker tag myportfoliowebsite-ecommerce-backend:latest ${ECR_REGISTRY}/ecommerce-backend:latest
 docker tag myportfoliowebsite-ecommerce-frontend:latest ${ECR_REGISTRY}/ecommerce-frontend:latest
 docker tag myportfoliowebsite-ecommerce-db:latest ${ECR_REGISTRY}/ecommerce-db:latest

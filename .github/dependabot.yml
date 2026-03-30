@@ -2,7 +2,7 @@ version: 2
 updates:
   # Frontend (npm) dependencies - grouped into single PR
   - package-ecosystem: "npm"
-    directory: "/frontend"
+    directory: "/portfolio-frontend"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -24,7 +24,7 @@ updates:
 
   # Backend (Maven) dependencies - grouped into single PR
   - package-ecosystem: "maven"
-    directory: "/backend"
+    directory: "/portfolio-backend"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -75,8 +75,8 @@ updates:
   # Docker dependencies - grouped into single PR
   - package-ecosystem: "docker"
     directories:
-      - "/backend"
-      - "/frontend"
+      - "/portfolio-backend"
+      - "/portfolio-frontend"
     schedule:
       interval: "weekly"
       day: "monday"

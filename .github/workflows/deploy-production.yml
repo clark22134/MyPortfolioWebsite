@@ -40,7 +40,7 @@ jobs:
 
       - name: Compile backends for analysis
         run: |
-          cd backend && mvn compile -DskipTests -q
+          cd portfolio-backend && mvn compile -DskipTests -q
           cd ../ats-backend && mvn compile -DskipTests -q
           cd ../ecommerce-backend && mvn compile -DskipTests -q
 
@@ -55,14 +55,14 @@ jobs:
     name: Backend Tests
     uses: ./.github/workflows/reusable-test.yml
     with:
-      component: backend
+      component: portfolio-backend
       type: java
 
   test-frontend:
     name: Frontend Tests
     uses: ./.github/workflows/reusable-test.yml
     with:
-      component: frontend
+      component: portfolio-frontend
       type: node
       node-test-args: '--no-watch --code-coverage --browsers=ChromeHeadless'
 
@@ -200,8 +200,8 @@ jobs:
         run: |
           # directory | ecr-repo | needs --build-arg GIT_COMMIT
           IMAGES=(
-            "backend|portfolio-backend|true"
-            "frontend|portfolio-frontend|false"
+            "portfolio-backend|portfolio-backend|true"
+            "portfolio-frontend|portfolio-frontend|false"
             "ecommerce-backend|ecommerce-backend|true"
             "ecommerce-frontend|ecommerce-frontend|false"
             "ecommerce-db|ecommerce-db|false"
@@ -277,8 +277,8 @@ jobs:
         id: backend-td
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ecs-task-definitions/backend.json
-          container-name: backend
+          task-definition: ecs-task-definitions/portfolio-backend.json
+          container-name: portfolio-backend
           image: ${{ steps.ecr.outputs.registry }}/portfolio-backend:${{ github.sha }}
 
       - name: Deploy backend
@@ -294,8 +294,8 @@ jobs:
         id: frontend-td
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ecs-task-definitions/frontend.json
-          container-name: frontend
+          task-definition: ecs-task-definitions/portfolio-frontend.json
+          container-name: portfolio-frontend
           image: ${{ steps.ecr.outputs.registry }}/portfolio-frontend:${{ github.sha }}
 
       - name: Deploy frontend

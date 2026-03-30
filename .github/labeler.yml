@@ -2,11 +2,11 @@
 
 backend:
   - changed-files:
-    - any-glob-to-any-file: 'backend/**/*'
+    - any-glob-to-any-file: 'portfolio-backend/**/*'
 
 frontend:
   - changed-files:
-    - any-glob-to-any-file: 'frontend/**/*'
+    - any-glob-to-any-file: 'portfolio-frontend/**/*'
 
 infrastructure:
   - changed-files:

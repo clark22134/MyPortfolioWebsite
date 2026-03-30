@@ -29,13 +29,13 @@ help:
 # Install dependencies
 install:
 	@echo "Installing backend dependencies..."
-	cd backend && mvn clean install -DskipTests
+	cd portfolio-backend && mvn clean install -DskipTests
 	@echo "Installing ATS backend dependencies..."
 	cd ats-backend && mvn clean install -DskipTests
 	@echo "Installing ecommerce backend dependencies..."
 	cd ecommerce-backend && mvn clean install -DskipTests
 	@echo "Installing frontend dependencies..."
-	cd frontend && npm install
+	cd portfolio-frontend && npm install
 	@echo "Installing ATS frontend dependencies..."
 	cd ats-frontend && npm install
 	@echo "Installing ecommerce frontend dependencies..."
@@ -44,13 +44,13 @@ install:
 # Build applications
 build:
 	@echo "Building backend..."
-	cd backend && mvn clean package -DskipTests
+	cd portfolio-backend && mvn clean package -DskipTests
 	@echo "Building ATS backend..."
 	cd ats-backend && mvn clean package -DskipTests
 	@echo "Building ecommerce backend..."
 	cd ecommerce-backend && mvn clean package -DskipTests
 	@echo "Building frontend..."
-	cd frontend && npm run build
+	cd portfolio-frontend && npm run build
 	@echo "Building ATS frontend..."
 	cd ats-frontend && npm run build
 	@echo "Building ecommerce frontend..."
@@ -59,13 +59,13 @@ build:
 # Run tests
 test:
 	@echo "Running backend tests..."
-	cd backend && mvn test
+	cd portfolio-backend && mvn test
 	@echo "Running ATS backend tests..."
 	cd ats-backend && mvn test
 	@echo "Running ecommerce backend tests..."
 	cd ecommerce-backend && mvn test
 	@echo "Running frontend tests..."
-	cd frontend && npm test
+	cd portfolio-frontend && npm test
 	@echo "Running ATS frontend tests..."
 	cd ats-frontend && npm test
 	@echo "Running ecommerce frontend tests..."
@@ -74,13 +74,13 @@ test:
 # Clean build artifacts
 clean:
 	@echo "Cleaning backend..."
-	cd backend && mvn clean
+	cd portfolio-backend && mvn clean
 	@echo "Cleaning ATS backend..."
 	cd ats-backend && mvn clean
 	@echo "Cleaning ecommerce backend..."
 	cd ecommerce-backend && mvn clean
 	@echo "Cleaning frontend..."
-	cd frontend && rm -rf dist node_modules
+	cd portfolio-frontend && rm -rf dist node_modules
 	@echo "Cleaning ATS frontend..."
 	cd ats-frontend && rm -rf dist node_modules
 	@echo "Cleaning ecommerce frontend..."
@@ -91,11 +91,11 @@ deploy-local: start-backend start-frontend
 
 start-backend:
 	@echo "Starting backend on port 8080..."
-	cd backend && mvn spring-boot:run &
+	cd portfolio-backend && mvn spring-boot:run &
 
 start-frontend:
 	@echo "Starting frontend on port 4200..."
-	cd frontend && npm start &
+	cd portfolio-frontend && npm start &
 
 stop:
 	@echo "Stopping services..."
@@ -122,8 +122,8 @@ terraform-destroy:
 # Docker commands
 docker-build:
 	@echo "Building Docker images..."
-	docker build -t portfolio-backend:latest ./backend
-	docker build -t portfolio-frontend:latest ./frontend
+	docker build -t portfolio-backend:latest ./portfolio-backend
+	docker build -t portfolio-frontend:latest ./portfolio-frontend
 	docker build -t ecommerce-backend:latest ./ecommerce-backend
 	docker build -t ecommerce-frontend:latest ./ecommerce-frontend
 	docker build -t ecommerce-db:latest ./ecommerce-db
