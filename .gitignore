@@ -34,7 +34,7 @@
 *.p12
 *.pfx
 credentials
-config
+/config
 ~/.aws/
 
 # Secrets and API Keys
