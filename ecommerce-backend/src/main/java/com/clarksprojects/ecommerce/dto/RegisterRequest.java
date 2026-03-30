@@ -2,70 +2,63 @@ package com.clarksprojects.ecommerce.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
-import lombok.Data;
 
-@Data
-public class RegisterRequest {
+public record RegisterRequest(
+    @NotBlank(message = "Email is required")
+    @Email(message = "Please provide a valid email address")
+    @Size(max = 255, message = "Email must not exceed 255 characters")
+    String email,
 
-    @NotBlank
-    @Email
-    @Size(max = 255)
-    private String email;
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, max = 128, message = "Password must be between 8 and 128 characters")
+    String password,
 
-    @NotBlank
-    @Size(min = 8, max = 128)
-    private String password;
+    @NotBlank(message = "First name is required")
+    @Size(max = 100, message = "First name must not exceed 100 characters")
+    String firstName,
 
-    @NotBlank
-    @Size(max = 100)
-    private String firstName;
+    @NotBlank(message = "Last name is required")
+    @Size(max = 100, message = "Last name must not exceed 100 characters")
+    String lastName,
 
-    @NotBlank
-    @Size(max = 100)
-    private String lastName;
-
-    // Default shipping address (required)
-    @NotNull
+    @NotNull(message = "Shipping address is required")
     @Valid
-    private AddressDto shippingAddress;
+    AddressDto shippingAddress,
 
-    // Default billing address (optional)
     @Valid
-    private AddressDto billingAddress;
+    AddressDto billingAddress,
 
-    // Credit card info (optional)
-    @Size(max = 50)
-    private String cardType;
+    @Size(max = 50, message = "Card type must not exceed 50 characters")
+    String cardType,
 
-    @Size(max = 100)
-    private String nameOnCard;
+    @Size(max = 100, message = "Name on card must not exceed 100 characters")
+    String nameOnCard,
 
     @Pattern(regexp = "^$|^[0-9]{13,19}$", message = "Card number must be 13-19 digits")
-    private String cardNumber;
+    String cardNumber,
 
-    private Integer cardExpirationMonth;
-    private Integer cardExpirationYear;
+    Integer cardExpirationMonth,
+    Integer cardExpirationYear
+) {
+    public record AddressDto(
+        @NotBlank(message = "Street is required")
+        @Size(max = 255, message = "Street must not exceed 255 characters")
+        String street,
 
-    @Data
-    public static class AddressDto {
-        @NotBlank
-        @Size(max = 255)
-        private String street;
+        @NotBlank(message = "City is required")
+        @Size(max = 100, message = "City must not exceed 100 characters")
+        String city,
 
-        @NotBlank
-        @Size(max = 100)
-        private String city;
+        @NotBlank(message = "State is required")
+        @Size(max = 100, message = "State must not exceed 100 characters")
+        String state,
 
-        @NotBlank
-        @Size(max = 100)
-        private String state;
+        @NotBlank(message = "Zip code is required")
+        @Size(max = 20, message = "Zip code must not exceed 20 characters")
+        String zipCode,
 
-        @NotBlank
-        @Size(max = 20)
-        private String zipCode;
-
-        @NotBlank
-        @Size(max = 100)
-        private String country;
-    }
+        @NotBlank(message = "Country is required")
+        @Size(max = 100, message = "Country must not exceed 100 characters")
+        String country
+    ) {}
 }

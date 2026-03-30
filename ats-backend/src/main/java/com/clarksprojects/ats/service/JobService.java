@@ -10,6 +10,7 @@ import com.clarksprojects.ats.entity.JobStatus;
 import com.clarksprojects.ats.repository.CandidateRepository;
 import com.clarksprojects.ats.repository.JobRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class JobService {
 
     static final String TALENT_POOL_EMPLOYER = "SYSTEM";
@@ -88,7 +90,9 @@ public class JobService {
                 .status(request.getStatus())
                 .employmentType(request.getEmploymentType())
                 .build();
-        return toResponse(jobRepository.save(job));
+        JobResponse response = toResponse(jobRepository.save(job));
+        log.info("Job created: id={}, title={}", response.getId(), response.getTitle());
+        return response;
     }
 
     @Transactional
@@ -105,13 +109,16 @@ public class JobService {
         job.setLongitude(request.getLongitude());
         job.setStatus(request.getStatus());
         job.setEmploymentType(request.getEmploymentType());
-        return toResponse(jobRepository.save(job));
+        JobResponse response = toResponse(jobRepository.save(job));
+        log.info("Job updated: id={}", id);
+        return response;
     }
 
     @Transactional
     public void deleteJob(Long id) {
         Job job = findJobOrThrow(id);
         jobRepository.delete(job);
+        log.info("Job deleted: id={}", id);
     }
 
     private static final int MAX_DAYS = 730;
@@ -148,20 +155,20 @@ public class JobService {
                     }
 
                     double composite = 0.5 * skillsPct + 0.25 * daysNorm + 0.25 * distNorm;
-                    TopCandidateMatch match = TopCandidateMatch.builder()
-                            .candidateId(c.getId())
-                            .firstName(c.getFirstName())
-                            .lastName(c.getLastName())
-                            .email(c.getEmail())
-                            .skillsMatchPercent(skillsPct)
-                            .daysWorkedScore(days)
-                            .distanceMiles(distMiles)
-                            .matchedSkills(matched)
-                            .candidateSkills(cSkills)
-                            .build();
+                    TopCandidateMatch match = new TopCandidateMatch(
+                            c.getId(),
+                            c.getFirstName(),
+                            c.getLastName(),
+                            c.getEmail(),
+                            skillsPct,
+                            days,
+                            distMiles,
+                            matched,
+                            cSkills
+                    );
                     return new Scored(match, composite);
                 })
-                .filter(s -> s.match().getSkillsMatchPercent() > 0)
+                .filter(s -> s.match().skillsMatchPercent() > 0)
                 .sorted(Comparator.comparingDouble(Scored::composite).reversed())
                 .limit(5)
                 .map(Scored::match)

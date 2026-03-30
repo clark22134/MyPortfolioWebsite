@@ -50,12 +50,12 @@ class DashboardServiceTest {
 
         DashboardStats stats = dashboardService.getStats();
 
-        assertThat(stats.getTotalJobs()).isEqualTo(6L);
-        assertThat(stats.getOpenJobs()).isEqualTo(4L);
-        assertThat(stats.getTotalCandidates()).isEqualTo(13L);
-        assertThat(stats.getJobsByEmployer()).containsEntry("Acme", 3L);
-        assertThat(stats.getJobsByEmployer()).containsEntry("DataBridge", 2L);
-        assertThat(stats.getJobsByEmployer()).containsEntry("GrowthMedia", 1L);
+        assertThat(stats.totalJobs()).isEqualTo(6L);
+        assertThat(stats.openJobs()).isEqualTo(4L);
+        assertThat(stats.totalCandidates()).isEqualTo(13L);
+        assertThat(stats.jobsByEmployer()).containsEntry("Acme", 3L);
+        assertThat(stats.jobsByEmployer()).containsEntry("DataBridge", 2L);
+        assertThat(stats.jobsByEmployer()).containsEntry("GrowthMedia", 1L);
     }
 
     @Test
@@ -73,7 +73,7 @@ class DashboardServiceTest {
 
         DashboardStats stats = dashboardService.getStats();
 
-        assertThat(stats.getJobsByEmployer()).hasSize(2)
+        assertThat(stats.jobsByEmployer()).hasSize(2)
                 .containsEntry("Acme", 2L)
                 .containsEntry("Pixel", 2L);
     }
@@ -88,7 +88,7 @@ class DashboardServiceTest {
 
         DashboardStats stats = dashboardService.getStats();
 
-        assertThat(stats.getCandidatesByStage()).containsKeys(
+        assertThat(stats.candidatesByStage()).containsKeys(
                 PipelineStage.APPLIED.name(),
                 PipelineStage.SCREENING.name(),
                 PipelineStage.INTERVIEW.name(),
@@ -113,8 +113,8 @@ class DashboardServiceTest {
 
         DashboardStats stats = dashboardService.getStats();
 
-        assertThat(stats.getCandidatesByStage().get(PipelineStage.APPLIED.name())).isEqualTo(5L);
-        assertThat(stats.getCandidatesByStage().get(PipelineStage.SCREENING.name())).isEqualTo(0L);
+        assertThat(stats.candidatesByStage().get(PipelineStage.APPLIED.name())).isEqualTo(5L);
+        assertThat(stats.candidatesByStage().get(PipelineStage.SCREENING.name())).isEqualTo(0L);
     }
 
     @Test
@@ -128,10 +128,10 @@ class DashboardServiceTest {
 
         DashboardStats stats = dashboardService.getStats();
 
-        assertThat(stats.getTotalJobs()).isZero();
-        assertThat(stats.getOpenJobs()).isZero();
-        assertThat(stats.getTotalCandidates()).isZero();
-        assertThat(stats.getCandidatesByStage().values()).containsOnly(0L);
-        assertThat(stats.getJobsByEmployer()).isEmpty();
+        assertThat(stats.totalJobs()).isZero();
+        assertThat(stats.openJobs()).isZero();
+        assertThat(stats.totalCandidates()).isZero();
+        assertThat(stats.candidatesByStage().values()).containsOnly(0L);
+        assertThat(stats.jobsByEmployer()).isEmpty();
     }
 }

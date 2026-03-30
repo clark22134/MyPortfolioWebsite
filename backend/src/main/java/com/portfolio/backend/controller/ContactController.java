@@ -4,6 +4,7 @@ import com.portfolio.backend.dto.ApiResponse;
 import com.portfolio.backend.dto.ContactRequest;
 import com.portfolio.backend.service.EmailService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,13 +16,10 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/contact")
+@RequiredArgsConstructor
 public class ContactController {
 
     private final EmailService emailService;
-
-    public ContactController(EmailService emailService) {
-        this.emailService = emailService;
-    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> sendContactEmail(@Valid @RequestBody ContactRequest request) {

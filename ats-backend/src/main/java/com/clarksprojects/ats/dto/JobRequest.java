@@ -7,43 +7,45 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class JobRequest {
 
-    @NotBlank
-    @Size(max = 200)
+    @NotBlank(message = "Employer is required")
+    @Size(max = 200, message = "Employer must not exceed 200 characters")
     private String employer;
 
-    @NotBlank
-    @Size(max = 200)
+    @NotBlank(message = "Title is required")
+    @Size(max = 200, message = "Title must not exceed 200 characters")
     private String title;
 
-    @NotBlank
-    @Size(max = 200)
+    @NotBlank(message = "Department is required")
+    @Size(max = 200, message = "Department must not exceed 200 characters")
     private String department;
 
-    @NotBlank
-    @Size(max = 200)
+    @NotBlank(message = "Location is required")
+    @Size(max = 200, message = "Location must not exceed 200 characters")
     private String location;
 
-    @Size(max = 5000)
+    @Size(max = 5000, message = "Description must not exceed 5000 characters")
     private String description;
 
-    @Size(max = 2000)
+    @Size(max = 2000, message = "Required skills must not exceed 2000 characters")
     private String requiredSkills;
 
-    @Size(max = 500)
+    @Size(max = 500, message = "Address must not exceed 500 characters")
     private String address;
 
     private Double latitude;
 
     private Double longitude;
 
-    @NotNull
+    @NotNull(message = "Job status is required")
     private JobStatus status;
 
-    @NotNull
+    @NotNull(message = "Employment type is required")
     private EmploymentType employmentType;
 }

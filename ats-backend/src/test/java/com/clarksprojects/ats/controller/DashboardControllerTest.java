@@ -39,13 +39,7 @@ class DashboardControllerTest {
         byEmployer.put("DataBridge Inc", 2L);
         byEmployer.put("GrowthMedia", 1L);
 
-        DashboardStats stats = DashboardStats.builder()
-                .totalJobs(6L)
-                .openJobs(4L)
-                .totalCandidates(13L)
-                .candidatesByStage(byStage)
-                .jobsByEmployer(byEmployer)
-                .build();
+        DashboardStats stats = new DashboardStats(6L, 4L, 13L, byStage, byEmployer);
 
         when(dashboardService.getStats()).thenReturn(stats);
 
@@ -67,13 +61,7 @@ class DashboardControllerTest {
             byStage.put(stage.name(), 0L);
         }
 
-        DashboardStats stats = DashboardStats.builder()
-                .totalJobs(0L)
-                .openJobs(0L)
-                .totalCandidates(0L)
-                .candidatesByStage(byStage)
-                .jobsByEmployer(new LinkedHashMap<>())
-                .build();
+        DashboardStats stats = new DashboardStats(0L, 0L, 0L, byStage, new LinkedHashMap<>());
 
         when(dashboardService.getStats()).thenReturn(stats);
 

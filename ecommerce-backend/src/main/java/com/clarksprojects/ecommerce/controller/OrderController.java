@@ -1,6 +1,6 @@
 package com.clarksprojects.ecommerce.controller;
 
-import com.clarksprojects.ecommerce.dao.OrderRepository;
+import com.clarksprojects.ecommerce.repository.OrderRepository;
 import com.clarksprojects.ecommerce.entity.Order;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -1,0 +1,415 @@
+<div class="talent-page">
+  <div class="page-header">
+    <div>
+      <h1>Talent Pool</h1>
+      <p class="subtitle">{{ totalCount }} candidate{{ totalCount !== 1 ? 's' : '' }} across all jobs</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-outline" (click)="openUpload()">⬆ Upload Resume</button>
+      <button class="btn-primary" (click)="openAdd()">+ Add Candidate</button>
+    </div>
+  </div>
+
+  <!-- Search & Filters -->
+  <div class="search-bar-wrapper">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input
+        class="search-input"
+        type="text"
+        placeholder="Search by name…"
+        [(ngModel)]="filters.name"
+        (ngModelChange)="onNameChange($event)"
+        aria-label="Search candidates by name">
+      @if (filters.name) {
+        <button class="clear-btn" (click)="clearField('name')" aria-label="Clear name">×</button>
+      }
+    </div>
+
+    <div class="search-input-wrap">
+      <span class="search-icon">🏷️</span>
+      <input
+        class="search-input"
+        type="text"
+        placeholder="Filter by skills (comma-separated)…"
+        [(ngModel)]="filters.skills"
+        (ngModelChange)="onSkillsChange($event)"
+        aria-label="Filter by skills">
+      @if (filters.skills) {
+        <button class="clear-btn" (click)="clearField('skills')" aria-label="Clear skills">×</button>
+      }
+    </div>
+
+    <select class="filter-select" [(ngModel)]="filters.stage" (ngModelChange)="runSearch()" aria-label="Filter by stage">
+      <option value="">All Stages</option>
+      @for (s of allStages; track s) {
+        <option [value]="s">{{ stageLabel(s) }}</option>
+      }
+    </select>
+
+    <select class="filter-select" [(ngModel)]="filters.jobId" (ngModelChange)="runSearch()" aria-label="Filter by job">
+      <option [ngValue]="null">All Jobs</option>
+      @for (job of jobs; track job.id) {
+        <option [ngValue]="job.id">{{ job.title }} ({{ job.employer }})</option>
+      }
+    </select>
+
+    <button class="btn-reset" (click)="resetFilters()" [disabled]="!hasActiveFilter()">
+      Reset Filters
+    </button>
+  </div>
+
+  <!-- Results summary -->
+  @if (hasActiveFilter()) {
+    <div class="results-summary">
+      Showing <strong>{{ candidates.length }}</strong> result{{ candidates.length !== 1 ? 's' : '' }}
+      @if (candidates.length !== totalCount) { of {{ totalCount }} total }
+    </div>
+  }
+
+  <!-- Candidate grid -->
+  @if (loading) {
+    <div class="loading-state">
+      <span class="spinner"></span> Loading candidates…
+    </div>
+  } @else if (candidates.length === 0) {
+    <div class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <p>No candidates match your search. Try adjusting your filters.</p>
+      @if (hasActiveFilter()) {
+        <button class="btn-reset" (click)="resetFilters()">Clear Filters</button>
+      }
+    </div>
+  } @else {
+    <div class="candidates-grid">
+      @for (c of pagedCandidates; track c.id) {
+        <div class="candidate-card" (click)="openCandidateDetail(c)">
+          <div class="card-top">
+            <div class="avatar">{{ c.firstName[0] }}{{ c.lastName[0] }}</div>
+            <div class="card-info">
+              <span class="candidate-name">{{ c.firstName }} {{ c.lastName }}</span>
+              <span class="candidate-job">{{ c.jobTitle }}</span>
+            </div>
+            <span class="stage-badge" [style.background]="stageBg(c.stage)" [style.color]="stageColor(c.stage)">
+              {{ stageLabel(c.stage) }}
+            </span>
+            <div class="card-actions">
+              <button class="btn-card-edit" (click)="openEdit(c); $event.stopPropagation()" aria-label="Edit candidate">✏️</button>
+              <button class="btn-card-delete" (click)="deleteCandidate(c.id); $event.stopPropagation()" aria-label="Delete candidate">🗑️</button>
+            </div>
+          </div>
+
+          <div class="contact-row">
+            <span class="contact-item">✉️ {{ c.email }}</span>
+            @if (c.phone) {
+              <span class="contact-item">📞 {{ c.phone }}</span>
+            }
+          </div>
+
+          @if (c.skills) {
+            <div class="skills-row">
+              @for (skill of parseSkills(c.skills); track skill) {
+                <span class="skill-chip"
+                      [class.highlight]="isSkillMatch(skill)"
+                      (click)="filterBySkill(skill); $event.stopPropagation()">{{ skill }}</span>
+              }
+            </div>
+          }
+
+          @if (c.notes) {
+            <div class="card-notes">{{ c.notes }}</div>
+          }
+
+          <div class="card-footer">
+            <span class="applied-date">Applied {{ formatDate(c.appliedAt) }}</span>
+            @if (!c.talentPool) {
+              <a [routerLink]="['/jobs', c.jobId, 'pipeline']" class="pipeline-link" (click)="$event.stopPropagation()">View in Pipeline →</a>
+            }
+          </div>
+        </div>
+      }
+    </div>
+    @if (totalPages > 1) {
+      <nav class="pagination" aria-label="Page navigation">
+        <button class="pg-btn" (click)="prevPage()" [disabled]="page === 1" aria-label="Previous page">‹</button>
+        @for (p of pageNumbers; track $index) {
+          @if (p === '...') {
+            <span class="pg-ellipsis">…</span>
+          } @else {
+            <button class="pg-btn" [class.active]="p === page" (click)="goToPage(p)">{{ p }}</button>
+          }
+        }
+        <button class="pg-btn" (click)="nextPage()" [disabled]="page === totalPages" aria-label="Next page">›</button>
+        <span class="pg-info">{{ page }} / {{ totalPages }}</span>
+      </nav>
+    }
+  }
+</div>
+
+@if (showAddModal) {
+  <div class="modal-backdrop" (click)="closeAdd()">
+    <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Add Candidate">
+      <div class="modal-header">
+        <h2>Add Candidate</h2>
+        <button class="modal-close" (click)="closeAdd()" aria-label="Close">×</button>
+      </div>
+      <form class="modal-form" (ngSubmit)="saveAdd()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="addFirstName">First Name *</label>
+            <input id="addFirstName" [(ngModel)]="addForm.firstName" name="addFirstName" required>
+          </div>
+          <div class="form-group">
+            <label for="addLastName">Last Name *</label>
+            <input id="addLastName" [(ngModel)]="addForm.lastName" name="addLastName" required>
+          </div>
+          <div class="form-group">
+            <label for="addEmail">Email *</label>
+            <input id="addEmail" [(ngModel)]="addForm.email" name="addEmail" type="email" required>
+          </div>
+          <div class="form-group">
+            <label for="addPhone">Phone</label>
+            <input id="addPhone" [(ngModel)]="addForm.phone" name="addPhone">
+          </div>
+          <div class="form-group">
+            <label for="addJob">Job *</label>
+            <select id="addJob" [(ngModel)]="addForm.jobId" name="addJob" required>
+              <option [ngValue]="undefined">Select a job…</option>
+              @for (job of jobs; track job.id) {
+                <option [ngValue]="job.id">{{ job.title }} ({{ job.employer }})</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="addStage">Stage</label>
+            <select id="addStage" [(ngModel)]="addForm.stage" name="addStage">
+              @for (s of allStages; track s) {
+                <option [value]="s">{{ stageLabel(s) }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-group full-width">
+          <label for="addSkills">Skills <span class="hint">(comma-separated)</span></label>
+          <input id="addSkills" [(ngModel)]="addForm.skills" name="addSkills" placeholder="e.g. Java, Docker, AWS">
+        </div>
+        <div class="form-group full-width">
+          <label for="addAddress">Address <span class="hint">(for commute distance matching)</span></label>
+          <input id="addAddress" [(ngModel)]="addForm.address" name="addAddress" placeholder="e.g. 384 Grand Ave, Oakland, CA 94610">
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="addLat">Latitude <span class="hint">(optional)</span></label>
+            <input id="addLat" type="number" step="any" [(ngModel)]="addForm.latitude" name="addLat" placeholder="e.g. 37.804">
+          </div>
+          <div class="form-group">
+            <label for="addLng">Longitude <span class="hint">(optional)</span></label>
+            <input id="addLng" type="number" step="any" [(ngModel)]="addForm.longitude" name="addLng" placeholder="e.g. -122.271">
+          </div>
+          <div class="form-group">
+            <label for="addDays">Days at Last Assignment</label>
+            <input id="addDays" type="number" min="0" [(ngModel)]="addForm.lastAssignmentDays" name="addDays" placeholder="e.g. 365">
+          </div>
+        </div>
+        <div class="form-group full-width">
+          <label for="addNotes">Notes</label>
+          <textarea id="addNotes" [(ngModel)]="addForm.notes" name="addNotes" rows="3"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" (click)="closeAdd()">Cancel</button>
+          <button type="submit" class="btn-primary">Add Candidate</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (editingCandidate) {
+  <div class="modal-backdrop" (click)="closeEdit()">
+    <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Edit Candidate">
+      <div class="modal-header">
+        <h2>Edit Candidate</h2>
+        <button class="modal-close" (click)="closeEdit()" aria-label="Close">×</button>
+      </div>
+      <form class="modal-form" (ngSubmit)="saveEdit()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="editFirstName">First Name *</label>
+            <input id="editFirstName" [(ngModel)]="editForm.firstName" name="editFirstName" required>
+          </div>
+          <div class="form-group">
+            <label for="editLastName">Last Name *</label>
+            <input id="editLastName" [(ngModel)]="editForm.lastName" name="editLastName" required>
+          </div>
+          <div class="form-group">
+            <label for="editEmail">Email *</label>
+            <input id="editEmail" [(ngModel)]="editForm.email" name="editEmail" type="email" required>
+          </div>
+          <div class="form-group">
+            <label for="editPhone">Phone</label>
+            <input id="editPhone" [(ngModel)]="editForm.phone" name="editPhone">
+          </div>
+          <div class="form-group">
+            <label for="editJob">Job</label>
+            <select id="editJob" [(ngModel)]="editForm.jobId" name="editJob">
+              @for (job of jobs; track job.id) {
+                <option [ngValue]="job.id">{{ job.title }} ({{ job.employer }})</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="editStage">Stage</label>
+            <select id="editStage" [(ngModel)]="editForm.stage" name="editStage">
+              @for (s of allStages; track s) {
+                <option [value]="s">{{ stageLabel(s) }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-group full-width">
+          <label for="editSkills">Skills <span class="hint">(comma-separated)</span></label>
+          <input id="editSkills" [(ngModel)]="editForm.skills" name="editSkills" placeholder="e.g. Java, Docker, AWS">
+        </div>
+        <div class="form-group full-width">
+          <label for="editAddress">Address <span class="hint">(for commute distance matching)</span></label>
+          <input id="editAddress" [(ngModel)]="editForm.address" name="editAddress" placeholder="e.g. 384 Grand Ave, Oakland, CA 94610">
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="editLat">Latitude <span class="hint">(optional)</span></label>
+            <input id="editLat" type="number" step="any" [(ngModel)]="editForm.latitude" name="editLat" placeholder="e.g. 37.804">
+          </div>
+          <div class="form-group">
+            <label for="editLng">Longitude <span class="hint">(optional)</span></label>
+            <input id="editLng" type="number" step="any" [(ngModel)]="editForm.longitude" name="editLng" placeholder="e.g. -122.271">
+          </div>
+          <div class="form-group">
+            <label for="editDays">Days at Last Assignment</label>
+            <input id="editDays" type="number" min="0" [(ngModel)]="editForm.lastAssignmentDays" name="editDays" placeholder="e.g. 365">
+          </div>
+        </div>
+        <div class="form-group full-width">
+          <label for="editNotes">Notes</label>
+          <textarea id="editNotes" [(ngModel)]="editForm.notes" name="editNotes" rows="3"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" (click)="closeEdit()">Cancel</button>
+          <button type="submit" class="btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (selectedCandidate) {
+  <div class="modal-backdrop" (click)="closeCandidateDetail()">
+    <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Candidate Details">
+      <div class="modal-header">
+        <div class="detail-title-row">
+          <div class="avatar-lg">{{ selectedCandidate.firstName[0] }}{{ selectedCandidate.lastName[0] }}</div>
+          <div>
+            <h2>{{ selectedCandidate.firstName }} {{ selectedCandidate.lastName }}</h2>
+            <span class="detail-employer">{{ selectedCandidate.jobTitle }}</span>
+          </div>
+        </div>
+        <button class="modal-close" (click)="closeCandidateDetail()" aria-label="Close">&times;</button>
+      </div>
+      <div class="detail-body">
+        <div class="detail-badges">
+          <span class="stage-badge" [style.background]="stageBg(selectedCandidate.stage)" [style.color]="stageColor(selectedCandidate.stage)">
+            {{ stageLabel(selectedCandidate.stage) }}
+          </span>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-section-label">Email</span>
+            <span>{{ selectedCandidate.email }}</span>
+          </div>
+          @if (selectedCandidate.phone) {
+            <div class="detail-item">
+              <span class="detail-section-label">Phone</span>
+              <span>{{ selectedCandidate.phone }}</span>
+            </div>
+          }
+          <div class="detail-item">
+            <span class="detail-section-label">Applied</span>
+            <span>{{ formatDate(selectedCandidate.appliedAt) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-section-label">Last Updated</span>
+            <span>{{ formatDate(selectedCandidate.updatedAt) }}</span>
+          </div>
+          @if (selectedCandidate.address) {
+            <div class="detail-item">
+              <span class="detail-section-label">Address</span>
+              <span>{{ selectedCandidate.address }}</span>
+            </div>
+          }
+          @if (selectedCandidate.lastAssignmentDays) {
+            <div class="detail-item">
+              <span class="detail-section-label">Last Assignment</span>
+              <span>{{ selectedCandidate.lastAssignmentDays }} days</span>
+            </div>
+          }
+        </div>
+        @if (selectedCandidate.skills) {
+          <div class="detail-section">
+            <div class="detail-section-label">Skills</div>
+            <div class="skills-chips-row">
+              @for (skill of parseSkills(selectedCandidate.skills); track skill) {
+                <span class="skill-chip-detail">{{ skill }}</span>
+              }
+            </div>
+          </div>
+        }
+        @if (selectedCandidate.notes) {
+          <div class="detail-section">
+            <div class="detail-section-label">Notes</div>
+            <div class="detail-text">{{ selectedCandidate.notes }}</div>
+          </div>
+        }
+        <div class="detail-actions">
+          @if (!selectedCandidate.talentPool) {
+            <a [routerLink]="['/jobs', selectedCandidate.jobId, 'pipeline']" class="btn-primary" (click)="closeCandidateDetail()">View in Pipeline →</a>
+          }
+          <button class="btn-outline-detail" (click)="openEdit(selectedCandidate); closeCandidateDetail()">Edit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showUploadModal) {
+  <div class="modal-backdrop" (click)="closeUpload()">
+    <div class="modal modal-upload" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Upload Resume">
+      <div class="modal-header">
+        <h2>Upload Resume to Talent Pool</h2>
+        <button class="modal-close" (click)="closeUpload()" aria-label="Close">×</button>
+      </div>
+      <div class="upload-body">
+        <p class="upload-hint">Upload a PDF, DOCX, or TXT resume. The candidate's name, email, phone, and skills will be extracted automatically.</p>
+        <label class="drop-zone" [class.has-file]="uploadFile" (dragover)="onDragOver($event)" (drop)="onDrop($event)">
+          @if (uploadFile) {
+            <span class="drop-zone-icon">📄</span>
+            <span class="drop-zone-name">{{ uploadFile.name }}</span>
+            <span class="drop-zone-size">{{ formatFileSize(uploadFile.size) }}</span>
+          } @else {
+            <span class="drop-zone-icon">⬆</span>
+            <span class="drop-zone-text">Drag &amp; drop a file here, or click to browse</span>
+            <span class="drop-zone-sub">PDF, DOCX, TXT · Max 10 MB</span>
+          }
+          <input type="file" accept=".pdf,.docx,.txt" (change)="onFileChange($event)" class="file-input" aria-label="Choose resume file">
+        </label>
+        @if (uploadError) {
+          <div class="upload-error">{{ uploadError }}</div>
+        }
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" (click)="closeUpload()">Cancel</button>
+          <button type="button" class="btn-primary" [disabled]="!uploadFile || uploading" (click)="submitUpload()">
+            @if (uploading) { Uploading… } @else { Upload &amp; Add to Talent Pool }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

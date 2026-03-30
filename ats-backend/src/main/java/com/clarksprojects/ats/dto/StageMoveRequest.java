@@ -4,12 +4,14 @@ import com.clarksprojects.ats.entity.PipelineStage;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class StageMoveRequest {
 
-    @NotNull
+    @NotNull(message = "New stage is required")
     private PipelineStage newStage;
 
     private Integer newOrder;

@@ -89,12 +89,7 @@ class CheckoutControllerTest {
         address.setCountry("US");
         address.setZipCode("12345");
 
-        Purchase purchase = new Purchase();
-        purchase.setCustomer(customer);
-        purchase.setOrder(order);
-        purchase.setOrderItems(items);
-        purchase.setShippingAddress(address);
-        purchase.setBillingAddress(address);
+        Purchase purchase = new Purchase(customer, address, address, order, items);
         return purchase;
     }
 }

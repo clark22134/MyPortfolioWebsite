@@ -1,0 +1,123 @@
+<div class="pipeline-page">
+  <div class="page-header">
+    <div>
+      <a routerLink="/jobs" class="back-link">← Back to Jobs</a>
+      @if (job) {
+        <h1>{{ job.title }}</h1>
+        <p class="subtitle">{{ job.department }} · {{ job.location }}</p>
+      }
+    </div>
+  </div>
+
+  <div class="kanban-board" role="region" aria-label="Candidate pipeline board">
+    @for (stage of activeStages; track stage) {
+      <div class="kanban-column">
+        <div class="column-header" [style.border-bottom-color]="getColor(stage)">
+          <span class="column-title">{{ getLabel(stage) }}</span>
+          <span class="column-count">{{ getCandidatesForStage(stage).length }}</span>
+        </div>
+        <div
+          class="column-body"
+          cdkDropList
+          [cdkDropListData]="stage"
+          [id]="stage"
+          [cdkDropListConnectedTo]="activeStages"
+          (cdkDropListDropped)="onDrop($event)">
+          @for (candidate of getCandidatesForStage(stage); track candidate.id) {
+            <div class="candidate-card" cdkDrag [cdkDragData]="candidate">
+              <div class="candidate-name">{{ candidate.firstName }} {{ candidate.lastName }}</div>
+              <div class="candidate-email">{{ candidate.email }}</div>
+              @if (candidate.phone) {
+                <div class="candidate-phone">{{ candidate.phone }}</div>
+              }
+              @if (candidate.skills) {
+                <div class="candidate-skills">
+                  @for (skill of parseSkills(candidate.skills); track skill) {
+                    <span class="skill-chip">{{ skill }}</span>
+                  }
+                </div>
+              }
+              @if (candidate.notes) {
+                <div class="candidate-notes">{{ candidate.notes }}</div>
+              }
+              <div class="candidate-date">Applied {{ formatDate(candidate.appliedAt) }}</div>
+              <button class="btn-edit" (click)="openEdit(candidate); $event.stopPropagation()" aria-label="Edit candidate">✏️</button>
+              <button class="btn-delete" (click)="deleteCandidate(candidate.id)" aria-label="Remove candidate">×</button>
+            </div>
+          } @empty {
+            <div class="empty-column">No candidates</div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+@if (editingCandidate) {
+  <div class="modal-backdrop" (click)="closeEdit()">
+    <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Edit Candidate">
+      <div class="modal-header">
+        <h2>Edit Candidate</h2>
+        <button class="modal-close" (click)="closeEdit()" aria-label="Close">×</button>
+      </div>
+      <form class="modal-form" (ngSubmit)="saveEdit()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="editFirstName">First Name</label>
+            <input id="editFirstName" [(ngModel)]="editForm.firstName" name="editFirstName" required>
+          </div>
+          <div class="form-group">
+            <label for="editLastName">Last Name</label>
+            <input id="editLastName" [(ngModel)]="editForm.lastName" name="editLastName" required>
+          </div>
+          <div class="form-group">
+            <label for="editEmail">Email</label>
+            <input id="editEmail" [(ngModel)]="editForm.email" name="editEmail" type="email" required>
+          </div>
+          <div class="form-group">
+            <label for="editPhone">Phone</label>
+            <input id="editPhone" [(ngModel)]="editForm.phone" name="editPhone">
+          </div>
+          <div class="form-group">
+            <label for="editStage">Stage</label>
+            <select id="editStage" [(ngModel)]="editForm.stage" name="editStage">
+              @for (s of allStages; track s) {
+                <option [value]="s">{{ getLabel(s) }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-group full-width">
+          <label for="editSkills">Skills <span class="hint">(comma-separated)</span></label>
+          <input id="editSkills" [(ngModel)]="editForm.skills" name="editSkills" placeholder="e.g. Java, Docker, AWS">
+        </div>
+        <div class="form-group full-width">
+          <label for="pipeEditAddress">Address <span class="hint">(for commute distance matching)</span></label>
+          <input id="pipeEditAddress" [(ngModel)]="editForm.address" name="pipeEditAddress" placeholder="e.g. 384 Grand Ave, Oakland, CA 94610">
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="pipeEditLat">Latitude <span class="hint">(optional)</span></label>
+            <input id="pipeEditLat" type="number" step="any" [(ngModel)]="editForm.latitude" name="pipeEditLat" placeholder="e.g. 37.804">
+          </div>
+          <div class="form-group">
+            <label for="pipeEditLng">Longitude <span class="hint">(optional)</span></label>
+            <input id="pipeEditLng" type="number" step="any" [(ngModel)]="editForm.longitude" name="pipeEditLng" placeholder="e.g. -122.271">
+          </div>
+          <div class="form-group">
+            <label for="pipeEditDays">Days at Last Assignment</label>
+            <input id="pipeEditDays" type="number" min="0" [(ngModel)]="editForm.lastAssignmentDays" name="pipeEditDays" placeholder="e.g. 365">
+          </div>
+        </div>
+        <div class="form-group full-width">
+          <label for="editNotes">Notes</label>
+          <textarea id="editNotes" [(ngModel)]="editForm.notes" name="editNotes" rows="3"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" (click)="closeEdit()">Cancel</button>
+          <button type="submit" class="btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

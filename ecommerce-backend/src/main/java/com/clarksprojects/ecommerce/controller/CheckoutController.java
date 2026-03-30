@@ -2,6 +2,7 @@ package com.clarksprojects.ecommerce.controller;
 
 import org.springframework.web.bind.annotation.RequestMapping;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.clarksprojects.ecommerce.dto.Purchase;
@@ -9,6 +10,7 @@ import com.clarksprojects.ecommerce.dto.PurchaseResponse;
 import com.clarksprojects.ecommerce.service.CheckoutService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.security.Principal;
 
@@ -21,6 +23,7 @@ public class CheckoutController {
   private final CheckoutService checkoutService;
 
   @PostMapping("/purchase")
+  @ResponseStatus(HttpStatus.CREATED)
   public PurchaseResponse placeOrder(@RequestBody Purchase purchase, Principal principal) {
       String authenticatedEmail = (principal != null) ? principal.getName() : null;
       return checkoutService.placeOrder(purchase, authenticatedEmail);

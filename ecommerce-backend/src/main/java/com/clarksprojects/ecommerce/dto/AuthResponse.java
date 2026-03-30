@@ -1,11 +1,4 @@
 package com.clarksprojects.ecommerce.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
-@Data
-@AllArgsConstructor
-public class AuthResponse {
-
-    private String email;
+public record AuthResponse(String email) {
 }

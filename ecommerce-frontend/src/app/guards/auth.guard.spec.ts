@@ -3,7 +3,7 @@ import { Router, provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { authGuard } from './auth.guard';
-import { AuthService } from '../services/auth';
+import { AuthService } from '../services/auth.service';
 
 describe('authGuard', () => {
   let authService: AuthService;

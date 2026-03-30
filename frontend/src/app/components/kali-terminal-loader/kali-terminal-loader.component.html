@@ -1,0 +1,32 @@
+<div
+  class="terminal-loader"
+  [class.fade-out]="fadeOut"
+  [class.hidden]="hidden"
+  role="status"
+  aria-label="Loading portfolio">
+
+  <div class="network-bg" aria-hidden="true"></div>
+
+  <div class="terminal-window" aria-hidden="true">
+    <div class="terminal-header">
+      <div class="btn-group">
+        <span class="btn-close"></span>
+        <span class="btn-minimize"></span>
+        <span class="btn-maximize"></span>
+      </div>
+      <div class="title">root&#64;kali:~</div>
+    </div>
+    <div class="terminal-body">
+      @for (line of visibleLines; track $index) {
+        <div class="line">
+          {{ line || '\u00A0' }}
+        </div>
+      }
+      @if (showCursor) {
+        <span class="cursor">█</span>
+      }
+    </div>
+  </div>
+
+  <span class="sr-only">Portfolio is loading, please wait.</span>
+</div>

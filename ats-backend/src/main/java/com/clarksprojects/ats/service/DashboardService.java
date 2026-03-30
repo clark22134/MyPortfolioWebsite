@@ -6,6 +6,7 @@ import com.clarksprojects.ats.entity.PipelineStage;
 import com.clarksprojects.ats.repository.CandidateRepository;
 import com.clarksprojects.ats.repository.JobRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DashboardService {
 
     private final JobRepository jobRepository;
@@ -31,12 +33,12 @@ public class DashboardService {
                 .stream()
                 .collect(Collectors.toMap(row -> (String) row[0], row -> (Long) row[1]));
 
-        return DashboardStats.builder()
-                .totalJobs(jobRepository.countByEmployerNot(JobService.TALENT_POOL_EMPLOYER))
-                .openJobs(jobRepository.countByStatus(JobStatus.OPEN))
-                .totalCandidates(candidateRepository.count())
-                .candidatesByStage(byStage)
-                .jobsByEmployer(byEmployer)
-                .build();
+        return new DashboardStats(
+                jobRepository.countByEmployerNot(JobService.TALENT_POOL_EMPLOYER),
+                jobRepository.countByStatus(JobStatus.OPEN),
+                candidateRepository.count(),
+                byStage,
+                byEmployer
+        );
     }
 }

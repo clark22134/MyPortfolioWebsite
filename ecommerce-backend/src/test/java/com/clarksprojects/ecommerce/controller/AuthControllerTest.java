@@ -1,6 +1,6 @@
 package com.clarksprojects.ecommerce.controller;
 
-import com.clarksprojects.ecommerce.dao.CustomerRepository;
+import com.clarksprojects.ecommerce.repository.CustomerRepository;
 import com.clarksprojects.ecommerce.dto.LoginRequest;
 import com.clarksprojects.ecommerce.dto.RegisterRequest;
 import com.clarksprojects.ecommerce.entity.Customer;
