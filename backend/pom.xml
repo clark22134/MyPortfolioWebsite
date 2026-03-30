@@ -21,6 +21,7 @@
     <properties>
         <java.version>25</java.version>
         <jwt.version>0.13.0</jwt.version>
+        <lombok.version>1.18.38</lombok.version>
     </properties>
     
     <dependencies>
@@ -93,6 +94,13 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
         
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        
         <!-- Spring Boot Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -136,6 +144,13 @@
                 <version>3.15.0</version>
                 <configuration>
                     <release>25</release>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             

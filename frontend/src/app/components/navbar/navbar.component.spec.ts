@@ -59,11 +59,11 @@ describe('NavbarComponent', () => {
     expect(projectsLink.textContent).toContain('Projects');
   });
 
-  it('should display Resume link', () => {
-    const resumeLink = fixture.nativeElement.querySelector('a[href="/resume.html"]');
-    expect(resumeLink).toBeTruthy();
-    expect(resumeLink.textContent).toContain('Resume');
-    expect(resumeLink.target).toBe('_blank');
+  it('should display Credentials link', () => {
+    const credentialsLink = fixture.nativeElement.querySelector('a[routerLink="/credentials"]') ||
+      fixture.nativeElement.querySelector('a[href="/credentials"]');
+    expect(credentialsLink).toBeTruthy();
+    expect(credentialsLink.textContent).toContain('Credentials');
   });
 
   it('should display GitHub link', () => {
@@ -75,7 +75,7 @@ describe('NavbarComponent', () => {
 
   it('should call authService.isAuthenticated', () => {
     authService.isAuthenticated.and.returnValue(false);
-    
+
     const result = component.isAuthenticated();
 
     expect(authService.isAuthenticated).toHaveBeenCalled();
@@ -128,7 +128,7 @@ describe('NavbarComponent', () => {
   it('should navigate to home after logout', () => {
     authService.isAuthenticated.and.returnValue(true);
     spyOn(router, 'navigate');
-    
+
     component.logout();
 
     expect(router.navigate).toHaveBeenCalledWith(['/']);

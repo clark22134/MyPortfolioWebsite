@@ -16,6 +16,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,6 +38,7 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
     private static final String SAME_SITE_STRICT = "Strict";
@@ -47,21 +49,6 @@ public class AuthController {
     private final CookieUtil cookieUtil;
     private final RefreshTokenService refreshTokenService;
     private final CustomUserDetailsService userDetailsService;
-
-    public AuthController(
-            AuthService authService,
-            RateLimitingService rateLimitingService,
-            JwtUtil jwtUtil,
-            CookieUtil cookieUtil,
-            RefreshTokenService refreshTokenService,
-            CustomUserDetailsService userDetailsService) {
-        this.authService = authService;
-        this.rateLimitingService = rateLimitingService;
-        this.jwtUtil = jwtUtil;
-        this.cookieUtil = cookieUtil;
-        this.refreshTokenService = refreshTokenService;
-        this.userDetailsService = userDetailsService;
-    }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(

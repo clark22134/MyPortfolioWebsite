@@ -1,0 +1,92 @@
+<app-nav></app-nav>
+
+<div class="interactive-projects-container">
+  <!-- Cyber Logo -->
+  <div class="cyber-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <!-- Terminal window -->
+        <rect x="10" y="20" width="80" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+        <line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="2"/>
+        <!-- Terminal prompt -->
+        <text x="18" y="48" font-family="monospace" font-size="12" fill="currentColor">&gt;_</text>
+        <!-- Code lines -->
+        <line x1="35" y1="45" x2="70" y2="45" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="35" y1="55" x2="60" y2="55" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="35" y1="65" x2="75" y2="65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <span class="logo-prefix">{{ isAuthenticated ? 'root' : 'user' }}&#64;</span><span class="logo-host">portfolio</span>
+    </div>
+    <div class="scan-line"></div>
+  </div>
+
+  <h1>AI Projects Dashboard</h1>
+
+  <div class="projects-grid">
+    @for (project of projects; track project.id) {
+      <div class="project-card">
+        <div class="project-icon">📁</div>
+        <h2>{{ project.title }}</h2>
+        <p class="project-description">{{ project.description }}</p>
+
+        <div class="upload-section">
+          <div class="file-info">
+            <span class="label">Accepted types:</span>
+            <span class="value">{{ project.uploadTypes.join(', ') }}</span>
+          </div>
+          <div class="file-info">
+            <span class="label">Max size:</span>
+            <span class="value">{{ formatFileSize(project.maxFileSize) }}</span>
+          </div>
+
+          <div class="upload-area"
+               (dragover)="onDragOver($event)"
+               (dragleave)="onDragLeave($event)"
+               (drop)="onDrop($event, project.id)">
+            <input
+              type="file"
+              [id]="'file-' + project.id"
+              [accept]="project.uploadTypes.join(',')"
+              (change)="onFileSelected($event, project.id)"
+              hidden
+            >
+            <label [for]="'file-' + project.id" class="upload-label">
+              <div class="upload-icon">☁️</div>
+              <p>Drag & drop files here or click to browse</p>
+              <p class="upload-hint">{{ selectedFiles[project.id]?.name || 'No file selected' }}</p>
+            </label>
+          </div>
+
+          <button
+            class="btn-upload"
+            [disabled]="!selectedFiles[project.id] || uploading[project.id]"
+            (click)="uploadFile(project.id)">
+            {{ uploading[project.id] ? 'Uploading...' : 'Upload File' }}
+          </button>
+
+          @if (uploadStatus[project.id]) {
+            <div [class]="'status-message ' + uploadStatus[project.id].type">
+              {{ uploadStatus[project.id].message }}
+            </div>
+          }
+        </div>
+
+        @if (uploadedFiles[project.id]?.length) {
+          <div class="uploaded-files">
+            <h3>Recent Uploads</h3>
+            <ul>
+              @for (file of uploadedFiles[project.id]; track file.name) {
+                <li>
+                  <span class="file-name">{{ file.name }}</span>
+                  <span class="file-date">{{ file.uploadDate | date:'short' }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

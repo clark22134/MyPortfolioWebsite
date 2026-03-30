@@ -7,15 +7,10 @@ import com.clarksprojects.ecommerce.entity.Customer;
 import com.clarksprojects.ecommerce.entity.Order;
 import com.clarksprojects.ecommerce.entity.OrderItem;
 
-import lombok.Data;
-
-@Data
-public class Purchase {
-
-  private Customer customer;
-  private Address shippingAddress;
-  private Address billingAddress;
-  private Order order;
-  private Set<OrderItem> orderItems;
-
-}
+public record Purchase(
+    Customer customer,
+    Address shippingAddress,
+    Address billingAddress,
+    Order order,
+    Set<OrderItem> orderItems
+) {}

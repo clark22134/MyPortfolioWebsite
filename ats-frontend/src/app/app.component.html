@@ -1,0 +1,31 @@
+<div class="app-layout">
+  <nav class="sidebar" aria-label="Main navigation">
+    <div class="sidebar-brand">
+      <span class="brand-icon">H</span>
+      <span class="brand-text">
+        HireFlow
+        <span class="brand-subtitle">by Clark</span>
+      </span>
+    </div>
+    <ul class="nav-links">
+      <li>
+        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+          <span class="nav-icon">📊</span> Dashboard
+        </a>
+      </li>
+      <li>
+        <a routerLink="/jobs" routerLinkActive="active">
+          <span class="nav-icon">💼</span> Jobs
+        </a>
+      </li>
+      <li>
+        <a routerLink="/talent" routerLinkActive="active">
+          <span class="nav-icon">👥</span> Talent
+        </a>
+      </li>
+    </ul>
+  </nav>
+  <main id="main-content" class="main-content">
+    <router-outlet />
+  </main>
+</div>

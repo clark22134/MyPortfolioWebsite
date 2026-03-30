@@ -1,6 +1,6 @@
 package com.clarksprojects.ecommerce.service;
 
-import com.clarksprojects.ecommerce.dao.CustomerRepository;
+import com.clarksprojects.ecommerce.repository.CustomerRepository;
 import com.clarksprojects.ecommerce.dto.Purchase;
 import com.clarksprojects.ecommerce.dto.PurchaseResponse;
 import com.clarksprojects.ecommerce.entity.*;
@@ -73,12 +73,7 @@ class CheckoutServiceImplTest {
         billingAddress.setCountry("US");
         billingAddress.setZipCode("62702");
 
-        purchase = new Purchase();
-        purchase.setCustomer(customer);
-        purchase.setOrder(order);
-        purchase.setOrderItems(orderItems);
-        purchase.setShippingAddress(shippingAddress);
-        purchase.setBillingAddress(billingAddress);
+        purchase = new Purchase(customer, shippingAddress, billingAddress, order, orderItems);
     }
 
     @Test
@@ -89,8 +84,8 @@ class CheckoutServiceImplTest {
         PurchaseResponse response = checkoutService.placeOrder(purchase, null);
 
         assertNotNull(response);
-        assertNotNull(response.getOrderTrackingNumber());
-        assertFalse(response.getOrderTrackingNumber().isEmpty());
+        assertNotNull(response.orderTrackingNumber());
+        assertFalse(response.orderTrackingNumber().isEmpty());
     }
 
     @Test
@@ -100,7 +95,7 @@ class CheckoutServiceImplTest {
 
         PurchaseResponse response = checkoutService.placeOrder(purchase, null);
 
-        String uuid = response.getOrderTrackingNumber();
+        String uuid = response.orderTrackingNumber();
         assertEquals(36, uuid.length());
         assertEquals(5, uuid.split("-").length);
     }
@@ -177,6 +172,6 @@ class CheckoutServiceImplTest {
 
         checkoutService.placeOrder(purchase, null);
 
-        assertEquals("Processing", order.getStatus());
+        assertEquals(OrderStatus.PROCESSING, order.getStatus());
     }
 }

@@ -1,0 +1,72 @@
+<div class="dashboard">
+  <h1>Dashboard</h1>
+
+  @if (stats) {
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.totalJobs }}</div>
+        <div class="stat-label">Total Jobs</div>
+      </div>
+      <div class="stat-card accent">
+        <div class="stat-value">{{ stats.openJobs }}</div>
+        <div class="stat-label">Open Positions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.totalCandidates }}</div>
+        <div class="stat-label">Total Candidates</div>
+      </div>
+    </div>
+
+    <h2>Pipeline Overview</h2>
+    <div class="pipeline-grid">
+      @for (entry of stageEntries; track entry.stage) {
+        <div class="pipeline-card" [style.border-top-color]="getStageColor(entry.stage)">
+          <div class="pipeline-count">{{ entry.count }}</div>
+          <div class="pipeline-label">{{ getStageLabel(entry.stage) }}</div>
+        </div>
+      }
+    </div>
+
+    @if (employerChartData.length > 0) {
+      <h2>Jobs by Client</h2>
+      <div class="employer-chart-card">
+        <div class="donut-wrapper">
+          <svg viewBox="0 0 42 42" class="donut-svg" aria-hidden="true">
+            <circle cx="21" cy="21" r="15.9155" fill="none" stroke="var(--border)" stroke-width="3.5"/>
+            @for (slice of employerChartData; track slice.employer) {
+              <circle
+                cx="21" cy="21" r="15.9155"
+                fill="transparent"
+                [attr.stroke]="slice.color"
+                stroke-width="3.5"
+                [attr.stroke-dasharray]="slice.percentage + ' ' + (100 - slice.percentage)"
+                [attr.stroke-dashoffset]="slice.offset"
+                stroke-linecap="butt"
+              />
+            }
+            <text x="21" y="19.5" text-anchor="middle" class="donut-total">{{ stats!.totalJobs }}</text>
+            <text x="21" y="24.5" text-anchor="middle" class="donut-label">jobs</text>
+          </svg>
+        </div>
+        <div class="employer-legend">
+          @for (slice of employerChartData; track slice.employer) {
+            <div class="legend-item">
+              <span class="legend-swatch" [style.background]="slice.color"></span>
+              <span class="legend-employer">{{ slice.employer }}</span>
+              <span class="legend-count">{{ slice.count }}</span>
+              <span class="legend-pct">{{ slice.percentage | number:'1.0-0' }}%</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <div class="quick-actions">
+      <a routerLink="/jobs" class="action-btn">View All Jobs →</a>
+    </div>
+  } @else if (error) {
+    <div class="error">{{ error }}</div>
+  } @else {
+    <div class="loading">Loading dashboard...</div>
+  }
+</div>

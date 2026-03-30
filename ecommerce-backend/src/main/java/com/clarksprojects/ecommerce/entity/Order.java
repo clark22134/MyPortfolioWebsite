@@ -1,12 +1,14 @@
 package com.clarksprojects.ecommerce.entity;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -41,19 +43,20 @@ public class Order {
   @Column(name = "total_price")
   private BigDecimal totalPrice;
 
+  @Enumerated(EnumType.STRING)
   @Column(name = "status")
-  private String status;
+  private OrderStatus status;
 
   @Column(name = "total_quantity")
   private int totalQuantity;
 
   @Column(name = "date_created")
   @CreationTimestamp
-  private Date dateCreated;
+  private LocalDateTime dateCreated;
 
   @Column(name = "last_updated")
   @UpdateTimestamp
-  private Date lastUpdated;
+  private LocalDateTime lastUpdated;
 
   @OneToMany(cascade = CascadeType.ALL, mappedBy = "order")
   private Set<OrderItem> orderItems = new HashSet<>();

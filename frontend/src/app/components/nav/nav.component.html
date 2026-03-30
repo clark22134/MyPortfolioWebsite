@@ -1,0 +1,84 @@
+<nav class="hamburger-nav" role="navigation" aria-label="Main navigation">
+  <button
+    class="hamburger-button"
+    (click)="toggleMenu()"
+    [class.active]="isMenuOpen"
+    [attr.aria-expanded]="isMenuOpen"
+    aria-controls="main-nav-menu"
+    aria-label="Toggle navigation menu"
+    #menuToggleBtn>
+    <span class="line" aria-hidden="true"></span>
+    <span class="line" aria-hidden="true"></span>
+    <span class="line" aria-hidden="true"></span>
+  </button>
+
+  <div class="nav-menu"
+       id="main-nav-menu"
+       [class.open]="isMenuOpen"
+       role="dialog"
+       aria-label="Navigation menu"
+       [attr.aria-hidden]="!isMenuOpen">
+    <div class="nav-overlay" (click)="closeMenu()" aria-hidden="true"></div>
+    <div class="nav-content" #navContent>
+      <button
+        class="close-button"
+        (click)="closeMenu()"
+        aria-label="Close navigation menu"
+        #closeBtn>
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <ul role="list" class="nav-list">
+        <li>
+          <a routerLink="/" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Home')">
+            <span class="nav-icon" aria-hidden="true">🏠</span>
+            <span class="nav-text">Home</span>
+          </a>
+        </li>
+        <li>
+          <a routerLink="/projects" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Full Stack Projects')">
+            <span class="nav-icon" aria-hidden="true">💼</span>
+            <span class="nav-text">Full-Stack Projects</span>
+          </a>
+        </li>
+        <li>
+          <a routerLink="/admin/interactive-projects" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('AI Projects')">
+            <span class="nav-icon" aria-hidden="true">🤖</span>
+            <span class="nav-text">AI Projects</span>
+          </a>
+        </li>
+        <li>
+          <a routerLink="/contact" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Contact')">
+            <span class="nav-icon" aria-hidden="true">📧</span>
+            <span class="nav-text">Contact</span>
+          </a>
+        </li>
+        <li>
+          <a routerLink="/accessibility" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Accessibility Statement')">
+            <span class="nav-icon" aria-hidden="true">♿</span>
+            <span class="nav-text">Accessibility</span>
+          </a>
+        </li>
+        <li>
+          <a routerLink="/credentials" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Credentials')">
+            <span class="nav-icon" aria-hidden="true">📄</span>
+            <span class="nav-text">Credentials</span>
+          </a>
+        </li>
+      </ul>
+      <div class="nav-divider" role="separator" aria-hidden="true"></div>
+      @if (!isAuthenticated) {
+        <a routerLink="/login" (click)="closeMenu()" class="nav-link auth-link">
+          <span class="nav-icon" aria-hidden="true">🔐</span>
+          <span class="nav-text">Login</span>
+        </a>
+      }
+      @if (isAuthenticated) {
+        <a (click)="handleLogout()" class="nav-link auth-link" role="button" tabindex="0"
+           (keydown.enter)="handleLogout()" (keydown.space)="handleLogout()">
+          <span class="nav-icon" aria-hidden="true">🚪</span>
+          <span class="nav-text">Logout</span>
+        </a>
+      }
+    </div>
+  </div>
+</nav>

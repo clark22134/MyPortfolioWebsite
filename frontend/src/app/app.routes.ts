@@ -5,12 +5,14 @@ import { ProjectsComponent } from './components/projects/projects.component';
 import { InteractiveProjectsComponent } from './components/interactive-projects/interactive-projects.component';
 import { ContactComponent } from './components/contact/contact.component';
 import { AccessibilityStatementComponent } from './components/accessibility-statement/accessibility-statement.component';
+import { CredentialsComponent } from './components/credentials/credentials.component';
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent },
   { path: 'login', component: LoginComponent },
   { path: 'projects', component: ProjectsComponent },
+  { path: 'credentials', component: CredentialsComponent },
   { path: 'contact', component: ContactComponent },
   { path: 'accessibility', component: AccessibilityStatementComponent },
   { path: 'admin/interactive-projects', component: InteractiveProjectsComponent, canActivate: [authGuard] },

@@ -1,8 +1,10 @@
 package com.clarksprojects.ecommerce.dto;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 public class CustomerProfileResponse {
 
     private String firstName;
@@ -18,7 +20,8 @@ public class CustomerProfileResponse {
     private Integer cardExpirationMonth;
     private Integer cardExpirationYear;
 
-    @Data
+    @Getter
+    @Setter
     public static class AddressDto {
         private String street;
         private String city;

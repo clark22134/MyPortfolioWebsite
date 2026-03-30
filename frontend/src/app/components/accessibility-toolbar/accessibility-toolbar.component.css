@@ -1,0 +1,174 @@
+/* Toolbar Toggle Button */
+.a11y-toggle-btn {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 3000;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(20, 20, 20, 0.95);
+  border: 2px solid rgba(0, 204, 51, 0.6);
+  color: #00cc33;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(0, 204, 51, 0.3);
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.a11y-toggle-btn:hover,
+.a11y-toggle-btn:focus-visible {
+  border-color: #00cc33;
+  box-shadow: 0 0 30px rgba(0, 204, 51, 0.5);
+  transform: scale(1.1);
+  outline: 3px solid #00cc33;
+  outline-offset: 2px;
+}
+
+/* Panel */
+.a11y-panel {
+  position: fixed;
+  bottom: 80px;
+  left: 20px;
+  z-index: 3001;
+  width: 300px;
+  max-height: 80vh;
+  background: rgba(15, 15, 15, 0.98);
+  border: 2px solid rgba(0, 204, 51, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 0 40px rgba(0, 204, 51, 0.3);
+  backdrop-filter: blur(15px);
+  transform: translateY(20px);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  overflow-y: auto;
+}
+
+.a11y-panel.open {
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+}
+
+.a11y-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(0, 204, 51, 0.3);
+}
+
+.a11y-panel-header h2 {
+  color: #00cc33;
+  font-size: 1.1rem;
+  font-family: 'Courier New', monospace;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.a11y-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid rgba(0, 204, 51, 0.4);
+  color: #00cc33;
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.a11y-close-btn:hover,
+.a11y-close-btn:focus-visible {
+  background: rgba(0, 204, 51, 0.15);
+  border-color: #00cc33;
+  outline: 2px solid #00cc33;
+  outline-offset: 1px;
+}
+
+.a11y-panel-body {
+  padding: 1rem 1.25rem;
+}
+
+.a11y-control-group {
+  margin-bottom: 1rem;
+}
+
+.a11y-label {
+  display: block;
+  color: #e0e0e0;
+  font-size: 0.85rem;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.5px;
+}
+
+.a11y-btn-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.a11y-btn {
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  background: rgba(0, 204, 51, 0.08);
+  border: 1px solid rgba(0, 204, 51, 0.35);
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.a11y-btn:hover:not(:disabled),
+.a11y-btn:focus-visible:not(:disabled) {
+  background: rgba(0, 204, 51, 0.2);
+  border-color: #00cc33;
+  color: #00cc33;
+  outline: 2px solid #00cc33;
+  outline-offset: 1px;
+}
+
+.a11y-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.a11y-btn.full-width {
+  width: 100%;
+  padding: 0.75rem;
+}
+
+.a11y-btn.active {
+  background: rgba(0, 204, 51, 0.25);
+  border-color: #00cc33;
+  color: #00cc33;
+  box-shadow: 0 0 10px rgba(0, 204, 51, 0.2);
+}
+
+@media (max-width: 480px) {
+  .a11y-panel {
+    left: 10px;
+    right: 10px;
+    width: auto;
+    bottom: 75px;
+  }
+
+  .a11y-toggle-btn {
+    left: 10px;
+    bottom: 10px;
+  }
+}

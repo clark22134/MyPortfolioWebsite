@@ -1,0 +1,156 @@
+<app-nav></app-nav>
+
+<div class="home-container">
+  <!-- Cyber Logo -->
+  <div class="cyber-logo" role="img" aria-label="Clark Foster Portfolio Logo - Terminal icon">
+    <div class="logo-icon">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"
+           aria-hidden="true" focusable="false" role="img">
+        <!-- Terminal window -->
+        <rect x="10" y="20" width="80" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+        <line x1="10" y1="30" x2="90" y2="30" stroke="currentColor" stroke-width="2"/>
+        <!-- Terminal prompt -->
+        <text x="18" y="48" font-family="monospace" font-size="12" fill="currentColor">&gt;_</text>
+        <!-- Code lines -->
+        <line x1="35" y1="45" x2="70" y2="45" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="35" y1="55" x2="60" y2="55" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="35" y1="65" x2="75" y2="65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <span class="logo-prefix">{{ isAuthenticated ? 'root' : 'user' }}&#64;</span><span class="logo-host">portfolio</span>
+    </div>
+    <div class="scan-line" aria-hidden="true"></div>
+  </div>
+
+  <!-- Animated Background (decorative) -->
+  <div class="animated-bg" aria-hidden="true" role="presentation">
+    <div class="circle circle-1"></div>
+    <div class="circle circle-2"></div>
+    <div class="circle circle-3"></div>
+  </div>
+
+  <section class="hero" [class.scrolled]="scrolled" aria-label="Welcome banner">
+    <div class="hero-content fade-in">
+      <h1 class="hero-title">
+        <span class="visually-hidden">Welcome</span>
+        <span class="typed-text" role="status" aria-live="polite" aria-hidden="true">{{ typedText }}</span><span class="cursor" [class.typing]="isTyping" aria-hidden="true">|</span>
+      </h1>
+      <p class="hero-subtitle">Full Stack Developer & Security Engineer</p>
+      <p class="hero-intro">
+        Building secure, scalable applications with modern technologies.
+        Passionate about cloud architecture, DevSecOps practices, and creating
+        seamless user experiences. Let's connect and build something amazing together.
+      </p>
+      <div class="hero-buttons" role="group" aria-label="Quick navigation links">
+        <div class="button-row">
+          <a routerLink="/projects" class="btn btn-primary">Full-Stack Projects</a>
+          <a routerLink="/admin/interactive-projects" class="btn btn-outline">AI Projects</a>
+        </div>
+        <div class="button-row">
+          <a routerLink="/contact" class="btn btn-primary">Contact Me</a>
+          <a routerLink="/accessibility" class="btn btn-outline">♿ Accessibility</a>
+        </div>
+        <div class="button-row">
+          <a routerLink="/credentials" class="btn btn-secondary" aria-label="Credentials">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 aria-hidden="true" focusable="false">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            Credentials
+          </a>
+          <a href="https://github.com/clark22134" target="_blank" rel="noopener noreferrer" class="btn btn-outline" aria-label="GitHub profile (opens in new tab)">
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"
+                 aria-hidden="true" focusable="false">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="scroll-indicator" aria-hidden="true">
+      <div class="mouse"></div>
+    </div>
+  </section>
+
+  <section class="about-me" #aboutMeSection [class.visible]="projectsVisible" aria-label="About Me">
+    <h2 class="section-title">About Me</h2>
+    <div class="about-me-content">
+      <p>
+        Clark is a passionate software developer with nine years of experience delivering secure, accessible, and scalable applications
+        in enterprise and federal environments. He specializes in full-stack development using Java/Spring Boot, .NET/C#, Python,
+        and modern frontend frameworks including Angular and React. His expertise includes RESTful API development, SQL-based data
+        systems, and implementation of automated CI/CD pipelines leveraging GitHub Actions, containerization, and modern DevSecOps
+        practices. Clark incorporates automated testing, continuous integration, and secure coding standards to ensure high reliability
+        and maintainability. He brings strong experience in system observability and performance monitoring using Splunk and the
+        ELK stack, enabling proactive system reliability and operational insight. Moreover, his capabilities further extend to cloud
+        architecture and IaC, utilizing Terraform to deploy AWS services like ECS Fargate, ALB, Route 53, ACM, ECR, and CloudWatch.
+        He also leverages AI/ML technologies—including LangChain, HuggingFace, and LLMs—to build intelligent analytics tools and
+        automated workflows.
+      </p>
+      <p>
+        Complementing his technical background, Clark served more than 10 years in the U.S. Marine Corps, including 8 years in leadership
+        roles both as an enlisted NCO and commissioned officer. He led cross-functional teams and managed multi-million-dollar
+        operations in high-stakes environments, cultivating strong leadership, strategic planning, and problem-solving skills.
+        His military service instilled a deep commitment to integrity, accountability, and mission success—values he carries into
+        every project. Beyond software and leadership, Clark is an FAA-certified Commercial Pilot and flight instructor, holding
+        multiple pilot certificates and ratings. Clark thrives in collaborative, team-oriented settings and actively engages with
+        stakeholders across technical and business domains to align solutions with organizational goals. This combination of
+        technical depth, principled leadership, and stakeholder partnership drives his detail-oriented, mission-focused delivery
+        of high-quality software solutions.
+      </p>
+      <p class="credentials-cta">
+        For a detailed look at Clark's experience, certifications, and licenses, visit the
+        <a routerLink="/credentials">Credentials</a> page.
+      </p>
+    </div>
+  </section>
+
+  <section class="skills" #skillsSection [class.visible]="skillsVisible" aria-label="Skills and expertise">
+    <h2 class="section-title">Skills & Expertise</h2>
+    <div class="skills-grid" role="list" aria-label="Skill categories">
+      @for (category of skillCategories; track category.title; let i = $index) {
+        <div class="skill-category" [style.animation-delay]="i * 0.1 + 's'" role="listitem">
+          <div class="skill-icon" aria-hidden="true">{{ category.icon }}</div>
+          <h3>{{ category.title }}</h3>
+          <div class="skill-items">
+            @for (skill of category.skills; track skill) {
+              <span class="skill-tag">{{ skill }}</span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="about" #aboutSection [class.visible]="aboutVisible" aria-label="About this portfolio">
+    <h2 class="section-title">About This Portfolio</h2>
+    <p>
+      This portfolio website was built using the following technologies:
+    </p>
+    <ul>
+      <li>Angular 21 with TypeScript 5.9</li>
+      <li>Spring Boot 4.0 with Java 25 (LTS)</li>
+      <li>RESTful API architecture</li>
+      <li>JWT Authentication & Spring Security</li>
+      <li>WCAG 2.1 AA Compliance & Section 508</li>
+      <li>WAI-ARIA 1.2 Landmarks, Roles & Live Regions</li>
+      <li>Automated Accessibility Testing (axe-core & Puppeteer)</li>
+      <li>Web Speech API (Text-to-Speech)</li>
+      <li>AWS ECS Fargate (Serverless Containers)</li>
+      <li>AWS Application Load Balancer (ALB)</li>
+      <li>AWS Route 53 (DNS Management)</li>
+      <li>AWS Certificate Manager (ACM) with SSL/TLS</li>
+      <li>AWS ECR (Container Registry)</li>
+      <li>AWS CloudWatch (Logging & Monitoring)</li>
+      <li>Terraform Infrastructure as Code</li>
+      <li>Docker Multi-Stage Builds</li>
+      <li>DevSecOps with GitHub Actions CI/CD</li>
+    </ul>
+  </section>
+</div>

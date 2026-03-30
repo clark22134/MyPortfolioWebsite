@@ -46,7 +46,7 @@ class CheckoutControllerTest {
                         .with(user("jane@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(purchase)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.orderTrackingNumber").value("test-tracking-123"));
     }
 
@@ -61,7 +61,7 @@ class CheckoutControllerTest {
                         .with(user("jane@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(purchase)))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
     }
 
     private Purchase buildPurchase() {
@@ -89,12 +89,7 @@ class CheckoutControllerTest {
         address.setCountry("US");
         address.setZipCode("12345");
 
-        Purchase purchase = new Purchase();
-        purchase.setCustomer(customer);
-        purchase.setOrder(order);
-        purchase.setOrderItems(items);
-        purchase.setShippingAddress(address);
-        purchase.setBillingAddress(address);
+        Purchase purchase = new Purchase(customer, address, address, order, items);
         return purchase;
     }
 }

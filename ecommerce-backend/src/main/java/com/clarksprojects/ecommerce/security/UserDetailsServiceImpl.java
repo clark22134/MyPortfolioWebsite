@@ -1,6 +1,6 @@
 package com.clarksprojects.ecommerce.security;
 
-import com.clarksprojects.ecommerce.dao.CustomerRepository;
+import com.clarksprojects.ecommerce.repository.CustomerRepository;
 import com.clarksprojects.ecommerce.entity.Customer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;

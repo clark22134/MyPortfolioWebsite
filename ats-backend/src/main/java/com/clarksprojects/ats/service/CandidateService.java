@@ -9,6 +9,7 @@ import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.PipelineStage;
 import com.clarksprojects.ats.repository.CandidateRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CandidateService {
 
     private final CandidateRepository candidateRepository;
@@ -80,7 +82,9 @@ public class CandidateService {
                 .stageOrder(0)
                 .job(talentPoolJob)
                 .build();
-        return toResponse(candidateRepository.save(candidate));
+        CandidateResponse response = toResponse(candidateRepository.save(candidate));
+        log.info("Candidate created from parsed resume: id={}, email={}", response.getId(), response.getEmail());
+        return response;
     }
 
     @Transactional
@@ -102,7 +106,9 @@ public class CandidateService {
                 .stageOrder(0)
                 .job(job)
                 .build();
-        return toResponse(candidateRepository.save(candidate));
+        CandidateResponse response = toResponse(candidateRepository.save(candidate));
+        log.info("Candidate created: id={}, email={}", response.getId(), response.getEmail());
+        return response;
     }
 
     @Transactional
@@ -124,7 +130,9 @@ public class CandidateService {
             Job newJob = jobService.findJobOrThrow(request.getJobId());
             candidate.setJob(newJob);
         }
-        return toResponse(candidateRepository.save(candidate));
+        CandidateResponse response = toResponse(candidateRepository.save(candidate));
+        log.info("Candidate updated: id={}", id);
+        return response;
     }
 
     @Transactional
@@ -134,13 +142,16 @@ public class CandidateService {
         if (request.getNewOrder() != null) {
             candidate.setStageOrder(request.getNewOrder());
         }
-        return toResponse(candidateRepository.save(candidate));
+        CandidateResponse response = toResponse(candidateRepository.save(candidate));
+        log.info("Candidate stage moved: id={}, newStage={}", id, request.getNewStage());
+        return response;
     }
 
     @Transactional
     public void deleteCandidate(Long id) {
         Candidate candidate = findCandidateOrThrow(id);
         candidateRepository.delete(candidate);
+        log.info("Candidate deleted: id={}", id);
     }
 
     private Candidate findCandidateOrThrow(Long id) {

@@ -1,7 +1,8 @@
 package com.clarksprojects.ecommerce.controller;
 
-import com.clarksprojects.ecommerce.dao.OrderRepository;
+import com.clarksprojects.ecommerce.repository.OrderRepository;
 import com.clarksprojects.ecommerce.entity.Order;
+import com.clarksprojects.ecommerce.entity.OrderStatus;
 import com.clarksprojects.ecommerce.security.jwt.JwtUtils;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,8 +13,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
@@ -49,8 +50,8 @@ class OrderControllerTest {
         order.setOrderTrackingNumber("track-001");
         order.setTotalPrice(new BigDecimal("59.99"));
         order.setTotalQuantity(3);
-        order.setStatus("shipped");
-        order.setDateCreated(new Date());
+        order.setStatus(OrderStatus.SHIPPED);
+        order.setDateCreated(LocalDateTime.now());
 
         when(orderRepository.findByCustomerEmailOrderByDateCreatedDesc("user@example.com"))
                 .thenReturn(List.of(order));

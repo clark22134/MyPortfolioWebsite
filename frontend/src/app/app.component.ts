@@ -7,6 +7,7 @@ import { TerminalLoaderService } from './services/terminal-loader.service';
 
 @Component({
   selector: 'app-root',
+  standalone: true,
   imports: [RouterOutlet, FooterComponent, AccessibilityToolbarComponent, KaliTerminalLoaderComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'

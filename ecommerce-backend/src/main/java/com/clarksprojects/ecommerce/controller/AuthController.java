@@ -1,6 +1,6 @@
 package com.clarksprojects.ecommerce.controller;
 
-import com.clarksprojects.ecommerce.dao.CustomerRepository;
+import com.clarksprojects.ecommerce.repository.CustomerRepository;
 import com.clarksprojects.ecommerce.dto.AuthResponse;
 import com.clarksprojects.ecommerce.dto.CustomerProfileResponse;
 import com.clarksprojects.ecommerce.dto.LoginRequest;
@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -41,52 +42,52 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,
                                                HttpServletResponse response) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(request.email(), request.password())
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        String token = jwtUtils.generateToken(request.getEmail());
+        String token = jwtUtils.generateToken(request.email());
         cookieUtil.addJwtCookie(response, token, (int) (jwtExpirationMs / 1000));
-        return ResponseEntity.ok(new AuthResponse(request.getEmail()));
+        return ResponseEntity.ok(new AuthResponse(request.email()));
     }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request,
                                        HttpServletResponse response) {
-        if (customerRepository.existsByEmail(request.getEmail())) {
+        if (customerRepository.existsByEmail(request.email())) {
             return ResponseEntity.badRequest().body("Email is already in use");
         }
 
         Customer customer = new Customer();
-        customer.setEmail(request.getEmail());
-        customer.setPassword(passwordEncoder.encode(request.getPassword()));
-        customer.setFirstName(request.getFirstName());
-        customer.setLastName(request.getLastName());
+        customer.setEmail(request.email());
+        customer.setPassword(passwordEncoder.encode(request.password()));
+        customer.setFirstName(request.firstName());
+        customer.setLastName(request.lastName());
 
         // Default shipping address (required)
-        if (request.getShippingAddress() != null) {
-            customer.setDefaultShippingAddress(buildAddress(request.getShippingAddress()));
+        if (request.shippingAddress() != null) {
+            customer.setDefaultShippingAddress(buildAddress(request.shippingAddress()));
         }
 
         // Default billing address (optional)
-        if (request.getBillingAddress() != null) {
-            customer.setDefaultBillingAddress(buildAddress(request.getBillingAddress()));
+        if (request.billingAddress() != null) {
+            customer.setDefaultBillingAddress(buildAddress(request.billingAddress()));
         }
 
         // Credit card info (optional) — only store last 4 digits
-        if (request.getCardNumber() != null && !request.getCardNumber().isBlank()) {
-            customer.setCardType(request.getCardType());
-            customer.setNameOnCard(request.getNameOnCard());
-            customer.setCardNumber(request.getCardNumber());
+        if (request.cardNumber() != null && !request.cardNumber().isBlank()) {
+            customer.setCardType(request.cardType());
+            customer.setNameOnCard(request.nameOnCard());
+            customer.setCardNumber(request.cardNumber());
             customer.maskCardNumber();
-            customer.setCardExpirationMonth(request.getCardExpirationMonth());
-            customer.setCardExpirationYear(request.getCardExpirationYear());
+            customer.setCardExpirationMonth(request.cardExpirationMonth());
+            customer.setCardExpirationYear(request.cardExpirationYear());
         }
 
         customerRepository.save(customer);
 
-        String token = jwtUtils.generateToken(request.getEmail());
+        String token = jwtUtils.generateToken(request.email());
         cookieUtil.addJwtCookie(response, token, (int) (jwtExpirationMs / 1000));
-        return ResponseEntity.ok(new AuthResponse(request.getEmail()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(request.email()));
     }
 
     @GetMapping("/profile")
@@ -127,11 +128,11 @@ public class AuthController {
 
     private Address buildAddress(RegisterRequest.AddressDto dto) {
         Address address = new Address();
-        address.setStreet(dto.getStreet());
-        address.setCity(dto.getCity());
-        address.setState(dto.getState());
-        address.setZipCode(dto.getZipCode());
-        address.setCountry(dto.getCountry());
+        address.setStreet(dto.street());
+        address.setCity(dto.city());
+        address.setState(dto.state());
+        address.setZipCode(dto.zipCode());
+        address.setCountry(dto.country());
         return address;
     }
 

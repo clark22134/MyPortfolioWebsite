@@ -1,6 +1,6 @@
 package com.clarksprojects.ecommerce.controller;
 
-import com.clarksprojects.ecommerce.dao.CustomerRepository;
+import com.clarksprojects.ecommerce.repository.CustomerRepository;
 import com.clarksprojects.ecommerce.dto.LoginRequest;
 import com.clarksprojects.ecommerce.dto.RegisterRequest;
 import com.clarksprojects.ecommerce.entity.Customer;
@@ -53,9 +53,7 @@ class AuthControllerTest {
                 .thenReturn(auth);
         when(jwtUtils.generateToken("test@example.com")).thenReturn("mock-jwt-token");
 
-        LoginRequest request = new LoginRequest();
-        request.setEmail("test@example.com");
-        request.setPassword("password123");
+        LoginRequest request = new LoginRequest("test@example.com", "password123");
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -69,9 +67,7 @@ class AuthControllerTest {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenThrow(new BadCredentialsException("Invalid credentials"));
 
-        LoginRequest request = new LoginRequest();
-        request.setEmail("bad@example.com");
-        request.setPassword("wrongpassword");
+        LoginRequest request = new LoginRequest("bad@example.com", "wrongpassword");
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -85,24 +81,17 @@ class AuthControllerTest {
         when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
         when(jwtUtils.generateToken("new@example.com")).thenReturn("new-jwt-token");
 
-        RegisterRequest request = new RegisterRequest();
-        request.setEmail("new@example.com");
-        request.setPassword("securePass123");
-        request.setFirstName("New");
-        request.setLastName("User");
+        RegisterRequest.AddressDto shipping = new RegisterRequest.AddressDto(
+                "123 Main St", "TestCity", "CA", "90210", "US");
 
-        RegisterRequest.AddressDto shipping = new RegisterRequest.AddressDto();
-        shipping.setStreet("123 Main St");
-        shipping.setCity("TestCity");
-        shipping.setState("CA");
-        shipping.setZipCode("90210");
-        shipping.setCountry("US");
-        request.setShippingAddress(shipping);
+        RegisterRequest request = new RegisterRequest(
+                "new@example.com", "securePass123", "New", "User",
+                shipping, null, null, null, null, null, null);
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value("new@example.com"));
     }
 
@@ -110,11 +99,9 @@ class AuthControllerTest {
     void register_shouldReturn400ForDuplicateEmail() throws Exception {
         when(customerRepository.existsByEmail("existing@example.com")).thenReturn(true);
 
-        RegisterRequest request = new RegisterRequest();
-        request.setEmail("existing@example.com");
-        request.setPassword("password123");
-        request.setFirstName("Existing");
-        request.setLastName("User");
+        RegisterRequest request = new RegisterRequest(
+                "existing@example.com", "password123", "Existing", "User",
+                null, null, null, null, null, null, null);
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -134,24 +121,17 @@ class AuthControllerTest {
         when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
         when(jwtUtils.generateToken("withaddr@example.com")).thenReturn("addr-jwt-token");
 
-        RegisterRequest request = new RegisterRequest();
-        request.setEmail("withaddr@example.com");
-        request.setPassword("securePass123");
-        request.setFirstName("With");
-        request.setLastName("Address");
+        RegisterRequest.AddressDto shipping = new RegisterRequest.AddressDto(
+                "100 Test Blvd", "TestCity", "CA", "90210", "US");
 
-        RegisterRequest.AddressDto shipping = new RegisterRequest.AddressDto();
-        shipping.setStreet("100 Test Blvd");
-        shipping.setCity("TestCity");
-        shipping.setState("CA");
-        shipping.setZipCode("90210");
-        shipping.setCountry("US");
-        request.setShippingAddress(shipping);
+        RegisterRequest request = new RegisterRequest(
+                "withaddr@example.com", "securePass123", "With", "Address",
+                shipping, null, null, null, null, null, null);
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value("withaddr@example.com"));
     }
 }

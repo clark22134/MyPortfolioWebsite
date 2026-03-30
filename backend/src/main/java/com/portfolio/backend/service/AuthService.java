@@ -8,6 +8,7 @@ import com.portfolio.backend.exception.DuplicateResourceException;
 import com.portfolio.backend.exception.ResourceNotFoundException;
 import com.portfolio.backend.repository.UserRepository;
 import com.portfolio.backend.security.JwtUtil;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Handles user login, registration, and token generation.
  */
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -27,19 +29,6 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
     private final CustomUserDetailsService userDetailsService;
-
-    public AuthService(
-            UserRepository userRepository,
-            PasswordEncoder passwordEncoder,
-            JwtUtil jwtUtil,
-            AuthenticationManager authenticationManager,
-            CustomUserDetailsService userDetailsService) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtUtil = jwtUtil;
-        this.authenticationManager = authenticationManager;
-        this.userDetailsService = userDetailsService;
-    }
 
     /**
      * Authenticate user and generate JWT token.

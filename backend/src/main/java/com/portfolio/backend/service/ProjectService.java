@@ -2,6 +2,7 @@ package com.portfolio.backend.service;
 
 import com.portfolio.backend.entity.Project;
 import com.portfolio.backend.repository.ProjectRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,13 +15,10 @@ import java.util.Optional;
  */
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
-
-    public ProjectService(ProjectRepository projectRepository) {
-        this.projectRepository = projectRepository;
-    }
 
     public List<Project> getAllProjects() {
         return projectRepository.findAll();

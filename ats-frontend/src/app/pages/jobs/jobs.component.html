@@ -1,0 +1,261 @@
+<div class="jobs-page">
+  <div class="page-header">
+    <div class="header-top">
+      <h1>Jobs</h1>
+      <button class="btn-primary" (click)="showForm = !showForm">
+        {{ showForm ? 'Cancel' : '+ New Job' }}
+      </button>
+    </div>
+    <div class="header-actions">
+      <label class="toggle-switch" [class.active]="showOpenOnly">
+        <input type="checkbox" [checked]="showOpenOnly" (change)="toggleOpenOnly()"
+               role="switch" [attr.aria-checked]="showOpenOnly">
+        <span class="toggle-track">
+          <span class="toggle-thumb"></span>
+        </span>
+        <span class="toggle-label">
+          Open Positions Only
+          @if (openJobCount > 0) {
+            <span class="toggle-count">{{ openJobCount }}</span>
+          }
+        </span>
+      </label>
+    </div>
+  </div>
+
+  @if (showForm) {
+    <form class="job-form" (ngSubmit)="saveJob()" #jobForm="ngForm">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="employer">Employer</label>
+          <input id="employer" [(ngModel)]="form.employer" name="employer" required placeholder="e.g. Acme Technologies">
+        </div>
+        <div class="form-group">
+          <label for="title">Title</label>
+          <input id="title" [(ngModel)]="form.title" name="title" required placeholder="e.g. Senior Software Engineer">
+        </div>
+        <div class="form-group">
+          <label for="department">Department</label>
+          <input id="department" [(ngModel)]="form.department" name="department" required placeholder="e.g. Engineering">
+        </div>
+        <div class="form-group">
+          <label for="location">Location</label>
+          <input id="location" [(ngModel)]="form.location" name="location" required placeholder="e.g. Remote">
+        </div>
+        <div class="form-group">
+          <label for="employmentType">Type</label>
+          <select id="employmentType" [(ngModel)]="form.employmentType" name="employmentType" required>
+            <option value="FULL_TIME">Full Time</option>
+            <option value="PART_TIME">Part Time</option>
+            <option value="CONTRACT">Contract</option>
+            <option value="INTERNSHIP">Internship</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="status">Status</label>
+          <select id="status" [(ngModel)]="form.status" name="status" required>
+            <option value="DRAFT">Draft</option>
+            <option value="OPEN">Open</option>
+            <option value="ON_HOLD">On Hold</option>
+            <option value="CLOSED">Closed</option>
+          </select>
+        </div>
+      </div>
+        <div class="form-group full-width">
+          <label for="description">Description</label>
+          <textarea id="description" [(ngModel)]="form.description" name="description" rows="3" placeholder="Job description..."></textarea>
+        </div>
+        <div class="form-group full-width">
+          <label for="requiredSkills">Required Skills <span class="hint">(comma-separated)</span></label>
+          <input id="requiredSkills" [(ngModel)]="form.requiredSkills" name="requiredSkills" placeholder="e.g. Java, Spring Boot, Docker, AWS">
+        </div>
+        <div class="form-group full-width">
+          <label for="jobAddress">Office Address <span class="hint">(for commute distance matching)</span></label>
+          <input id="jobAddress" [(ngModel)]="form.address" name="jobAddress" placeholder="e.g. 100 Pine St, San Francisco, CA 94111">
+        </div>
+        <div class="form-grid coords-grid">
+          <div class="form-group">
+            <label for="jobLat">Latitude <span class="hint">(optional)</span></label>
+            <input id="jobLat" type="number" step="any" [(ngModel)]="form.latitude" name="jobLat" placeholder="e.g. 37.792">
+          </div>
+          <div class="form-group">
+            <label for="jobLng">Longitude <span class="hint">(optional)</span></label>
+            <input id="jobLng" type="number" step="any" [(ngModel)]="form.longitude" name="jobLng" placeholder="e.g. -122.400">
+          </div>
+        </div>
+        <button type="submit" class="btn-primary">{{ editingId ? 'Update Job' : 'Create Job' }}</button>
+    </form>
+  }
+
+  <div class="employer-groups">
+    @for (group of pagedGroups; track group.employer) {
+      <div class="employer-section">
+        <button class="employer-header" (click)="group.collapsed = !group.collapsed"
+                [attr.aria-expanded]="!group.collapsed">
+          <span class="employer-name">{{ group.employer }}</span>
+          <span class="employer-meta">
+            <span class="employer-count">{{ displayedJobs(group).length }} job{{ displayedJobs(group).length !== 1 ? 's' : '' }}</span>
+            <span class="collapse-icon">{{ group.collapsed ? '▶' : '▼' }}</span>
+          </span>
+        </button>
+
+        @if (!group.collapsed) {
+          <div class="jobs-list">
+            @for (job of displayedJobs(group); track job.id) {
+              <div class="job-card" (click)="openJobDetail(job)">
+                <div class="job-info">
+                  <h3>{{ job.title }}</h3>
+                  <div class="job-meta">
+                    <span class="badge" [class]="'status-' + job.status.toLowerCase()">{{ job.status }}</span>
+                    <span>{{ formatType(job.employmentType) }}</span>
+                    <span>{{ job.department }}</span>
+                    <span>{{ job.location }}</span>
+                  </div>
+                  <div class="job-stats">
+                    <span>{{ job.candidateCount }} candidate{{ job.candidateCount !== 1 ? 's' : '' }}</span>
+                    <span class="sep">·</span>
+                    <span>Posted {{ formatDate(job.createdAt) }}</span>
+                    @if (job.requiredSkills) {
+                      <span class="sep">·</span>
+                      <span class="skills-preview">{{ job.requiredSkills }}</span>
+                    }
+                  </div>
+                </div>
+                <div class="job-actions">
+                  <button class="btn-matches" (click)="toggleTopMatches(job.id); $event.stopPropagation()" [class.active]="expandedJobId === job.id">
+                    ⭐ Top Matches
+                  </button>
+                  <a [routerLink]="['/jobs', job.id, 'pipeline']" class="btn-outline" (click)="$event.stopPropagation()">Pipeline →</a>
+                  <button class="btn-icon" (click)="editJob(job); $event.stopPropagation()" aria-label="Edit job">✏️</button>
+                  <button class="btn-icon danger" (click)="deleteJob(job.id); $event.stopPropagation()" aria-label="Delete job">🗑️</button>
+                </div>
+              </div>
+              @if (expandedJobId === job.id) {
+                <div class="top-matches-panel">
+                  <div class="matches-header">
+                    <span class="matches-title">Top 5 Matching Candidates</span>
+                    @if (loadingMatches) {
+                      <span class="matches-loading">Loading…</span>
+                    }
+                  </div>
+                  @if (!loadingMatches && topMatches.length === 0) {
+                    <p class="no-matches">No skill data available for matching. Add required skills to this job and skills to candidates.</p>
+                  }
+                  @if (!loadingMatches && topMatches.length > 0) {
+                    <div class="matches-list">
+                      @for (match of topMatches; track match.candidateId; let i = $index) {
+                        <div class="match-row">
+                          <span class="match-rank">#{{ i + 1 }}</span>
+                          <div class="match-info">
+                            <span class="match-name">{{ match.firstName }} {{ match.lastName }}</span>
+                            <span class="match-email">{{ match.email }}</span>
+                          </div>
+                          <div class="match-scores">
+                            <div class="score-row">
+                              <span class="score-label">Skills</span>
+                              <div class="score-bar"><div class="score-fill"
+                                [style.width.%]="match.skillsMatchPercent"
+                                [style.background]="'hsl(' + (match.skillsMatchPercent * 1.2) + 'deg, 80%, 45%)'">
+                              </div></div>
+                              <span class="score-value">{{ match.skillsMatchPercent }}%</span>
+                            </div>
+                            <div class="score-row">
+                              <span class="score-label">Time at Prev</span>
+                              <div class="score-bar"><div class="score-fill"
+                                [style.width.%]="(match.daysWorkedScore / 730) * 100"
+                                [style.background]="'hsl(' + ((match.daysWorkedScore / 730) * 120) + 'deg, 80%, 45%)'">
+                              </div></div>
+                              <span class="score-value">{{ match.daysWorkedScore }} days</span>
+                            </div>
+                            <div class="score-row">
+                              <span class="score-label">Commute</span>
+                              <div class="score-bar"><div class="score-fill"
+                                [style.width.%]="match.distanceMiles < 0 ? 0 : (100 - (match.distanceMiles / 50) * 100 < 0 ? 0 : 100 - (match.distanceMiles / 50) * 100)"
+                                [style.background]="match.distanceMiles < 0 ? 'hsl(60deg, 80%, 45%)' : 'hsl(' + ((100 - (match.distanceMiles / 50) * 100 < 0 ? 0 : 100 - (match.distanceMiles / 50) * 100) * 1.2) + 'deg, 80%, 45%)'">
+                              </div></div>
+                              <span class="score-value">{{ match.distanceMiles < 0 ? 'N/A' : (match.distanceMiles | number:'1.1-1') + ' mi' }}</span>
+                            </div>
+                          </div>
+                          <div class="match-skills">
+                            @for (skill of match.matchedSkills; track skill) {
+                              <span class="match-skill-tag">{{ skill }}</span>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            }
+          </div>
+        }
+      </div>
+    } @empty {
+      <div class="empty-state">
+        <p>No jobs yet. Create your first job posting to get started.</p>
+      </div>
+    }
+  </div>
+  @if (jobsTotalPages > 1) {
+    <nav class="pagination" aria-label="Page navigation">
+      <button class="pg-btn" (click)="prevJobsPage()" [disabled]="jobsPage === 1" aria-label="Previous page">‹</button>
+      @for (p of jobsPageNumbers; track $index) {
+        @if (p === '...') {
+          <span class="pg-ellipsis">…</span>
+        } @else {
+          <button class="pg-btn" [class.active]="p === jobsPage" (click)="goToJobsPage(p)">{{ p }}</button>
+        }
+      }
+      <button class="pg-btn" (click)="nextJobsPage()" [disabled]="jobsPage === jobsTotalPages" aria-label="Next page">›</button>
+      <span class="pg-info">{{ jobsPage }} / {{ jobsTotalPages }}</span>
+    </nav>
+  }
+</div>
+
+@if (selectedJob) {
+  <div class="modal-backdrop" (click)="closeJobDetail()">
+    <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Job Details">
+      <div class="modal-header">
+        <div>
+          <h2>{{ selectedJob.title }}</h2>
+          <span class="detail-employer">{{ selectedJob.employer }}</span>
+        </div>
+        <button class="modal-close" (click)="closeJobDetail()" aria-label="Close">&times;</button>
+      </div>
+      <div class="detail-body">
+        <div class="detail-badges">
+          <span class="badge" [class]="'status-' + selectedJob.status.toLowerCase()">{{ selectedJob.status }}</span>
+          <span class="detail-chip">{{ formatType(selectedJob.employmentType) }}</span>
+          <span class="detail-chip">{{ selectedJob.department }}</span>
+          <span class="detail-chip">📍 {{ selectedJob.location }}</span>
+          <span class="detail-chip">👥 {{ selectedJob.candidateCount }} candidate{{ selectedJob.candidateCount !== 1 ? 's' : '' }}</span>
+        </div>
+        @if (selectedJob.description) {
+          <div class="detail-section">
+            <div class="detail-section-label">Description</div>
+            <div class="detail-text">{{ selectedJob.description }}</div>
+          </div>
+        }
+        @if (selectedJob.requiredSkills) {
+          <div class="detail-section">
+            <div class="detail-section-label">Required Skills</div>
+            <div class="skills-chips-row">
+              @for (skill of parseSkills(selectedJob.requiredSkills); track skill) {
+                <span class="skill-chip-detail">{{ skill }}</span>
+              }
+            </div>
+          </div>
+        }
+        <div class="detail-meta-row">
+          <span>Posted {{ formatDate(selectedJob.createdAt) }}</span>
+          <span>Updated {{ formatDate(selectedJob.updatedAt) }}</span>
+        </div>
+        <div class="detail-actions">
+          <a [routerLink]="['/jobs', selectedJob.id, 'pipeline']" class="btn-primary" (click)="closeJobDetail()">View Pipeline →</a>
+          <button class="btn-outline-detail" (click)="editJob(selectedJob); closeJobDetail()">Edit Job</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

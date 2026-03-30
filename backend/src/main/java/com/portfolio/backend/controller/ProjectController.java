@@ -5,6 +5,8 @@ import com.portfolio.backend.entity.Project;
 import com.portfolio.backend.exception.ResourceNotFoundException;
 import com.portfolio.backend.service.ProjectService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,13 +18,10 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/projects")
+@RequiredArgsConstructor
 public class ProjectController {
 
     private final ProjectService projectService;
-
-    public ProjectController(ProjectService projectService) {
-        this.projectService = projectService;
-    }
 
     @GetMapping
     public ResponseEntity<List<Project>> getAllProjects() {
@@ -44,7 +43,7 @@ public class ProjectController {
     @PostMapping
     public ResponseEntity<Project> createProject(@Valid @RequestBody Project project) {
         Project created = projectService.createProject(project);
-        return ResponseEntity.ok(created);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
@@ -60,12 +59,12 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteProject(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
         // Verify project exists
         projectService.getProjectById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
         
         projectService.deleteProject(id);
-        return ResponseEntity.ok(ApiResponse.success("Project deleted successfully"));
+        return ResponseEntity.noContent().build();
     }
 }
