@@ -7,7 +7,7 @@
   "executionRoleArn": "arn:aws:iam::010438493245:role/prod-portfolio-ecs-task-execution",
   "containerDefinitions": [
     {
-      "name": "portfolio-backend",
+      "name": "backend",
       "image": "IMAGE_PLACEHOLDER",
       "essential": true,
       "portMappings": [

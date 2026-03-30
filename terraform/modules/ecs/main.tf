@@ -525,7 +525,7 @@ resource "aws_ecs_task_definition" "backend" {
 
   container_definitions = jsonencode([
     {
-      name      = "portfolio-backend"
+      name      = "backend"
       image     = "010438493245.dkr.ecr.us-east-1.amazonaws.com/portfolio-backend:latest"
       essential = true
       portMappings = [
@@ -602,7 +602,7 @@ resource "aws_ecs_task_definition" "frontend" {
 
   container_definitions = jsonencode([
     {
-      name      = "portfolio-frontend"
+      name      = "frontend"
       image     = "010438493245.dkr.ecr.us-east-1.amazonaws.com/portfolio-frontend:latest"
       essential = true
       portMappings = [
@@ -653,7 +653,7 @@ resource "aws_ecs_service" "backend" {
 
   load_balancer {
     target_group_arn = var.alb_target_group_backend_arn
-    container_name   = "portfolio-backend"
+    container_name   = "backend"
     container_port   = var.backend_port
   }
 
@@ -693,7 +693,7 @@ resource "aws_ecs_service" "frontend" {
 
   load_balancer {
     target_group_arn = var.alb_target_group_frontend_arn
-    container_name   = "portfolio-frontend"
+    container_name   = "frontend"
     container_port   = var.frontend_port
   }
 
