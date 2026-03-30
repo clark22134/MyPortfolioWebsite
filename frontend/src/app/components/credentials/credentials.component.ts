@@ -75,7 +75,7 @@ export class CredentialsComponent {
       period: '2021 – Present',
       bullets: [
         'Engineered full-stack applications (Python, .NET, REST APIs, SQL) supporting large-scale federal data systems.',
-        'Designed CI/CD pipelines (GitHub Actions, Docker) reducing deployment time by ~50–70% and increasing release frequency.',
+        'Designed CI/CD pipelines (GitHub Actions) reducing deployment time by ~70% and increasing release frequency.',
         'Built ETL and data pipeline systems enabling real-time visibility into security and operational metrics (CDM program).',
         'Developed AI-powered analytics tools leveraging prompt engineering and LLMs to extract insights from large datasets.',
         'Integrated DevSecOps practices (automated security scanning, pipeline enforcement), improving compliance and reducing risk.',

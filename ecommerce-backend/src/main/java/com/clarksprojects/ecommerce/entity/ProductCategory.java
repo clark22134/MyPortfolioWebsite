@@ -8,7 +8,8 @@ import java.util.Set;
 
 @Entity
 @Table(name="product_category")
-//@Data -- known bug
+// Lombok @Data not used here: its generated equals/hashCode causes infinite recursion
+// with bidirectional @OneToMany relationships. Using @Getter/@Setter instead.
 @Getter
 @Setter
 public class ProductCategory {

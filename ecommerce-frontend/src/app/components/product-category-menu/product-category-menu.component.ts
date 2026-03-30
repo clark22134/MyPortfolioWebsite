@@ -29,7 +29,6 @@ export class ProductCategoryMenu implements OnInit {
         this.productCategories.set(data);
       },
       error: err => {
-        console.error('Error fetching categories:', err);
       }
     });
   }

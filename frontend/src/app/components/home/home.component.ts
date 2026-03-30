@@ -88,7 +88,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     this.projectService.getFeaturedProjects().subscribe({
       next: (projects: Project[]) => this.featuredProjects = projects,
-      error: (err: Error) => console.error('Error loading featured projects', err)
+      error: (err: Error) => {}
     });
 
     // Listen for the terminal animation to complete
