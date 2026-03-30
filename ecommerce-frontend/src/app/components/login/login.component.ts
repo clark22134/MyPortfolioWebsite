@@ -237,7 +237,19 @@ export class LoginComponent {
       },
       error: (err) => {
         this.isLoading.set(false);
-        this.errorMessage.set(err.status === 400 ? 'Email is already in use' : 'Registration failed');
+        if (err.status === 400) {
+          const body = err.error;
+          if (typeof body === 'string' && body.includes('already in use')) {
+            this.errorMessage.set('Email is already in use');
+          } else if (typeof body === 'object' && body !== null) {
+            const messages = Object.values(body).join('; ');
+            this.errorMessage.set(messages || 'Please correct the highlighted fields.');
+          } else {
+            this.errorMessage.set('Registration failed. Please check your input.');
+          }
+        } else {
+          this.errorMessage.set('Registration failed');
+        }
       }
     });
   }

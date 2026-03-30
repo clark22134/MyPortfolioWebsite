@@ -24,7 +24,7 @@
         </button>
       </form>
       <p class="toggle-text">
-        Don't have an account? <a (click)="toggleMode()">Register</a>
+        Don't have an account? <a (click)="toggleMode(); $event.preventDefault()" href="#">Register</a>
       </p>
     } @else {
       <form [formGroup]="registerForm" (ngSubmit)="onRegister()">
@@ -248,7 +248,7 @@
         </button>
       </form>
       <p class="toggle-text">
-        Already have an account? <a (click)="toggleMode()">Sign In</a>
+        Already have an account? <a (click)="toggleMode(); $event.preventDefault()" href="#">Sign In</a>
       </p>
     }
   </div>
