@@ -7,7 +7,7 @@ import { Routes } from '@angular/router';
  * To add a new project:
  * 1. Create a folder under /projects/your-project-name/
  * 2. Add the lazy-loaded route below
- * 3. Create the corresponding backend module in backend/src/main/java/com/portfolio/backend/projects/
+ * 3. Create the corresponding backend module in portfolio-backend/src/main/java/com/portfolio/backend/projects/
  */
 export const projectRoutes: Routes = [
   {

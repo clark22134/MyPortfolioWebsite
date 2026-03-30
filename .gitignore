@@ -1,8 +1,8 @@
 # Angular specific
-/frontend/dist/
-/frontend/.angular/
-/frontend/out-tsc/
-/frontend/coverage/
+/portfolio-frontend/dist/
+/portfolio-frontend/.angular/
+/portfolio-frontend/out-tsc/
+/portfolio-frontend/coverage/
 /dist/
 /out-tsc/
 /tmp/
@@ -13,7 +13,7 @@
 
 # Node modules and dependency files
 /node_modules/
-/frontend/node_modules/
+/portfolio-frontend/node_modules/
 /yarn.lock
 
 # Environment files - CRITICAL SECURITY
@@ -109,8 +109,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # Backend build artifacts
-/backend/target/
-/backend/.mvn/
+/portfolio-backend/target/
+/portfolio-backend/.mvn/
 
 # E-Commerce build artifacts
 /ecommerce-backend/target/

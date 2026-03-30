@@ -75,7 +75,7 @@ echo ""
 
 # Build and push backend
 echo -e "${YELLOW}Building backend image...${NC}"
-cd backend
+cd portfolio-backend
 docker build --build-arg GIT_COMMIT=$IMAGE_TAG -t $ECR_REGISTRY/$BACKEND_REPO:$IMAGE_TAG .
 echo -e "${GREEN}✓ Backend image built${NC}"
 echo ""
@@ -87,7 +87,7 @@ echo -e "${GREEN}✓ Backend pushed: $BACKEND_IMAGE${NC}"
 echo ""
 
 # Build and push frontend
-cd ../frontend
+cd ../portfolio-frontend
 echo -e "${YELLOW}Building frontend image...${NC}"
 docker build -t $ECR_REGISTRY/$FRONTEND_REPO:$IMAGE_TAG .
 echo -e "${GREEN}✓ Frontend image built${NC}"

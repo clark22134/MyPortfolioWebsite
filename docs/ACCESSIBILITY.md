@@ -312,7 +312,7 @@ All settings saved to `localStorage` under `a11y_settings` key and restored on p
 
 ### Test Script
 
-Located at `frontend/a11y-tests/axe-test.js`:
+Located at `portfolio-frontend/a11y-tests/axe-test.js`:
 
 1. Launches headless Chrome via Puppeteer
 2. Navigates to each page (Home, Contact, Projects, Login, Accessibility)
@@ -334,10 +334,10 @@ Located at `frontend/a11y-tests/axe-test.js`:
 ### Running Locally
 
 ```bash
-cd frontend
+cd portfolio-frontend
 npm ci
 npm run build -- --configuration production
-npx http-server dist/frontend/browser -p 4200 -s &
+npx http-server dist/portfolio-frontend/browser -p 4200 -s &
 npm run test:a11y
 ```
 
@@ -422,27 +422,27 @@ npm run test:a11y
 
 | File | Purpose |
 |------|---------|
-| `frontend/src/app/services/accessibility.service.ts` | Central a11y settings management, TTS, announcements |
-| `frontend/src/app/components/accessibility-toolbar/accessibility-toolbar.component.ts` | Floating settings panel UI |
-| `frontend/src/app/components/accessibility-statement/accessibility-statement.component.ts` | /accessibility page content |
-| `frontend/a11y-tests/axe-test.js` | Automated WCAG testing script |
+| `portfolio-frontend/src/app/services/accessibility.service.ts` | Central a11y settings management, TTS, announcements |
+| `portfolio-frontend/src/app/components/accessibility-toolbar/accessibility-toolbar.component.ts` | Floating settings panel UI |
+| `portfolio-frontend/src/app/components/accessibility-statement/accessibility-statement.component.ts` | /accessibility page content |
+| `portfolio-frontend/a11y-tests/axe-test.js` | Automated WCAG testing script |
 | `docs/ACCESSIBILITY.md` | This documentation |
 
 ### Modified Files
 
 | File | Changes |
 |------|---------|
-| `frontend/src/styles.scss` | Skip nav, focus styles, high contrast, reduced motion, screen reader mode, utility classes |
-| `frontend/src/index.html` | Skip link, ARIA live regions, meta description |
-| `frontend/src/app/app.component.ts` | Added AccessibilityToolbarComponent import |
-| `frontend/src/app/app.component.html` | `<main>` landmark wrapper, toolbar insertion |
-| `frontend/src/app/app.routes.ts` | Added /accessibility route |
-| `frontend/src/app/components/nav/nav.component.ts` | ARIA roles, focus trap, keyboard nav, TTS |
-| `frontend/src/app/components/footer/footer.component.ts` | ARIA landmarks, labeled links, hidden decorative SVGs |
-| `frontend/src/app/components/home/home.component.ts` | ARIA on sections, lists, decorative elements, loader |
-| `frontend/src/app/components/contact/contact.component.ts` | Form ARIA, error roles, icon hiding, labeled links |
-| `frontend/src/app/components/login/login.component.ts` | Form ARIA, autocomplete, error announcements |
-| `frontend/src/app/components/projects/projects.component.ts` | List roles, loading/error announcements, labeled links |
-| `frontend/package.json` | Added a11y test script and devDependencies |
+| `portfolio-frontend/src/styles.scss` | Skip nav, focus styles, high contrast, reduced motion, screen reader mode, utility classes |
+| `portfolio-frontend/src/index.html` | Skip link, ARIA live regions, meta description |
+| `portfolio-frontend/src/app/app.component.ts` | Added AccessibilityToolbarComponent import |
+| `portfolio-frontend/src/app/app.component.html` | `<main>` landmark wrapper, toolbar insertion |
+| `portfolio-frontend/src/app/app.routes.ts` | Added /accessibility route |
+| `portfolio-frontend/src/app/components/nav/nav.component.ts` | ARIA roles, focus trap, keyboard nav, TTS |
+| `portfolio-frontend/src/app/components/footer/footer.component.ts` | ARIA landmarks, labeled links, hidden decorative SVGs |
+| `portfolio-frontend/src/app/components/home/home.component.ts` | ARIA on sections, lists, decorative elements, loader |
+| `portfolio-frontend/src/app/components/contact/contact.component.ts` | Form ARIA, error roles, icon hiding, labeled links |
+| `portfolio-frontend/src/app/components/login/login.component.ts` | Form ARIA, autocomplete, error announcements |
+| `portfolio-frontend/src/app/components/projects/projects.component.ts` | List roles, loading/error announcements, labeled links |
+| `portfolio-frontend/package.json` | Added a11y test script and devDependencies |
 | `.github/workflows/ci-cd.yml` | Added accessibility-test job |
 | `.github/workflows/pr-validation.yml` | Added accessibility-test job |
