@@ -44,6 +44,7 @@ public class SecurityConfiguration {
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                 .requestMatchers("/api/auth/logout").authenticated()
                 .requestMatchers("/api/auth/profile").authenticated()
+                .requestMatchers("/api/cart/**").authenticated()
                 .requestMatchers("/api/orders/**").authenticated()
                 .requestMatchers("/api/checkout/purchase").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/**").permitAll()

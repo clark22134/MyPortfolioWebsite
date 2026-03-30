@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService, RegisterData } from '../../services/auth.service';
+import { CartService } from '../../services/cart.service';
 import { ShopFormService } from '../../services/shop-form.service';
 import { ShopValidators } from '../../validators/shop-validators';
 import { Country } from '../../common/country.model';
@@ -17,6 +18,7 @@ export class LoginComponent {
 
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
+  private cartService = inject(CartService);
   private shopFormService = inject(ShopFormService);
   private router = inject(Router);
 
@@ -162,6 +164,7 @@ export class LoginComponent {
     this.authService.login(email, password).subscribe({
       next: () => {
         this.isLoading.set(false);
+        this.cartService.onLogin(email);
         this.router.navigate(['/products']);
       },
       error: () => {
@@ -233,6 +236,7 @@ export class LoginComponent {
     this.authService.register(data).subscribe({
       next: () => {
         this.isLoading.set(false);
+        this.cartService.onLogin(data.email);
         this.router.navigate(['/products']);
       },
       error: (err) => {

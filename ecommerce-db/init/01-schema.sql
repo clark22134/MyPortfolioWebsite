@@ -145,6 +145,23 @@ CREATE TABLE IF NOT EXISTS `order_item` (
   CONSTRAINT `FK_product_id` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- -----------------------------------------------------------------
+-- 6. SHOPPING CART (server-side persistence per customer)
+-- -----------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `cart_item` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `customer_id` BIGINT NOT NULL,
+  `product_id` BIGINT NOT NULL,
+  `quantity` INT NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_cart_customer_product` (`customer_id`, `product_id`),
+  KEY `K_cart_customer_id` (`customer_id`),
+  KEY `K_cart_product_id` (`product_id`),
+  CONSTRAINT `FK_cart_customer_id` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_cart_product_id` FOREIGN KEY (`product_id`) REFERENCES `product` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 -- =================================================================
 -- SEED DATA
 -- =================================================================
