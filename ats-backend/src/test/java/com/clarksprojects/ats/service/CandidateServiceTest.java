@@ -7,8 +7,7 @@ import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.EmploymentType;
 import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.JobStatus;
-import com.clarksprojects.ats.entity.PipelineStage;
-import com.clarksprojects.ats.repository.CandidateRepository;
+import com.clarksprojects.ats.entity.PipelineStage;import com.clarksprojects.ats.exception.ResourceNotFoundException;import com.clarksprojects.ats.repository.CandidateRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -98,11 +97,11 @@ class CandidateServiceTest {
     }
 
     @Test
-    void getCandidate_nonExistentId_throwsIllegalArgumentException() {
+    void getCandidate_nonExistentId_throwsResourceNotFoundException() {
         when(candidateRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> candidateService.getCandidate(99L))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Candidate not found: 99");
     }
 
@@ -149,10 +148,10 @@ class CandidateServiceTest {
                 .build();
 
         when(jobService.findJobOrThrow(99L))
-                .thenThrow(new IllegalArgumentException("Job not found: 99"));
+                .thenThrow(new ResourceNotFoundException("Job not found: 99"));
 
         assertThatThrownBy(() -> candidateService.createCandidate(request))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Job not found: 99");
         verify(candidateRepository, never()).save(any());
     }
@@ -232,11 +231,11 @@ class CandidateServiceTest {
     }
 
     @Test
-    void moveStage_nonExistentCandidate_throwsIllegalArgumentException() {
+    void moveStage_nonExistentCandidate_throwsResourceNotFoundException() {
         when(candidateRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> candidateService.moveStage(99L, new StageMoveRequest(PipelineStage.HIRED, null)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Candidate not found: 99");
     }
 
@@ -250,11 +249,11 @@ class CandidateServiceTest {
     }
 
     @Test
-    void deleteCandidate_nonExistentId_throwsIllegalArgumentException() {
+    void deleteCandidate_nonExistentId_throwsResourceNotFoundException() {
         when(candidateRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> candidateService.deleteCandidate(99L))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Candidate not found: 99");
         verify(candidateRepository, never()).delete(any());
     }

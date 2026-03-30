@@ -34,42 +34,37 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     {
       icon: '💻',
       title: 'Frontend Development',
-      skills: ['Angular', 'TypeScript', 'HTML/CSS', 'SCSS', 'Responsive Design', 'WAI-ARIA 1.2']
+      skills: ['Angular', 'React', 'TypeScript', 'HTML/CSS', 'Responsive Design', 'WAI-ARIA 1.2']
     },
     {
       icon: '⚙️',
       title: 'Backend Development',
-      skills: ['Java', 'Spring Boot', 'Spring Security', 'REST API', 'JWT']
+      skills: ['Java', 'Python', 'Spring Boot', 'C#/.NET', 'REST API', 'PostgreSQL', 'MySQL', 'JWT']
     },
     {
       icon: '☁️',
       title: 'Cloud Infrastructure',
-      skills: ['AWS S3', 'Route 53', 'ECS/Fargate', 'CloudWatch', 'EC2', 'Lambda', 'Terraform', 'ALB', 'ACM', 'ECR']
+      skills: ['AWS S3', 'Route 53', 'ECS/Fargate', 'CloudWatch', 'EC2', 'Lambda', 'Step Functions', 'Terraform', 'ALB', 'ACM', 'ECR']
     },
     {
       icon: '🔧',
       title: 'DevSecOps & CI/CD',
-      skills: ['GitHub Actions', 'SonarQube', 'Trivy', 'Docker', 'Linux/Windows', 'GitHub', 'Agile', 'axe-core']
+      skills: ['GitHub Actions', 'Jenkins', 'SonarQube', 'Trivy', 'Docker', 'Ansible', 'Bash/PowerShell', 'Linux', 'Windows', 'GitHub', 'Agile']
     },
     {
       icon: '🤖',
       title: 'AI/ML',
-      skills: ['Python (HuggingFace & LangChain)', 'LLMs', 'RAG', 'GitHub Copilot', 'IDP']
-    },
-    {
-      icon: '🗄️',
-      title: 'Database & Tools',
-      skills: ['PostgreSQL', 'Git', 'Maven', 'Gradle', 'Postman']
+      skills: ['Python (HuggingFace & LangChain)', 'LLMs', 'RAG', 'Prompt Engineering', 'Pandas/NumPy/Scikit-Learn', 'GitHub Copilot', 'IDP']
     },
     {
       icon: '🔒',
       title: 'Cyber Security',
-      skills: ['Network Penetration Testing', 'Host Penetration Testing', 'Threat Hunting', 'Incident Response', 'Digital Forensics']
+      skills: ['Network and Host Penetration Testing', 'Threat Hunting', 'Incident Response', 'Digital Forensics']
     },
     {
       icon: '♿',
       title: 'Accessibility & Testing',
-      skills: ['WCAG 2.1 AA', 'Section 508', 'Screen Reader Testing', 'axe-core / Puppeteer', 'Keyboard Navigation', 'ARIA Landmarks & Roles', 'Color Contrast Analysis', 'Web Speech API (TTS)']
+      skills: ['Screen Reader Testing', 'axe-core / Puppeteer', 'Keyboard Navigation', 'ARIA Landmarks & Roles', 'Color Contrast Analysis', 'Web Speech API (TTS)']
     }
   ];
 

@@ -1,5 +1,6 @@
 package com.clarksprojects.ats.controller;
 
+import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.exception.UnsupportedFileTypeException;
 import org.junit.jupiter.api.Test;
 import org.springframework.validation.BeanPropertyBindingResult;
@@ -18,7 +19,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleNotFound_returnsErrorMessage() {
-        IllegalArgumentException ex = new IllegalArgumentException("Job not found with id 999");
+        ResourceNotFoundException ex = new ResourceNotFoundException("Job not found with id 999");
 
         Map<String, String> result = handler.handleNotFound(ex);
 

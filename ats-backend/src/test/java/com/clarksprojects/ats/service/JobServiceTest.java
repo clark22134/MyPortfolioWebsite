@@ -5,6 +5,7 @@ import com.clarksprojects.ats.dto.JobResponse;
 import com.clarksprojects.ats.entity.EmploymentType;
 import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.JobStatus;
+import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.repository.JobRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -90,11 +91,11 @@ class JobServiceTest {
     }
 
     @Test
-    void getJob_nonExistentId_throwsIllegalArgumentException() {
+    void getJob_nonExistentId_throwsResourceNotFoundException() {
         when(jobRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> jobService.getJob(99L))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Job not found: 99");
     }
 
@@ -156,11 +157,11 @@ class JobServiceTest {
     }
 
     @Test
-    void updateJob_nonExistentId_throwsIllegalArgumentException() {
+    void updateJob_nonExistentId_throwsResourceNotFoundException() {
         when(jobRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> jobService.updateJob(99L, new JobRequest()))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Job not found: 99");
     }
 
@@ -174,11 +175,11 @@ class JobServiceTest {
     }
 
     @Test
-    void deleteJob_nonExistentId_throwsIllegalArgumentException() {
+    void deleteJob_nonExistentId_throwsResourceNotFoundException() {
         when(jobRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> jobService.deleteJob(99L))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Job not found: 99");
         verify(jobRepository, never()).delete(any());
     }
@@ -193,11 +194,11 @@ class JobServiceTest {
     }
 
     @Test
-    void findJobOrThrow_missingId_throwsIllegalArgumentException() {
+    void findJobOrThrow_missingId_throwsResourceNotFoundException() {
         when(jobRepository.findById(5L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> jobService.findJobOrThrow(5L))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Job not found: 5");
     }
 }

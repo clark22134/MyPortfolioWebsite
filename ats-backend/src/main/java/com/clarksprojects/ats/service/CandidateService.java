@@ -7,6 +7,7 @@ import com.clarksprojects.ats.dto.StageMoveRequest;
 import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.PipelineStage;
+import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.repository.CandidateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -156,7 +157,7 @@ public class CandidateService {
 
     private Candidate findCandidateOrThrow(Long id) {
         return candidateRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Candidate not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Candidate not found: " + id));
     }
 
     private CandidateResponse toResponse(Candidate c) {
