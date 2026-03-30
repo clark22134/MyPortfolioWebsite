@@ -18,19 +18,26 @@ interface EmployerGroup {
   template: `
     <div class="jobs-page">
       <div class="page-header">
-        <h1>Jobs</h1>
-        <div class="header-actions">
-          <button class="btn-toggle" [class.active]="showOpenOnly" (click)="toggleOpenOnly()"
-                  [attr.aria-pressed]="showOpenOnly">
-            <span class="toggle-dot"></span>
-            Open Positions Only
-            @if (openJobCount > 0) {
-              <span class="toggle-count">{{ openJobCount }}</span>
-            }
-          </button>
+        <div class="header-top">
+          <h1>Jobs</h1>
           <button class="btn-primary" (click)="showForm = !showForm">
             {{ showForm ? 'Cancel' : '+ New Job' }}
           </button>
+        </div>
+        <div class="header-actions">
+          <label class="toggle-switch" [class.active]="showOpenOnly">
+            <input type="checkbox" [checked]="showOpenOnly" (change)="toggleOpenOnly()"
+                   role="switch" [attr.aria-checked]="showOpenOnly">
+            <span class="toggle-track">
+              <span class="toggle-thumb"></span>
+            </span>
+            <span class="toggle-label">
+              Open Positions Only
+              @if (openJobCount > 0) {
+                <span class="toggle-count">{{ openJobCount }}</span>
+              }
+            </span>
+          </label>
         </div>
       </div>
 
@@ -275,9 +282,14 @@ interface EmployerGroup {
     .jobs-page { max-width: 900px; }
     .page-header {
       display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .header-top {
+      display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1.5rem;
     }
     h1 { font-size: 1.75rem; font-weight: 700; }
 
@@ -288,34 +300,46 @@ interface EmployerGroup {
       flex-wrap: wrap;
     }
 
-    .btn-toggle {
+    /* Toggle switch */
+    .toggle-switch {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      color: var(--text-secondary);
-      padding: 0.5rem 1rem;
-      border-radius: var(--radius);
+      gap: 0.65rem;
+      cursor: pointer;
+      user-select: none;
       font-size: 0.88rem;
       font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
+      color: var(--text-secondary);
     }
-    .btn-toggle:hover { border-color: var(--accent); color: var(--accent); }
-    .btn-toggle.active {
-      background: rgba(34,197,94,0.12);
-      border-color: var(--success);
-      color: var(--success);
-    }
-    .toggle-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
+    .toggle-switch input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+    .toggle-track {
+      position: relative;
+      width: 40px;
+      height: 22px;
       background: var(--border);
-      transition: background 0.2s;
+      border-radius: 12px;
+      transition: background 0.25s;
       flex-shrink: 0;
     }
-    .btn-toggle.active .toggle-dot { background: var(--success); }
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: white;
+      transition: transform 0.25s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+    .toggle-switch.active .toggle-track { background: var(--success); }
+    .toggle-switch.active .toggle-thumb { transform: translateX(18px); }
+    .toggle-switch.active { color: var(--success); }
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
     .toggle-count {
       background: var(--success);
       color: white;
@@ -766,6 +790,9 @@ interface EmployerGroup {
     .pg-info { font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.4rem; white-space: nowrap; }
 
     @media (max-width: 640px) {
+      .page-header { gap: 0.75rem; }
+      .header-top { flex-wrap: wrap; gap: 0.75rem; }
+      h1 { font-size: 1.4rem; }
       .job-card { flex-direction: column; align-items: flex-start; gap: 1rem; }
       .job-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
       .match-row { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
