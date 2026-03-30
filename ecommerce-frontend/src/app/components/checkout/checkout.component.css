@@ -109,12 +109,6 @@
   cursor: pointer;
 }
 
-.same-as-shipping input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #00e5ff;
-}
-
 /* Order summary card */
 .summary-card {
   background: #0f1520;
@@ -320,9 +314,63 @@
 }
 
 .saved-toggle input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #00e5ff;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(8, 12, 20, 0.8);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+
+.saved-toggle input[type="checkbox"]:checked {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: rgba(0, 229, 255, 0.6);
+}
+
+.saved-toggle input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #00e5ff;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.same-as-shipping input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(8, 12, 20, 0.8);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+
+.same-as-shipping input[type="checkbox"]:checked {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: rgba(0, 229, 255, 0.6);
+}
+
+.same-as-shipping input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #00e5ff;
+  font-size: 0.75rem;
+  font-weight: bold;
 }
 
 .saved-summary {
