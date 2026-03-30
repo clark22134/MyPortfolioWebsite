@@ -1,4 +1,4 @@
-import { Purchase } from './purchase';
+import { Purchase } from './purchase.model';
 
 describe('Purchase', () => {
   it('should create an instance', () => {

@@ -1,4 +1,4 @@
-import { CartService } from './cart';
+import { CartService } from './cart.service';
 import { CartItem } from '../common/cart-item.model';
 import { Product } from '../common/product.model';
 import { firstValueFrom } from 'rxjs';

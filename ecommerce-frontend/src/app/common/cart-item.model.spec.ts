@@ -1,5 +1,5 @@
-import { CartItem } from './cart-item';
-import { Product } from './product';
+import { CartItem } from './cart-item.model';
+import { Product } from './product.model';
 
 describe('CartItem', () => {
   const product = new Product(1, 'SKU-001', 'Test Product', 'A test product', 19.99, 'img.jpg', true, 10, new Date(), new Date());

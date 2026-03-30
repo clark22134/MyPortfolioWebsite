@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 
-import { CheckoutComponent } from './checkout';
+import { CheckoutComponent } from './checkout.component';
 
 describe('CheckoutComponent', () => {
   let component: CheckoutComponent;

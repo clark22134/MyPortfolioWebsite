@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
-import { AuthService, AuthResponse, RegisterData } from './auth';
+import { AuthService, AuthResponse, RegisterData } from './auth.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -41,7 +41,7 @@ describe('AuthService', () => {
   it('should login and store email', () => {
     const mockResponse: AuthResponse = { email: 'test@test.com' };
 
-    service.login('test@test.com', 'password').subscribe(response => {
+    service.login('test@test.com', 'password').subscribe((response: any) => {
       expect(response.email).toBe('test@test.com');
     });
 
@@ -65,7 +65,7 @@ describe('AuthService', () => {
       shippingAddress: { street: '123 Main', city: 'NY', state: 'NY', zipCode: '10001', country: 'US' }
     };
 
-    service.register(registerData).subscribe(response => {
+    service.register(registerData).subscribe((response: any) => {
       expect(response.email).toBe('new@test.com');
     });
 
@@ -102,7 +102,7 @@ describe('AuthService', () => {
   });
 
   it('should fetch user profile', () => {
-    service.getProfile().subscribe(profile => {
+    service.getProfile().subscribe((profile: any) => {
       expect(profile.email).toBe('test@test.com');
       expect(profile.firstName).toBe('John');
     });

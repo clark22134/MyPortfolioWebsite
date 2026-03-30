@@ -46,7 +46,7 @@ class CheckoutControllerTest {
                         .with(user("jane@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(purchase)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.orderTrackingNumber").value("test-tracking-123"));
     }
 
@@ -61,7 +61,7 @@ class CheckoutControllerTest {
                         .with(user("jane@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(purchase)))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
     }
 
     private Purchase buildPurchase() {

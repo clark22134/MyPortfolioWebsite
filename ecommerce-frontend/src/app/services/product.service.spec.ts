@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ProductService } from './product';
+import { ProductService } from './product.service';
 
 describe('ProductService', () => {
   let service: ProductService;
@@ -25,7 +25,7 @@ describe('ProductService', () => {
 
   it('should get a single product by id', () => {
     const mockProduct = { id: 1, name: 'Widget', unitPrice: 9.99 };
-    service.getProduct(1).subscribe(product => {
+    service.getProduct(1).subscribe((product: any) => {
       expect(product.name).toBe('Widget');
     });
     const req = httpMock.expectOne('/api/products/1');
@@ -37,7 +37,7 @@ describe('ProductService', () => {
     const mockResponse = {
       _embedded: { products: [{ id: 1, name: 'A' }, { id: 2, name: 'B' }] }
     };
-    service.getProductList(1).subscribe(products => {
+    service.getProductList(1).subscribe((products: any[]) => {
       expect(products.length).toBe(2);
     });
     const req = httpMock.expectOne('/api/products/search/findByCategoryId?id=1');
@@ -49,7 +49,7 @@ describe('ProductService', () => {
     const mockResponse = {
       _embedded: { products: [{ id: 3, name: 'Gadget' }] }
     };
-    service.searchProducts('Gadget').subscribe(products => {
+    service.searchProducts('Gadget').subscribe((products: any[]) => {
       expect(products.length).toBe(1);
       expect(products[0].name).toBe('Gadget');
     });
@@ -62,7 +62,7 @@ describe('ProductService', () => {
       _embedded: { products: [{ id: 1, name: 'A' }] },
       page: { size: 10, totalElements: 1, totalPages: 1, number: 0 }
     };
-    service.getProductListPaginate(1, 10, 5).subscribe(response => {
+    service.getProductListPaginate(1, 10, 5).subscribe((response: any) => {
       expect(response.page.totalElements).toBe(1);
     });
     const req = httpMock.expectOne('/api/products/search/findByCategoryId?id=5&page=0&size=10');
@@ -73,7 +73,7 @@ describe('ProductService', () => {
     const mockResponse = {
       _embedded: { productCategory: [{ id: 1, categoryName: 'Books' }] }
     };
-    service.getProductCategories().subscribe(categories => {
+    service.getProductCategories().subscribe((categories: any[]) => {
       expect(categories.length).toBe(1);
       expect(categories[0].categoryName).toBe('Books');
     });
@@ -86,7 +86,7 @@ describe('ProductService', () => {
       _embedded: { products: [{ id: 1, name: 'Test' }] },
       page: { size: 5, totalElements: 1, totalPages: 1, number: 0 }
     };
-    service.searchProductsPaginate(1, 5, 'Test').subscribe(response => {
+    service.searchProductsPaginate(1, 5, 'Test').subscribe((response: any) => {
       expect(response._embedded.products.length).toBe(1);
     });
     const req = httpMock.expectOne('/api/products/search/findByNameContaining?name=Test&page=0&size=5');

@@ -524,6 +524,23 @@
   text-align: justify;
 }
 
+.about-me-content .credentials-cta {
+  text-align: center;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+.about-me-content .credentials-cta a {
+  color: #00cc33;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s, text-shadow 0.3s;
+}
+
+.about-me-content .credentials-cta a:hover {
+  text-shadow: 0 0 8px rgba(0, 204, 51, 0.5);
+}
+
 .section-title {
   font-size: 2.5rem;
   margin-bottom: 3rem;

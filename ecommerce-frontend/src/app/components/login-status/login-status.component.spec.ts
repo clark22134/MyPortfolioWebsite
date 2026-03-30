@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 
-import { LoginStatusComponent } from './login-status';
+import { LoginStatusComponent } from './login-status.component';
 
 describe('LoginStatusComponent', () => {
   let component: LoginStatusComponent;

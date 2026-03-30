@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 
-import { CartDetailsComponent } from './cart-details';
+import { CartDetailsComponent } from './cart-details.component';
 
 describe('CartDetailsComponent', () => {
   let component: CartDetailsComponent;

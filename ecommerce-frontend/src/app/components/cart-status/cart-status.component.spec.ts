@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
-import { CartStatusComponent } from './cart-status';
+import { CartStatusComponent } from './cart-status.component';
 
 describe('CartStatusComponent', () => {
   let component: CartStatusComponent;

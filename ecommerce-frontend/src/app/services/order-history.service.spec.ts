@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { OrderHistoryService } from './order-history';
+import { OrderHistoryService } from './order-history.service';
 
 describe('OrderHistoryService', () => {
   let service: OrderHistoryService;
@@ -38,7 +38,7 @@ describe('OrderHistoryService', () => {
       }
     ];
 
-    service.getOrderHistory().subscribe(orders => {
+    service.getOrderHistory().subscribe((orders: any[]) => {
       expect(orders.length).toBe(1);
       expect(orders[0].orderTrackingNumber).toBe('track-001');
       expect(orders[0].totalPrice).toBe(29.99);
@@ -50,7 +50,7 @@ describe('OrderHistoryService', () => {
   });
 
   it('should handle empty order list', () => {
-    service.getOrderHistory().subscribe(orders => {
+    service.getOrderHistory().subscribe((orders: any[]) => {
       expect(orders.length).toBe(0);
     });
 

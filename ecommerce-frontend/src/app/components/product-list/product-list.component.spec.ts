@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 
-import { ProductListComponent } from './product-list';
+import { ProductListComponent } from './product-list.component';
 
 describe('ProductListComponent', () => {
   let component: ProductListComponent;

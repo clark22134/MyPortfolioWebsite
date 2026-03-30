@@ -1,6 +1,6 @@
-import { OrderItem } from './order-item';
-import { CartItem } from './cart-item';
-import { Product } from './product';
+import { OrderItem } from './order-item.model';
+import { CartItem } from './cart-item.model';
+import { Product } from './product.model';
 
 describe('OrderItem', () => {
   it('should create an instance from a CartItem', () => {

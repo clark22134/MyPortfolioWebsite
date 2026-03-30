@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { CheckoutService } from './checkout';
+import { CheckoutService } from './checkout.service';
 import { Purchase } from '../common/purchase.model';
 import { Customer } from '../common/customer.model';
 import { Order } from '../common/order.model';
@@ -35,7 +35,7 @@ describe('CheckoutService', () => {
     purchase.billingAddress = new Address();
     purchase.orderItems = [];
 
-    service.placeOrder(purchase).subscribe(response => {
+    service.placeOrder(purchase).subscribe((response: any) => {
       expect(response.orderTrackingNumber).toBe('track-123');
     });
 
