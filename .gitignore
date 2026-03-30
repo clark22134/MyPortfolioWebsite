@@ -33,7 +33,8 @@
 *.crt
 *.p12
 *.pfx
-credentials
+/credentials
+!*/components/credentials/
 /config
 ~/.aws/
 
