@@ -4,7 +4,8 @@ import {
   OnDestroy,
   AfterViewChecked,
   ElementRef,
-  ViewChild
+  ViewChild,
+  ViewEncapsulation
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
@@ -39,7 +40,8 @@ const DOC_MAP: Record<string, string> = {
   standalone: true,
   imports: [CommonModule, RouterModule, NavComponent],
   templateUrl: './doc-viewer.component.html',
-  styleUrl: './doc-viewer.component.css'
+  styleUrl: './doc-viewer.component.css',
+  encapsulation: ViewEncapsulation.None
 })
 export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('docContent') docContentRef!: ElementRef<HTMLDivElement>;
