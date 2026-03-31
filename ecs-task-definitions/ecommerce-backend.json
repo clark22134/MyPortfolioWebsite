@@ -86,11 +86,11 @@
         }
       ],
       "healthCheck": {
-        "command": ["CMD", "mysqladmin", "ping", "-h", "localhost"],
+        "command": ["CMD-SHELL", "mysqladmin ping -h localhost -u ecommerceapp -pecommerceapp || exit 1"],
         "interval": 10,
         "timeout": 5,
         "retries": 10,
-        "startPeriod": 60
+        "startPeriod": 120
       },
       "logConfiguration": {
         "logDriver": "awslogs",
