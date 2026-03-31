@@ -15,6 +15,18 @@ export const routes: Routes = [
   { path: 'credentials', component: CredentialsComponent },
   { path: 'contact', component: ContactComponent },
   { path: 'accessibility', component: AccessibilityStatementComponent },
+  {
+    path: 'docs',
+    loadComponent: () => import('./components/documentation/documentation.component')
+      .then(m => m.DocumentationComponent),
+    title: 'Documentation'
+  },
+  {
+    path: 'docs/:slug',
+    loadComponent: () => import('./components/documentation/doc-viewer.component')
+      .then(m => m.DocViewerComponent),
+    title: 'Documentation'
+  },
   { path: 'admin/interactive-projects', component: InteractiveProjectsComponent, canActivate: [authGuard] },
 
   // Interactive portfolio projects (lazy-loaded)

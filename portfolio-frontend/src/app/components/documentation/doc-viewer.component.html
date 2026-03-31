@@ -1,0 +1,69 @@
+<app-nav></app-nav>
+
+<div class="doc-viewer-container">
+  <!-- Sidebar / Table of Contents -->
+  <aside class="doc-sidebar" role="complementary" aria-label="Documentation navigation">
+    <h2 class="sidebar-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
+      </svg>
+      Docs
+    </h2>
+    <nav aria-label="Documentation pages">
+      <ul class="sidebar-links" role="list">
+        <li><a routerLink="/docs/SYSTEM_OVERVIEW" routerLinkActive="active-doc">System Overview</a></li>
+        <li><a routerLink="/docs/ARCHITECTURE" routerLinkActive="active-doc">Architecture</a></li>
+        <li><a routerLink="/docs/UNIFIED_ARCHITECTURE" routerLinkActive="active-doc">Unified Architecture</a></li>
+        <li><a routerLink="/docs/UML_DIAGRAMS" routerLinkActive="active-doc">UML Diagrams</a></li>
+        <li><a routerLink="/docs/TECHNICAL_DESIGN_DECISIONS" routerLinkActive="active-doc">Design Decisions</a></li>
+        <li class="sidebar-divider" role="separator" aria-hidden="true"></li>
+        <li><a routerLink="/docs/API_DOCUMENTATION" routerLinkActive="active-doc">API Documentation</a></li>
+        <li><a routerLink="/docs/TESTING_STRATEGY" routerLinkActive="active-doc">Testing Strategy</a></li>
+        <li><a routerLink="/docs/PROJECT_HIGHLIGHTS" routerLinkActive="active-doc">Project Highlights</a></li>
+        <li class="sidebar-divider" role="separator" aria-hidden="true"></li>
+        <li><a routerLink="/docs/DEVOPS_INFRASTRUCTURE" routerLinkActive="active-doc">DevOps &amp; Infra</a></li>
+        <li><a routerLink="/docs/SECURITY_CONSIDERATIONS" routerLinkActive="active-doc">Security</a></li>
+        <li><a routerLink="/docs/PERFORMANCE_SCALABILITY" routerLinkActive="active-doc">Performance</a></li>
+        <li><a routerLink="/docs/ACCESSIBILITY" routerLinkActive="active-doc">Accessibility</a></li>
+      </ul>
+    </nav>
+    <a routerLink="/docs" class="sidebar-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M3 12h18M3 12l6-6M3 12l6 6"/>
+      </svg>
+      All Documentation
+    </a>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="doc-main" role="main">
+    @if (loading) {
+      <div class="loading-state" aria-live="polite">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <p>Loading documentation...</p>
+      </div>
+    }
+
+    @if (error) {
+      <div class="error-state" role="alert">
+        <div class="error-icon" aria-hidden="true">⚠️</div>
+        <h2>Document Not Found</h2>
+        <p>The requested documentation could not be loaded.</p>
+        <a routerLink="/docs" class="error-link">Browse all documentation</a>
+      </div>
+    }
+
+    @if (!loading && !error) {
+      <article class="doc-article">
+        <header class="doc-header">
+          <div class="breadcrumb" aria-label="Breadcrumb">
+            <a routerLink="/docs">Documentation</a>
+            <span class="breadcrumb-sep" aria-hidden="true">/</span>
+            <span class="breadcrumb-current">{{ docTitle }}</span>
+          </div>
+        </header>
+        <div class="doc-body markdown-content" #docContent [innerHTML]="renderedHtml"></div>
+      </article>
+    }
+  </main>
+</div>

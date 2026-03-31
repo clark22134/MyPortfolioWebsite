@@ -156,11 +156,17 @@ export class LoginComponent {
   }
 
   onLogin() {
-    if (this.loginForm.invalid) return;
+    const emailEl = document.getElementById('loginEmail') as HTMLInputElement;
+    const passwordEl = document.getElementById('loginPassword') as HTMLInputElement;
+    const email = emailEl?.value?.trim() || this.loginForm.get('email')?.value;
+    const password = passwordEl?.value || this.loginForm.get('password')?.value;
+
+    if (!email || !password) {
+      this.errorMessage.set('Please enter your email and password.');
+      return;
+    }
     this.isLoading.set(true);
     this.errorMessage.set(null);
-
-    const { email, password } = this.loginForm.value;
     this.authService.login(email, password).subscribe({
       next: () => {
         this.isLoading.set(false);

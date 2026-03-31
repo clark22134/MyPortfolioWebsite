@@ -1,0 +1,463 @@
+:host {
+  display: block;
+}
+
+.doc-viewer-container {
+  display: flex;
+  min-height: 100vh;
+  background: #0a0a0a;
+}
+
+/* ========================
+   Sidebar
+   ======================== */
+.doc-sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: linear-gradient(180deg, #0d0d0d 0%, #111 100%);
+  border-right: 1px solid rgba(0, 204, 51, 0.15);
+  padding: 5rem 1rem 2rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #00cc33;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(0, 204, 51, 0.2);
+}
+
+.sidebar-title svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.sidebar-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+}
+
+.sidebar-links li a {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 2px;
+  font-size: 0.85rem;
+  color: #a0a0a0;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  border-left: 2px solid transparent;
+}
+
+.sidebar-links li a:hover,
+.sidebar-links li a:focus-visible {
+  color: #00cc33;
+  background: rgba(0, 204, 51, 0.08);
+  border-left-color: #00cc33;
+}
+
+.sidebar-links li a.active-doc {
+  color: #00cc33;
+  background: rgba(0, 204, 51, 0.12);
+  border-left-color: #00cc33;
+  font-weight: 600;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: rgba(0, 204, 51, 0.1);
+  margin: 0.5rem 0.75rem;
+}
+
+.sidebar-back {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 204, 51, 0.15);
+  color: #a0a0a0;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-family: 'Courier New', monospace;
+  transition: color 0.2s ease;
+}
+
+.sidebar-back svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sidebar-back:hover,
+.sidebar-back:focus-visible {
+  color: #00cc33;
+}
+
+/* ========================
+   Main Content
+   ======================== */
+.doc-main {
+  flex: 1;
+  min-width: 0;
+  padding: 5rem 3rem 4rem;
+  max-width: 900px;
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  color: #a0a0a0;
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(0, 204, 51, 0.2);
+  border-top-color: #00cc33;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error State */
+.error-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #a0a0a0;
+}
+
+.error-state .error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.error-state h2 {
+  color: #e0e0e0;
+  margin-bottom: 0.5rem;
+}
+
+.error-link {
+  display: inline-block;
+  margin-top: 1rem;
+  color: #00cc33;
+  text-decoration: none;
+  border: 1px solid rgba(0, 204, 51, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.error-link:hover {
+  background: rgba(0, 204, 51, 0.1);
+  border-color: #00cc33;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+  color: #a0a0a0;
+}
+
+.breadcrumb a {
+  color: #00cc33;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.breadcrumb a:hover {
+  opacity: 0.8;
+}
+
+.breadcrumb-sep {
+  margin: 0 0.5rem;
+  color: #555;
+}
+
+.breadcrumb-current {
+  color: #e0e0e0;
+}
+
+/* ========================
+   Markdown Content Styles
+   ======================== */
+.markdown-content {
+  color: #d0d0d0;
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+.markdown-content h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #00cc33;
+  margin: 2rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(0, 204, 51, 0.3);
+  font-family: 'Courier New', monospace;
+}
+
+.markdown-content h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #00dd44;
+  margin: 2.5rem 0 1rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(0, 204, 51, 0.15);
+  font-family: 'Courier New', monospace;
+}
+
+.markdown-content h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #33dd66;
+  margin: 2.5rem 0 0.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(0, 204, 51, 0.12);
+  font-family: 'Courier New', monospace;
+}
+
+.markdown-content h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #55ee77;
+  margin: 1.5rem 0 0.5rem;
+  font-family: 'Courier New', monospace;
+}
+
+.markdown-content h5,
+.markdown-content h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #77ff99;
+  margin: 1rem 0 0.5rem;
+  font-family: 'Courier New', monospace;
+}
+
+.markdown-content p {
+  margin-bottom: 1rem;
+}
+
+.markdown-content a {
+  color: #5c9aff;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(92, 154, 255, 0.3);
+  transition: all 0.2s ease;
+}
+
+.markdown-content a:hover {
+  color: #7db5ff;
+  border-bottom-color: #7db5ff;
+}
+
+.markdown-content strong {
+  color: #e0e0e0;
+  font-weight: 600;
+}
+
+.markdown-content em {
+  color: #c0c0c0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.markdown-content li {
+  margin-bottom: 0.35rem;
+}
+
+.markdown-content li::marker {
+  color: #00cc33;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid #00cc33;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 204, 51, 0.05);
+  border-radius: 0 6px 6px 0;
+  color: #b0b0b0;
+}
+
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid rgba(0, 204, 51, 0.2);
+  margin: 2rem 0;
+}
+
+/* Code Blocks */
+.markdown-content .code-block {
+  background: #141414;
+  border: 1px solid rgba(0, 204, 51, 0.2);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #d0d0d0;
+}
+
+.markdown-content code {
+  font-family: 'Courier New', monospace;
+  font-size: 0.875em;
+  background: rgba(0, 204, 51, 0.08);
+  color: #00cc33;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+
+.markdown-content .code-block code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* Tables */
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.markdown-content th {
+  background: rgba(0, 204, 51, 0.1);
+  color: #00cc33;
+  font-weight: 600;
+  text-align: left;
+  padding: 0.85rem 1.5rem;
+  border: 1px solid rgba(0, 204, 51, 0.2);
+  font-family: 'Courier New', monospace;
+}
+
+.markdown-content td {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid rgba(0, 204, 51, 0.1);
+  color: #c0c0c0;
+}
+
+.markdown-content tr:nth-child(even) {
+  background: rgba(0, 204, 51, 0.03);
+}
+
+.markdown-content tr:hover {
+  background: rgba(0, 204, 51, 0.06);
+}
+
+/* Mermaid Diagrams */
+.markdown-content pre.mermaid {
+  background: #0d0d0d;
+  border: 1px solid rgba(0, 204, 51, 0.25);
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.markdown-content pre.mermaid-rendered {
+  background: #0d0d0d;
+}
+
+.markdown-content pre.mermaid-rendered svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-error {
+  text-align: left;
+  color: #ff8888;
+  font-size: 0.85rem;
+}
+
+.mermaid-error .error-icon {
+  margin-right: 0.5rem;
+}
+
+.mermaid-error .error-source {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #1a1a1a;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #888;
+  overflow-x: auto;
+}
+
+/* Images */
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 204, 51, 0.2);
+}
+
+/* ========================
+   Responsive
+   ======================== */
+@media (max-width: 1024px) {
+  .doc-main {
+    padding: 5rem 2rem 3rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .doc-viewer-container {
+    flex-direction: column;
+  }
+
+  .doc-sidebar {
+    width: 100%;
+    min-width: 100%;
+    height: auto;
+    position: relative;
+    padding: 5rem 1.5rem 1.5rem;
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 204, 51, 0.15);
+  }
+
+  .doc-main {
+    padding: 2rem 1.25rem 3rem;
+  }
+
+  .markdown-content h1 {
+    font-size: 1.5rem;
+  }
+
+  .markdown-content h2 {
+    font-size: 1.25rem;
+  }
+
+  .markdown-content pre.mermaid {
+    padding: 1rem;
+  }
+}
