@@ -110,9 +110,9 @@ class AuthControllerTest {
     }
 
     @Test
-    void getProfile_shouldReturn403WhenNotAuthenticated() throws Exception {
+    void getProfile_shouldReturn401WhenNotAuthenticated() throws Exception {
         mockMvc.perform(get("/api/auth/profile"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
