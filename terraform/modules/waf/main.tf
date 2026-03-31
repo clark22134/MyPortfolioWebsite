@@ -40,7 +40,8 @@ resource "aws_wafv2_web_acl" "main" {
     }
   }
 
-  # Rule 2: Strict rate limit on auth endpoints - 20 requests per 5 minutes
+  # Rule 2: Strict rate limit on login/register endpoints only - 20 requests per 5 minutes
+  # Scoped to only login and register to prevent brute force; profile/logout are excluded
   rule {
     name     = "rate-limit-auth"
     priority = 2
@@ -55,17 +56,36 @@ resource "aws_wafv2_web_acl" "main" {
         aggregate_key_type = "IP"
 
         scope_down_statement {
-          byte_match_statement {
-            positional_constraint = "STARTS_WITH"
-            search_string         = "/api/auth"
-            
-            field_to_match {
-              uri_path {}
-            }
+          or_statement {
+            statement {
+              byte_match_statement {
+                positional_constraint = "EXACTLY"
+                search_string         = "/api/auth/login"
 
-            text_transformation {
-              priority = 0
-              type     = "LOWERCASE"
+                field_to_match {
+                  uri_path {}
+                }
+
+                text_transformation {
+                  priority = 0
+                  type     = "LOWERCASE"
+                }
+              }
+            }
+            statement {
+              byte_match_statement {
+                positional_constraint = "EXACTLY"
+                search_string         = "/api/auth/register"
+
+                field_to_match {
+                  uri_path {}
+                }
+
+                text_transformation {
+                  priority = 0
+                  type     = "LOWERCASE"
+                }
+              }
             }
           }
         }
