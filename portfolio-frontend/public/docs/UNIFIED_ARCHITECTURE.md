@@ -237,7 +237,7 @@ The following table maps engineering capabilities across the three projects, sho
 
 The three projects form a **learning progression** that mirrors how real systems evolve:
 
-1. **Portfolio** — Nail the fundamentals: clean REST APIs, robust auth, accessibility, CI/CD. This is the "prove you can build a production-quality service from scratch" project.
+1. **Portfolio** — Demonstrate mastery of the fundamentals: clean REST APIs, robust auth, accessibility, CI/CD. This is the "prove you can build a production-quality service from scratch" project.
 
 2. **E-Commerce** — Introduce transactional complexity: cart state that must survive authentication transitions, normalized relational data, read-heavy auto-exposed endpoints alongside write-heavy custom controllers, and payment-adjacent security constraints.
 

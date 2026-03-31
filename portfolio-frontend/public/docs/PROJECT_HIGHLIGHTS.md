@@ -64,7 +64,7 @@ The biggest infrastructure challenge was cost containment without sacrificing pr
 
 ## Why This Demonstrates Senior-Level Ability
 
-These projects aren't three toy apps deployed to Heroku. They represent a cohesive body of work where every layer — from PostgreSQL schema design to Terraform module composition to Angular CDK drag-and-drop — was built, tested, deployed, and operated by one person.
+These projects aren't three toy apps deployed to Heroku. They represent a cohesive body of work where every layer — from PostgreSQL schema design to Terraform module composition to Angular CDK drag-and-drop — was built, tested, deployed, and operated by a one-person development & DevSecOps team.
 
 **Architectural judgment** shows in the tradeoffs: stateless JWTs with stateful refresh tokens, Spring Data REST for reads with hand-written controllers for writes, database sidecars with documented RDS migration paths, optimistic UI updates with server reconciliation. These are decisions that require understanding the entire stack, not just the layer you're working on.
 

@@ -27,7 +27,7 @@
 
 ## Overview
 
-This document describes the comprehensive accessibility implementation for Clark's portfolio website, an Angular 21 single-page application. The goal is to demonstrate WCAG 2.1 Level AA compliance suitable for federal accessibility work while maintaining the visual design integrity.
+This document describes the comprehensive accessibility implementation for this portfolio website, an Angular 21 single-page application. The goal is to demonstrate WCAG 2.1 Level AA compliance suitable for federal accessibility work while maintaining the visual design integrity.
 
 ### Key Deliverables
 

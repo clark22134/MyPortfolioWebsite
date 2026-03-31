@@ -91,6 +91,11 @@ export class AuthService {
     return this.http.get<CustomerProfile>('/api/auth/profile', { withCredentials: true });
   }
 
+  clearSession(): void {
+    this.currentUser.set(null);
+    this.storage.removeItem('authUser');
+  }
+
   logout(): void {
     this.http.post('/api/auth/logout', {}, { withCredentials: true }).pipe(
       catchError(() => of(null))

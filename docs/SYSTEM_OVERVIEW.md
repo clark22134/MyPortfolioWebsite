@@ -8,25 +8,24 @@
 
 ### What It Does
 
-A personal portfolio website that presents professional work, technical skills, and interactive AI/ML projects. It serves as both a public-facing resume and a private workspace for demonstrating applied machine learning capabilities.
+A personal portfolio website that presents professional work and technical skills. It serves as both a public-facing resume and a live demonstration of full-stack development capabilities.
 
 ### Key Features
 
 - **Project showcase** with featured highlights on the homepage and a dedicated browse page
 - **Contact form** backed by SMTP email delivery
 - **JWT authentication** with refresh token rotation, HTTP-only cookies, and per-user session limits (max 5 devices)
-- **Admin-only interactive projects:** RAG-powered chatbot, multimodal search engine (CLIP-based), ML pipeline with MLflow, and LLM fine-tuning — each with drag-and-drop file upload
 - **Accessibility toolkit:** screen reader support, font size adjustment, contrast options, WCAG compliance validated with axe-core and Puppeteer
 - **Animated terminal loader** on first visit (Kali-style typing effect)
 
 ### Target Users
 
 - Recruiters, hiring managers, and peers evaluating technical capability
-- The site owner, as an admin managing project entries and running AI/ML demonstrations
+- The site owner, as an admin managing project entries
 
 ### Business Value
 
-Acts as a living technical portfolio. The interactive AI/ML section goes beyond a static resume — it demonstrates hands-on ability with retrieval-augmented generation, multimodal embeddings, and end-to-end ML pipelines. The authentication and admin layer shows full-stack security implementation.
+Acts as a living technical portfolio, demonstrating full-stack development, security implementation, DevSecOps, and cloud infrastructure skills beyond a static resume.
 
 ### Architecture
 

@@ -106,7 +106,8 @@ export class CheckoutComponent implements OnInit {
           });
         },
         error: () => {
-          // Profile fetch failed, user fills manually
+          // Session expired but localStorage was stale — clear auth state and let user fill manually
+          this.authService.clearSession();
         }
       });
     }
