@@ -33,7 +33,7 @@
     "@angular/cli": "^21.2.2",
     "@angular/compiler-cli": "^21.2.0",
     "@axe-core/puppeteer": "^4.10.0",
-    "@types/jasmine": "~5.1.0",
+    "@types/jasmine": "~6.0.0",
     "@types/marked": "^5.0.2",
     "jasmine-core": "~5.6.0",
     "karma": "~6.4.0",
