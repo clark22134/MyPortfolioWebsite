@@ -9,12 +9,12 @@ import { CredentialsComponent } from './components/credentials/credentials.compo
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
-  { path: '', component: HomeComponent },
-  { path: 'login', component: LoginComponent },
-  { path: 'projects', component: ProjectsComponent },
-  { path: 'credentials', component: CredentialsComponent },
-  { path: 'contact', component: ContactComponent },
-  { path: 'accessibility', component: AccessibilityStatementComponent },
+  { path: '', component: HomeComponent, title: 'Home' },
+  { path: 'login', component: LoginComponent, title: 'Login' },
+  { path: 'projects', component: ProjectsComponent, title: 'Full-Stack Projects' },
+  { path: 'credentials', component: CredentialsComponent, title: 'Credentials' },
+  { path: 'contact', component: ContactComponent, title: 'Contact' },
+  { path: 'accessibility', component: AccessibilityStatementComponent, title: 'Accessibility' },
   {
     path: 'docs',
     loadComponent: () => import('./components/documentation/documentation.component')
@@ -27,7 +27,7 @@ export const routes: Routes = [
       .then(m => m.DocViewerComponent),
     title: 'Documentation'
   },
-  { path: 'admin/interactive-projects', component: InteractiveProjectsComponent, canActivate: [authGuard] },
+  { path: 'admin/interactive-projects', component: InteractiveProjectsComponent, canActivate: [authGuard], title: 'Interactive Projects' },
 
   // Interactive portfolio projects (lazy-loaded)
   {
