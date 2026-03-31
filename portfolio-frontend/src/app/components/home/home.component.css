@@ -364,6 +364,7 @@
   gap: 1rem;
   align-items: center;
   animation: fadeIn 1s ease-out 0.8s both;
+  margin-bottom: 3rem;
 }
 
 .button-row {
