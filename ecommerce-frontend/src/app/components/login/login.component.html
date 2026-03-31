@@ -19,7 +19,7 @@
           <label for="loginPassword">Password</label>
           <input type="password" id="loginPassword" formControlName="password" placeholder="Enter password" autocomplete="current-password" aria-required="true">
         </div>
-        <button type="submit" class="btn-auth" [disabled]="loginForm.invalid || isLoading()">
+        <button type="submit" class="btn-auth" [disabled]="isLoading()">
           {{ isLoading() ? 'Authenticating...' : 'Login' }}
         </button>
       </form>
