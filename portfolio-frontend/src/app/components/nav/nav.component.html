@@ -64,6 +64,12 @@
             <span class="nav-text">Credentials</span>
           </a>
         </li>
+        <li>
+          <a routerLink="/docs" (click)="closeMenu()" class="nav-link" (mouseenter)="speakLink('Documentation')">
+            <span class="nav-icon" aria-hidden="true">📖</span>
+            <span class="nav-text">Documentation</span>
+          </a>
+        </li>
       </ul>
       <div class="nav-divider" role="separator" aria-hidden="true"></div>
       @if (!isAuthenticated) {

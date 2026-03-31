@@ -1,0 +1,58 @@
+<app-nav></app-nav>
+
+<div class="docs-container">
+  <div class="docs-header">
+    <div class="header-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
+      </svg>
+    </div>
+    <h1 class="docs-title">Documentation</h1>
+    <p class="docs-subtitle">
+      Technical documentation covering architecture, APIs, infrastructure, security, and design decisions.
+    </p>
+    <div class="terminal-prompt" aria-hidden="true">
+      <span class="prompt-user">user&#64;portfolio</span><span class="prompt-separator">:</span><span class="prompt-path">~/docs</span><span class="prompt-dollar">$</span>
+      <span class="prompt-command"> ls -la</span>
+      <span class="cursor">▊</span>
+    </div>
+  </div>
+
+  @for (category of categories; track category.name) {
+    <section class="docs-category" [attr.aria-label]="category.name + ' documentation'">
+      <h2 class="category-title">
+        <span class="category-bracket">[</span>
+        {{ category.name }}
+        <span class="category-bracket">]</span>
+      </h2>
+      <div class="docs-grid" role="list">
+        @for (doc of category.docs; track doc.slug) {
+          <a [routerLink]="['/docs', doc.slug]"
+             class="doc-card"
+             role="listitem"
+             [attr.aria-label]="doc.title + ': ' + doc.description">
+            <div class="card-icon" aria-hidden="true">{{ doc.icon }}</div>
+            <div class="card-content">
+              <h3 class="card-title">{{ doc.title }}</h3>
+              <p class="card-description">{{ doc.description }}</p>
+            </div>
+            <div class="card-arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 5l7 7-7 7"/>
+              </svg>
+            </div>
+          </a>
+        }
+      </div>
+    </section>
+  }
+
+  <div class="docs-footer">
+    <a routerLink="/" class="back-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back to Home
+    </a>
+  </div>
+</div>
