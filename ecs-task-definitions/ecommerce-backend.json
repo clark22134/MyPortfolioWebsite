@@ -86,7 +86,7 @@
         }
       ],
       "healthCheck": {
-        "command": ["CMD-SHELL", "mysqladmin ping -h localhost -u ecommerceapp -p ecommerceapp || exit 1"],
+        "command": ["CMD-SHELL", "mysqladmin ping -h localhost -u ecommerceapp -pecommerceapp || exit 1"],
         "interval": 10,
         "timeout": 5,
         "retries": 10,
