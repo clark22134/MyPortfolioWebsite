@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Initializes database with default data on application startup.
@@ -141,14 +142,19 @@ public class DataInitializer implements CommandLineRunner {
      */
     private record AdminCredentials(String username, String password, String email, String fullName) {
         private static final String DEFAULT_USERNAME = "admin";
-        private static final String DEFAULT_PASSWORD = "defaultPassword";
         private static final String DEFAULT_EMAIL = "admin@clarkfoster.com";
         private static final String DEFAULT_FULL_NAME = "Clark Foster";
 
         static AdminCredentials fromEnvironment() {
+            String password = System.getenv("ADMIN_PASSWORD");
+            if (password == null || password.isBlank()) {
+                password = UUID.randomUUID().toString();
+                LoggerFactory.getLogger(DataInitializer.class)
+                        .warn("ADMIN_PASSWORD not set — using generated password. Set ADMIN_PASSWORD env var for stable credentials.");
+            }
             return new AdminCredentials(
                     getEnvOrDefault("ADMIN_USERNAME", DEFAULT_USERNAME),
-                    getEnvOrDefault("ADMIN_PASSWORD", DEFAULT_PASSWORD),
+                    password,
                     getEnvOrDefault("ADMIN_EMAIL", DEFAULT_EMAIL),
                     getEnvOrDefault("ADMIN_FULLNAME", DEFAULT_FULL_NAME)
             );

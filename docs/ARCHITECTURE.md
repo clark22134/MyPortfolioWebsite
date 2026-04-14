@@ -14,23 +14,22 @@ graph TB
 
     subgraph AWS["AWS — us-east-1"]
         Route53["Route 53<br/>clarkfoster.com"]
-        WAF["AWS WAF<br/>Rate Limiting + Managed Rules"]
+        WAF["AWS WAF<br/>5 Rules (Rate Limit, OWASP, SQLi)"]
         ACM["ACM Certificate<br/>*.clarkfoster.com"]
+        CF["CloudFront Distribution<br/>clarkfoster.com"]
+        S3["S3 Bucket<br/>portfolio-frontend<br/>Angular SPA"]
 
         subgraph VPC["VPC — 10.0.0.0/16"]
-            subgraph ALB_Sub["Application Load Balancer"]
-                ALB["ALB<br/>HTTPS :443"]
-            end
-            
-            subgraph ECS["ECS Fargate Cluster"]
-                FE["portfolio-frontend<br/>Nginx + Angular SPA<br/>256 CPU / 512 MB"]
-                BE["portfolio-backend<br/>Spring Boot<br/>512 CPU / 1024 MB"]
+            subgraph Private["Private Subnets"]
+                APIGW["API Gateway<br/>REST (Regional)"]
+                Lambda["portfolio-backend<br/>Lambda (Java 21, SnapStart)<br/>2048 MB"]
+                Aurora["Aurora Serverless v2<br/>PostgreSQL 15.17<br/>0.5–4 ACU"]
             end
         end
 
-        SM["Secrets Manager<br/>JWT, Admin, SMTP Credentials"]
+        SM["Secrets Manager<br/>DB Credentials (Aurora-managed)"]
         CW["CloudWatch Logs<br/>7-day retention"]
-        ECR["ECR<br/>portfolio-frontend<br/>portfolio-backend"]
+        EB["EventBridge<br/>Warming rule (every 4 min)"]
     end
 
     subgraph External
@@ -38,16 +37,17 @@ graph TB
     end
 
     Browser -->|HTTPS| Route53
-    Route53 --> ALB
-    WAF -.->|Attached| ALB
-    ACM -.->|TLS Cert| ALB
-    ALB -->|"/* → port 80"| FE
-    ALB -->|"/api/* → port 8080"| BE
-    BE -->|Send Email| SMTP
-    SM -.->|Inject Secrets| BE
-    BE -->|Logs| CW
-    FE -->|Logs| CW
-    ECR -.->|Pull Images| ECS
+    Route53 --> CF
+    WAF -.->|Attached| CF
+    ACM -.->|TLS Cert| CF
+    CF -->|"/* → S3 origin"| S3
+    CF -->|"/api/* → API Gateway"| APIGW
+    APIGW -->|Lambda proxy integration| Lambda
+    Lambda -->|SQL| Aurora
+    Lambda -->|Send Email| SMTP
+    SM -.->|Inject Secrets| Lambda
+    Lambda -->|Logs| CW
+    EB -.->|Warm invocation| Lambda
 ```
 
 ### 1.2 Component Diagram
@@ -115,22 +115,22 @@ graph LR
 ```mermaid
 sequenceDiagram
     participant B as Browser
-    participant N as Nginx
-    participant ALB as ALB
-    participant API as Spring Boot
-    participant DB as PostgreSQL
+    participant CF as CloudFront / S3
+    participant APIGW as API Gateway
+    participant API as Spring Boot (Lambda)
+    participant DB as Aurora PostgreSQL
     participant SMTP as Gmail SMTP
     participant SM as Secrets Manager
 
-    Note over SM,API: Startup: Secrets injected as env vars
+    Note over SM,API: Startup: Secrets injected as Lambda env vars
 
     rect rgb(240, 248, 255)
-        Note over B,N: Public Browsing
-        B->>ALB: GET /
-        ALB->>N: Route to frontend (port 80)
-        N-->>B: Angular SPA
-        B->>ALB: GET /api/projects/featured
-        ALB->>API: Route to backend (port 8080)
+        Note over B,CF: Public Browsing
+        B->>CF: GET /
+        CF-->>B: Angular SPA (served from S3)
+        B->>CF: GET /api/projects/featured
+        CF->>APIGW: Forward /api/* to API Gateway
+        APIGW->>API: Lambda proxy invocation
         API->>DB: SELECT * FROM projects WHERE featured=true
         DB-->>API: Project list
         API-->>B: JSON response
@@ -165,11 +165,11 @@ sequenceDiagram
 
 | Component | Purpose |
 |-----------|---------|
-| **Nginx** | Serves the compiled Angular SPA. Adds security headers (HSTS, CSP, X-Frame-Options). Handles SPA fallback routing via `try_files`. Rate-limits requests at the protocol level. |
-| **Angular SPA** | Single-page application with standalone components. Lazy-loads interactive project routes. Manages JWT lifecycle via interceptors and guards. |
-| **Spring Boot API** | Stateless REST backend. Handles authentication, project CRUD, and contact form submission. JWT filter chain validates every request. |
-| **PostgreSQL** | Stores users, projects, and refresh tokens. Runs as H2 in-memory for local development, PostgreSQL in production. |
-| **Secrets Manager** | Injects sensitive configuration (JWT signing key, admin credentials, SMTP password) into the container at task startup. Avoids hardcoded secrets in images or task definitions. |
+| **CloudFront** | Global CDN entry point. Routes `/*` to S3 origin (Angular SPA) and `/api/*` to API Gateway. Enforces TLS at edge locations. WAF attached at CloudFront layer. |
+| **Angular SPA** | Single-page application with standalone components. Lazy-loads interactive project routes. Manages JWT lifecycle via interceptors and guards. Served as static files from S3. |
+| **Spring Boot API (Lambda)** | Stateless REST backend packaged as a Lambda function using `aws-serverless-java-container-springboot3`. Handles authentication, project CRUD, and contact form submission. JWT filter chain validates every request. |
+| **Aurora Serverless v2** | Managed PostgreSQL 15.17 database (0.5–4 ACU). Stores users, projects, and refresh tokens. Scales toward zero during idle periods; auto-scales ACU under load. |
+| **Secrets Manager** | Aurora-managed database credentials stored in Secrets Manager and accessed by Lambda at runtime. JWT signing key, admin password, and SMTP credentials are passed as Terraform variables to Lambda environment variables — no application secrets stored in Secrets Manager. |
 | **Gmail SMTP** | External email relay for contact form submissions. Configured via Spring Mail with injected credentials. |
 | **RefreshTokenService** | Enforces a maximum of 5 active refresh tokens per user. Tracks device (user agent) and IP address per session. Supports single-device and all-device logout. |
 
@@ -177,7 +177,7 @@ sequenceDiagram
 
 **Why this architecture:**
 
-The portfolio is a low-traffic, content-driven site. A single Spring Boot backend with an embedded JWT auth system keeps deployment simple — one backend container, no external auth provider dependency. PostgreSQL stores minimal data (users, projects, refresh tokens), so a managed database would be over-provisioned. The frontend is a static Angular build served by Nginx, which also handles TLS termination at the edge (ALB) and adds security headers.
+The portfolio is a low-traffic, content-driven site. A single Spring Boot backend packaged as a Lambda function keeps deployment simple — one function, no container orchestration. Aurora Serverless v2 provides a production-grade managed PostgreSQL database that scales near-zero during idle periods, avoiding both the cost of always-on RDS and the fragility of sidecar containers. The frontend is a static Angular build served from S3 via CloudFront, adding global CDN edge caching and TLS termination.
 
 **Key tradeoffs:**
 
@@ -185,9 +185,9 @@ The portfolio is a low-traffic, content-driven site. A single Spring Boot backen
 |----------|---------|------|
 | JWT with refresh tokens vs. session-based auth | Stateless backend, no session store needed | Token revocation requires database lookup on refresh; can't instantly revoke access tokens |
 | Spring Mail (Gmail SMTP) vs. SES | Zero AWS cost for low-volume email, simpler config | Gmail rate limits (500/day), requires app password management |
-| H2 for dev / PostgreSQL for prod | Fast local iteration, no local DB setup needed | Schema drift risk — mitigated by `ddl-auto=update` |
-| No CDN (CloudFront) | Fewer moving parts, lower cost | Higher latency for geographically distant users |
-| Sidecar-less backend (no DB container) | Smaller task footprint (512 CPU / 1024 MB) | Portfolio uses H2 in dev; in prod, the data set is small enough that an embedded approach was considered but PostgreSQL was chosen for durability |
+| H2 for dev / Aurora PostgreSQL for prod | Fast local iteration, schema validation catches drift early | `ddl-auto=validate` in prod requires manual schema migration scripts |
+| CloudFront CDN + S3 | Global low-latency SPA delivery, ~$1/month at portfolio traffic | S3 origin latency on cache miss; requires CloudFront invalidation on deploy |
+| Lambda (serverless) vs. always-on container | Pay per request, no idle cost; auto-scales to thousands of concurrent users | Cold starts (mitigated by SnapStart + EventBridge warming); 15-min max execution time |
 
 ---
 
@@ -204,35 +204,32 @@ graph TB
     subgraph AWS["AWS — us-east-1"]
         Route53["Route 53<br/>shop.clarkfoster.com"]
         WAF["AWS WAF"]
-        
+        CF["CloudFront Distribution<br/>shop.clarkfoster.com"]
+        S3["S3 Bucket<br/>ecommerce-frontend<br/>Angular SPA"]
+
         subgraph VPC["VPC — 10.0.0.0/16"]
-            ALB["ALB<br/>HTTPS :443"]
-            
-            subgraph ECS["ECS Fargate Cluster"]
-                FE["ecommerce-frontend<br/>Nginx + Angular SPA<br/>256 CPU / 512 MB"]
-                
-                subgraph BackendTask["Backend Task — 512 CPU / 2048 MB"]
-                    BE["ecommerce-backend<br/>Spring Boot<br/>port 8080"]
-                    DB["ecommerce-db<br/>MySQL Sidecar<br/>port 3306"]
-                end
+            subgraph Private["Private Subnets"]
+                APIGW["API Gateway<br/>REST (Regional)"]
+                Lambda["ecommerce-backend<br/>Lambda (Java 21, SnapStart)<br/>2048 MB"]
+                Aurora["Aurora Serverless v2<br/>PostgreSQL 15.17<br/>0.5–4 ACU"]
             end
         end
 
         SM["Secrets Manager"]
         CW["CloudWatch Logs"]
-        ECR["ECR<br/>ecommerce-frontend<br/>ecommerce-backend<br/>ecommerce-db"]
+        EB["EventBridge<br/>Warming rule"]
     end
 
     Browser -->|HTTPS| Route53
-    Route53 --> ALB
-    WAF -.->|Attached| ALB
-    ALB -->|"/* → port 80"| FE
-    ALB -->|"/api/* → port 8080"| BE
-    BE -->|"localhost:3306"| DB
-    SM -.->|Inject Secrets| BE
-    BE -->|Logs| CW
-    FE -->|Logs| CW
-    DB -->|Logs| CW
+    Route53 --> CF
+    WAF -.->|Attached| CF
+    CF -->|"/* → S3 origin"| S3
+    CF -->|"/api/* → API Gateway"| APIGW
+    APIGW -->|Lambda proxy integration| Lambda
+    Lambda -->|SQL| Aurora
+    SM -.->|Inject Secrets| Lambda
+    Lambda -->|Logs| CW
+    EB -.->|Warm invocation| Lambda
 ```
 
 ### 2.2 Component Diagram
@@ -269,7 +266,7 @@ graph LR
         JwtFilter["JwtAuthenticationFilter<br/>Cookie or Bearer"]
     end
 
-    subgraph Database["MySQL"]
+    subgraph Database["PostgreSQL"]
         Products["product / product_category"]
         Customers["customer"]
         Addresses["address"]
@@ -298,15 +295,15 @@ graph LR
 ```mermaid
 sequenceDiagram
     participant B as Browser
-    participant ALB as ALB
-    participant API as Spring Boot
+    participant CF as CloudFront / APIGW
+    participant API as Spring Boot (Lambda)
     participant REST as Spring Data REST
-    participant DB as MySQL (Sidecar)
+    participant DB as Aurora PostgreSQL
 
     rect rgb(240, 248, 255)
         Note over B,DB: Product Browsing (Public, No Auth)
-        B->>ALB: GET /api/products?page=0&size=8&categoryId=2
-        ALB->>REST: Forward
+        B->>CF: GET /api/products?page=0&size=8&categoryId=2
+        CF->>REST: Lambda proxy invocation
         REST->>DB: SELECT from product WHERE category_id=2
         DB-->>REST: Product page
         REST-->>B: HAL+JSON {_embedded: {products: [...]}, page: {...}}
@@ -360,21 +357,21 @@ sequenceDiagram
 | **Spring Data REST** | Auto-generates paginated, filterable, read-only REST endpoints for the product catalog, categories, countries, and states from JPA repository interfaces. Eliminates boilerplate controller code for the read path. Write operations are disabled via `MyDataRestConfig`. |
 | **CartService (frontend)** | Manages dual-storage cart: `localStorage` for guests, database for authenticated users. On login, fetches the server-side cart, merges it with local guest items (deduplicating by productId), and persists the merged result. On logout, saves current cart to server before clearing local state. |
 | **CheckoutService (backend)** | Converts the `Purchase` DTO into persisted entities. Masks credit card numbers to last 4 digits before writing to the database. Generates a UUID-based order tracking number. Links order to the authenticated customer or the form-submitted customer info for guest checkout. |
-| **MySQL Sidecar** | Runs as a second container inside the same ECS task (shared `awsvpc` network mode). Communicates with the backend via `localhost:3306`. Health-checked via `mysqladmin ping` with a 30-second start period. Initialized from a schema script on first boot. |
+| **Aurora Serverless v2** | Managed PostgreSQL 15.17 database (0.5–4 ACU) stores all relational data: products, customers, orders, cart items, addresses, countries, and states. Auto-scales ACU based on connection load. Automated backups and point-in-time recovery. |
 | **JwtAuthenticationFilter** | Extracts JWT from HTTP-only cookie first, falls back to `Authorization: Bearer` header. Handles stale cookies gracefully — if the user was deleted from the database, the request proceeds as unauthenticated rather than returning a 500. |
 
 ### 2.5 Architecture Rationale
 
 **Why this architecture:**
 
-The e-commerce platform needs a relational data model (products, orders, customers, addresses with strict referential integrity) and both read-heavy public browsing and write-heavy authenticated operations. Spring Data REST handles the read path with zero controller code, while explicit controllers handle writes with business logic (card masking, order tracking, cart merge). The sidecar database pattern keeps the backend and database co-located in the same task, avoiding cross-network latency and the cost of a managed RDS instance.
+The e-commerce platform needs a relational data model (products, orders, customers, addresses with strict referential integrity) and both read-heavy public browsing and write-heavy authenticated operations. Spring Data REST handles the read path with zero controller code, while explicit controllers handle writes with business logic (card masking, order tracking, cart merge). Aurora Serverless v2 provides a production-grade managed PostgreSQL database with automated backups and point-in-time recovery, replacing ephemeral sidecar containers.
 
 **Key tradeoffs:**
 
 | Decision | Benefit | Cost |
 |----------|---------|------|
 | Spring Data REST for catalog vs. custom controllers | Auto-generates paginated, filterable, HAL-compliant endpoints from repository interfaces | Less control over response shape; frontend must parse HAL `_embedded` format |
-| MySQL sidecar vs. RDS | No RDS cost (~$15+/month for db.t3.micro). Simpler task-level deployment. | No managed backups, no multi-AZ failover, no point-in-time recovery. Data loss if the task is replaced. Acceptable for a demonstration project. |
+| Aurora Serverless v2 vs. always-on RDS | Scales near-zero during idle, ~$8/month vs. $25+/month for db.t3.micro always-on | First query after Aurora idle period has 1–2 second reconnection delay |
 | Card masking (last 4 digits) with no payment gateway | Demonstrates PCI-aware handling without payment processor integration costs | Cannot process real payments without adding Stripe/PayPal |
 | Guest cart in localStorage + server merge on login | Users can browse and add items without creating an account | Merge logic adds frontend complexity; edge cases around duplicate products |
 | JWT in HTTP-only cookie vs. localStorage | XSS protection — JavaScript cannot access the token | Requires `withCredentials: true` on all HTTP calls; CORS must be explicitly configured |
@@ -394,35 +391,30 @@ graph TB
     subgraph AWS["AWS — us-east-1"]
         Route53["Route 53<br/>ats.clarkfoster.com"]
         WAF["AWS WAF"]
+        CF["CloudFront Distribution<br/>ats.clarkfoster.com"]
+        S3["S3 Bucket<br/>ats-frontend<br/>Angular SPA"]
 
         subgraph VPC["VPC — 10.0.0.0/16"]
-            ALB["ALB<br/>HTTPS :443"]
-
-            subgraph ECS["ECS Fargate Cluster"]
-                FE["ats-frontend<br/>Nginx + Angular SPA<br/>256 CPU / 512 MB"]
-
-                subgraph BackendTask["Backend Task — 512 CPU / 1024 MB"]
-                    BE["ats-backend<br/>Spring Boot<br/>port 8080"]
-                    DB["ats-db<br/>PostgreSQL 16 Sidecar<br/>port 5432"]
-                    FS["Resume File Storage<br/>(Container Filesystem)"]
-                end
+            subgraph Private["Private Subnets"]
+                APIGW["API Gateway<br/>REST (Regional)"]
+                Lambda["ats-backend<br/>Lambda (Java 21, SnapStart)<br/>2048 MB / 2048 MB ephemeral"]
+                Aurora["Aurora Serverless v2<br/>PostgreSQL 15.17<br/>0.5–4 ACU"]
             end
         end
 
         CW["CloudWatch Logs"]
-        ECR["ECR<br/>ats-frontend<br/>ats-backend<br/>ats-db"]
+        EB["EventBridge<br/>Warming rule"]
     end
 
     Browser -->|HTTPS| Route53
-    Route53 --> ALB
-    WAF -.->|Attached| ALB
-    ALB -->|"/* → port 80"| FE
-    ALB -->|"/api/* → port 8080"| BE
-    BE -->|"localhost:5432"| DB
-    BE -->|Read/Write| FS
-    BE -->|Logs| CW
-    FE -->|Logs| CW
-    DB -->|Logs| CW
+    Route53 --> CF
+    WAF -.->|Attached| CF
+    CF -->|"/* → S3 origin"| S3
+    CF -->|"/api/* → API Gateway"| APIGW
+    APIGW -->|Lambda proxy integration| Lambda
+    Lambda -->|SQL + Resume Content| Aurora
+    Lambda -->|Logs| CW
+    EB -.->|Warm invocation| Lambda
 ```
 
 ### 3.2 Component Diagram
@@ -485,24 +477,22 @@ graph LR
 ```mermaid
 sequenceDiagram
     participant B as Browser
-    participant ALB as ALB
-    participant API as Spring Boot
+    participant CF as CloudFront / APIGW
+    participant API as Spring Boot (Lambda)
     participant Parser as ResumeParserService
-    participant DB as PostgreSQL (Sidecar)
-    participant FS as Container Filesystem
+    participant DB as Aurora PostgreSQL
 
     rect rgb(240, 248, 255)
         Note over B,DB: Resume Upload → Auto-Create Candidate
-        B->>ALB: POST /api/talent-pool/upload (multipart/form-data, ≤12MB)
-        ALB->>API: Forward
+        B->>CF: POST /api/talent-pool/upload (multipart/form-data, ≤10MB)
+        CF->>API: Lambda proxy invocation
         API->>Parser: parse(file)
         Parser->>Parser: Tika: detect MIME type<br/>(PDF, DOCX, or TXT only)
         Parser->>Parser: Extract text (PDFBox / POI / raw)
         Parser->>Parser: Regex: extract name, email, phone
         Parser->>Parser: Match against 60+ tech skills
         Parser-->>API: ParsedResume {name, email, skills[], text}
-        API->>FS: Save file as UUID filename
-        API->>DB: INSERT candidate (talent pool job, parsed fields)
+        API->>DB: INSERT candidate (talent pool job, parsed fields + resume text)
         DB-->>API: Created candidate
         API-->>B: Candidate JSON
     end
@@ -547,23 +537,23 @@ sequenceDiagram
 | **PipelineComponent** | Drag-and-drop Kanban board using Angular CDK `DragDropModule`. Displays candidates across 7 columns (APPLIED through HIRED/REJECTED). Performs optimistic UI updates — the card moves immediately and rolls back if the API call fails. |
 | **ResumeParserService** | Accepts PDF, DOCX, and TXT uploads. Uses Apache Tika for MIME type detection (rejects other file types). Extracts text via PDFBox (PDF) or Apache POI (DOCX). Applies regex patterns to extract name, email, and phone. Matches extracted text against a curated list of 60+ technical skills. Creates a candidate record in the talent pool with all parsed fields. |
 | **Matching Algorithm** | Composite scoring system for ranking candidates against a job. Three weighted factors: skill overlap (50%), availability based on recency of last assignment (25%), and geographic proximity via Haversine formula (25%). Proximity caps at 50 miles — candidates beyond that distance score zero on that factor. Returns top 5 matches. |
-| **PostgreSQL Sidecar** | Runs as a second container in the same Fargate task. Health-checked via `pg_isready`. Seeded on first boot with 6 jobs and 100 candidates for immediate demonstration. Indexed on `job_id`, `stage`, and `status` for query performance. |
-| **Container Filesystem (Resume Storage)** | Uploaded resumes are stored on the container's local filesystem with UUID-based filenames to prevent path traversal. Files are served back via `GET /api/talent-pool/resumes/{filename}` with a strict filename regex. Ephemeral — files are lost if the task is replaced. |
+| **Aurora Serverless v2** | Managed PostgreSQL 15.17 database (0.5–4 ACU). Stores jobs, candidates, pipeline stages, and parsed resume text. Seeded on first boot with 6 jobs and 100 candidates for immediate demonstration. Indexed on `job_id`, `stage`, and `status` for query performance. Automated backups and point-in-time recovery. |
+| **Lambda Ephemeral Storage (Resume Parsing)** | Uploaded resumes are temporarily written to Lambda's `/tmp` ephemeral storage (2048 MB) with UUID-based filenames to prevent path traversal. Parsed and stored in Aurora as text content. Files are processed synchronously and cleaned up after parsing. The 10 MB API Gateway payload limit constrains per-invocation memory impact. |
 | **TalentComponent** | Central talent pool UI with debounced search (300ms), multi-select skill filter tags, and pagination (12 per page). Supports resume upload via a modal dialog. Displays candidate cards with skills, contact info, and notes. |
 
 ### 3.5 Architecture Rationale
 
 **Why this architecture:**
 
-An ATS is inherently relational — jobs have candidates, candidates have stages, and matching requires joins across both tables. PostgreSQL handles this well and provides geographic functions that support the proximity calculation. The sidecar pattern keeps the database on the same network namespace as the backend, so `localhost:5432` has zero network overhead. The resume parser runs in-process (Tika, PDFBox, POI) rather than calling an external NLP service, keeping the system self-contained.
+An ATS is inherently relational — jobs have candidates, candidates have stages, and matching requires joins across both tables. PostgreSQL handles this well and provides geographic functions that support the proximity calculation. Aurora Serverless v2 provides a production-grade managed PostgreSQL instance that scales toward zero during idle periods. The resume parser runs in-process (Tika, PDFBox, POI) within the Lambda function rather than calling an external NLP service, keeping the system self-contained. Resume content is stored in Aurora rather than ephemeral container filesystems.
 
 **Key tradeoffs:**
 
 | Decision | Benefit | Cost |
 |----------|---------|------|
-| Sidecar PostgreSQL vs. RDS | No RDS cost, simpler deployment, localhost latency | No managed backups or failover. Data is ephemeral — tied to the task lifecycle. Acceptable for demo seeded data. |
+| Aurora Serverless v2 vs. always-on RDS | Scales near-zero during idle, managed backups, point-in-time recovery | First query after Aurora idle period has 1–2 second reconnection delay |
 | In-process resume parsing (Tika/PDFBox/POI) vs. external service | No external dependencies, no API costs, deterministic behavior | Limited extraction quality — regex-based name/email parsing is brittle for non-standard resume formats. No OCR for scanned PDFs. |
-| Container filesystem for resume storage vs. S3 | Simple implementation, no S3 costs or IAM policies | Files lost on task replacement. Would need S3 for production durability. |
+| Resume content stored in Aurora vs. S3 | Simple implementation, content immediately queryable from DB | Less efficient for large binary files; at scale, S3 with pre-signed URLs would be preferred |
 | Haversine distance for proximity vs. geocoding API | No external API calls, no rate limits, deterministic | Requires lat/lng to be pre-populated on both jobs and candidates. Straight-line distance, not driving distance. |
 | No authentication (demo mode) vs. full auth | Faster to demonstrate, no login friction | Not production-safe. Any user can modify any data. Acceptable for a portfolio demonstration. |
 | Optimistic UI for drag-and-drop vs. wait for server | Immediate visual feedback, snappier UX | Must handle rollback on failure; risk of brief inconsistent state if API errors |
@@ -586,92 +576,99 @@ graph TB
     end
 
     subgraph AWS["AWS — us-east-1"]
-        subgraph Edge["Edge Layer"]
-            Route53["Route 53<br/>clarkfoster.com<br/>*.clarkfoster.com"]
-            WAF["AWS WAF<br/>Rate Limiting<br/>Managed Rules<br/>Geo-Block (non-US)"]
+        subgraph Edge["Edge Layer (Global)"]
+            Route53["Route 53<br/>clarkfoster.com / *.clarkfoster.com"]
+            WAF["AWS WAF (CloudFront-attached)<br/>Rate Limiting, OWASP, SQLi, Geo-Block"]
             ACM["ACM<br/>Multi-SAN Certificate"]
+            CF_P["CloudFront — clarkfoster.com"]
+            CF_E["CloudFront — shop.clarkfoster.com"]
+            CF_A["CloudFront — ats.clarkfoster.com"]
+        end
+
+        subgraph Static["S3 Static Hosting"]
+            S3_P["S3 — portfolio-frontend"]
+            S3_E["S3 — ecommerce-frontend"]
+            S3_A["S3 — ats-frontend"]
         end
 
         subgraph Network["VPC — 10.0.0.0/16"]
-            subgraph PubSub1["Public Subnet 1<br/>10.0.1.0/24 — AZ-a"]
-                ALB1["ALB Node"]
-            end
-            subgraph PubSub2["Public Subnet 2<br/>10.0.2.0/24 — AZ-b"]
-                ALB2["ALB Node"]
-            end
-            IGW["Internet Gateway"]
-
-            subgraph ECS["ECS Fargate Cluster — prod-portfolio-cluster"]
-                PFE["portfolio-frontend"]
-                PBE["portfolio-backend"]
-                EFE["ecommerce-frontend"]
-                EBE["ecommerce-backend<br/>+ MySQL sidecar"]
-                AFE["ats-frontend"]
-                ABE["ats-backend<br/>+ PostgreSQL sidecar"]
+            subgraph Private["Private Subnets"]
+                APIGW_P["API Gateway — Portfolio"]
+                APIGW_E["API Gateway — E-Commerce"]
+                APIGW_A["API Gateway — ATS"]
+                L_P["Lambda — portfolio-backend"]
+                L_E["Lambda — ecommerce-backend"]
+                L_A["Lambda — ats-backend"]
+                subgraph Aurora["Aurora Serverless v2 — Shared Cluster"]
+                    DB_P["portfolio-db<br/>PostgreSQL 15.17"]
+                    DB_E["ecommerce-db<br/>PostgreSQL 15.17"]
+                    DB_A["ats-db<br/>PostgreSQL 15.17"]
+                end
             end
         end
 
         subgraph Services["AWS Services"]
-            ECR["ECR<br/>8 Repositories"]
-            SM["Secrets Manager<br/>8 Secrets"]
-            CW["CloudWatch<br/>8 Log Groups<br/>Container Insights"]
-            IAM["IAM<br/>OIDC Provider<br/>Task Execution Role<br/>GH Actions Role"]
+            SM["Secrets Manager<br/>DB Credentials (Aurora-managed)"]
+            CW["CloudWatch<br/>6 Log Groups"]
+            IAM["IAM<br/>OIDC Provider<br/>Lambda Execution Roles<br/>GH Actions Role"]
+            EB["EventBridge<br/>3 Warming Rules"]
         end
 
         subgraph State["Terraform State — eu-west-2"]
-            S3["S3 Bucket<br/>clarkfoster-portfolio-tf-state"]
+            TF_S3["S3 Bucket<br/>clarkfoster-portfolio-tf-state"]
             DDB["DynamoDB<br/>portfolio-terraform-locks"]
         end
     end
 
     Users -->|HTTPS| Route53
-    Route53 --> ALB1 & ALB2
-    WAF -.->|Attached| ALB1 & ALB2
-    ACM -.->|TLS| ALB1 & ALB2
-    IGW --- ALB1 & ALB2
-    ALB1 & ALB2 -->|Host + Path Rules| ECS
+    Route53 --> CF_P & CF_E & CF_A
+    WAF -.->|Attached| CF_P & CF_E & CF_A
+    ACM -.->|TLS| CF_P & CF_E & CF_A
+    CF_P -->|S3 origin| S3_P
+    CF_E -->|S3 origin| S3_E
+    CF_A -->|S3 origin| S3_A
+    CF_P -->|/api/*| APIGW_P
+    CF_E -->|/api/*| APIGW_E
+    CF_A -->|/api/*| APIGW_A
+    APIGW_P --> L_P --> DB_P
+    APIGW_E --> L_E --> DB_E
+    APIGW_A --> L_A --> DB_A
 
     GHA -->|OIDC AssumeRole| IAM
-    GHA -->|Push Images| ECR
-    GHA -->|Update Services| ECS
-    GHA -->|Read/Write State| S3
+    GHA -->|mvn package → upload JAR| L_P & L_E & L_A
+    GHA -->|npm build → S3 sync| S3_P & S3_E & S3_A
+    GHA -->|Read/Write State| TF_S3
     GHA -->|Lock State| DDB
 
-    ECR -.->|Pull Images| ECS
-    SM -.->|Inject Secrets| PBE
-    ECS -->|Logs| CW
+    SM -.->|Inject Secrets| L_P & L_E & L_A
+    L_P & L_E & L_A -->|Logs| CW
+    EB -.->|Warm invocations| L_P & L_E & L_A
 ```
 
 ### 4.2 Component Diagram — Networking & Security
 
 ```mermaid
 graph TB
-    subgraph WAF_Rules["WAF Web ACL"]
+    subgraph WAF_Rules["WAF Web ACL (Attached to CloudFront)"]
         R1["P1: rate-limit-general<br/>2000 req / 5 min / IP"]
         R2["P2: rate-limit-auth<br/>20 req / 5 min / IP<br/>Scope: /api/auth*"]
         R3["P3: AWSManagedRulesCommonRuleSet"]
         R4["P4: AWSManagedRulesKnownBadInputsRuleSet"]
         R5["P5: AWSManagedRulesSQLiRuleSet"]
-        R6["P6: geo-block-non-us"]
     end
 
-    subgraph ALB_Rules["ALB Listener Rules — HTTPS :443"]
-        L50["P50: shop.clarkfoster.com /api/* → ecom-backend-tg:8080"]
-        L51["P51: shop.clarkfoster.com /* → ecom-frontend-tg:80"]
-        L60["P60: ats.clarkfoster.com /api/* → ats-backend-tg:8080"]
-        L61["P61: ats.clarkfoster.com /* → ats-frontend-tg:80"]
-        L100["P100: clarkfoster.com /api/* → portfolio-backend-tg:8080"]
-        LDEF["Default: → portfolio-frontend-tg:80"]
+    subgraph CF_Behaviors["CloudFront Behavior Rules (per distribution)"]
+        B1["Default (/*)<br/>→ S3 static origin<br/>Cache: max-age=31536000 (immutable hashed assets)"]
+        B2["/api/*<br/>→ API Gateway HTTP origin<br/>Cache: Disabled (no-cache, pass-through)"]
     end
 
-    subgraph SG["Security Groups"]
-        ALB_SG["ALB SG<br/>Ingress: 80, 443 from 0.0.0.0/0<br/>Egress: All"]
-        ECS_SG["ECS SG<br/>Ingress: 80, 8080 from ALB SG only<br/>Egress: All"]
+    subgraph LambdaSG["Lambda & Database Security"]
+        L_ROLE["Lambda Execution Role<br/>Invoked via API Gateway only<br/>Deployed in VPC private subnets"]
+        DB_SG["Aurora SG<br/>Ingress: DB port from Lambda SG only"]
     end
 
-    WAF_Rules -->|Filter| ALB_Rules
-    ALB_Rules -->|Allowed Traffic| SG
-    ALB_SG -->|Source| ECS_SG
+    WAF_Rules -->|Filter requests| CF_Behaviors
+    CF_Behaviors -->|/api/* → Lambda proxy| LambdaSG
 ```
 
 ### 4.3 Data Flow Diagram — CI/CD Deployment Pipeline
@@ -682,9 +679,9 @@ sequenceDiagram
     participant GH as GitHub
     participant GHA as GitHub Actions
     participant IAM as AWS IAM (OIDC)
-    participant ECR as ECR
-    participant ECS as ECS Fargate
-    participant ALB as ALB
+    participant L as Lambda
+    participant S3 as S3 (Static)
+    participant CF as CloudFront
     participant CW as CloudWatch
 
     Dev->>GH: git push (main branch)
@@ -698,30 +695,27 @@ sequenceDiagram
     end
 
     rect rgb(240, 255, 240)
-        Note over GHA,ECR: Build & Push
-        GHA->>GHA: docker build (multi-stage)<br/>Maven/Node → JRE/Nginx
-        GHA->>ECR: docker push (tagged with git SHA)
-        ECR->>ECR: Image scan on push
-        ECR->>ECR: Lifecycle: retain last 10 images
+        Note over GHA,L: Build & Deploy Backend (per application)
+        GHA->>GHA: mvn clean package -DskipTests<br/>(maven-shade-plugin → flat uber JAR)
+        GHA->>L: aws lambda update-function-code --zip-file app.jar
+        GHA->>L: aws lambda publish-version
+        L->>L: Warm invocation via EventBridge rule
     end
 
     rect rgb(255, 248, 240)
-        Note over GHA,ECS: Deploy
-        GHA->>ECS: Register new task definitions<br/>(updated image tags)
-        GHA->>ECS: Update services (force new deployment)
-        ECS->>ECR: Pull new images
-        ECS->>ECS: Start new tasks
-        ALB->>ECS: Health check: /actuator/health (backend)<br/>Health check: / (frontend)
-        ECS->>ECS: Drain old tasks after health checks pass
-        GHA->>ECS: Wait for stabilization (15 min timeout, 3 checks)
+        Note over GHA,CF: Build & Deploy Frontend (per application)
+        GHA->>GHA: npm ci && ng build --configuration production<br/>(hashed filenames for cache-busting)
+        GHA->>S3: aws s3 sync dist/ s3://bucket/ --delete
+        GHA->>CF: aws cloudfront create-invalidation --paths "/*"
+        CF->>S3: Re-fetch updated assets on next request
     end
 
     rect rgb(248, 240, 255)
         Note over GHA,CW: Verify
-        GHA->>ALB: curl https://clarkfoster.com
-        GHA->>ALB: curl https://shop.clarkfoster.com
-        GHA->>ALB: curl https://ats.clarkfoster.com
-        ECS->>CW: Container logs (awslogs driver)
+        GHA->>CF: curl https://clarkfoster.com
+        GHA->>CF: curl https://shop.clarkfoster.com
+        GHA->>CF: curl https://ats.clarkfoster.com
+        L->>CW: Invocation logs (CloudWatch Logs)
     end
 ```
 
@@ -734,75 +728,73 @@ graph LR
     end
 
     subgraph DNS
-        R53["Route 53<br/>A Record → ALB"]
+        R53["Route 53<br/>A Alias → CloudFront"]
     end
 
-    subgraph Edge
-        WAF["WAF<br/>1. Rate limit check<br/>2. Auth rate limit<br/>3. OWASP rules<br/>4. Bad input scan<br/>5. SQLi scan<br/>6. Geo-block"]
+    subgraph Edge["Edge (CloudFront + WAF)"]
+        WAF["WAF<br/>1. Rate limit<br/>2. Auth rate limit<br/>3. OWASP rules<br/>4. Bad inputs<br/>5. SQLi scan"]
+        CF["CloudFront<br/>TLS 1.3 termination<br/>Security headers injected<br/>Behavior-based routing"]
     end
 
-    subgraph LB["Load Balancer"]
-        HTTPS["HTTPS :443<br/>TLS 1.3 termination"]
-        Rules["Host + Path<br/>Routing Rules"]
+    subgraph StaticPath["Static Path"]
+        S3["S3 Origin<br/>/* → Angular SPA<br/>Cache: immutable hashed assets"]
     end
 
-    subgraph Compute["ECS Fargate"]
-        NGX["Nginx<br/>Security Headers<br/>SPA Routing<br/>Rate Limiting (10 req/s)"]
-        SB["Spring Boot<br/>JWT Validation<br/>Business Logic"]
-        DB["Database<br/>MySQL or PostgreSQL"]
+    subgraph APIPath["API Path"]
+        APIGW["API Gateway<br/>/api/* → Lambda proxy integration"]
+        L["Lambda (Spring Boot 3)<br/>JWT Validation<br/>Business Logic"]
+        DB["Aurora Serverless v2<br/>PostgreSQL 15.17<br/>Private VPC subnet"]
     end
 
     subgraph Obs["Observability"]
         CW["CloudWatch Logs"]
-        CI["Container Insights"]
         WM["WAF Metrics"]
     end
 
     B -->|"HTTPS"| R53
     R53 --> WAF
-    WAF -->|"Pass"| HTTPS
-    HTTPS --> Rules
-    Rules -->|"/* path"| NGX
-    Rules -->|"/api/* path"| SB
-    SB -->|"localhost"| DB
-
-    NGX -.-> CW
-    SB -.-> CW
-    DB -.-> CW
+    WAF -->|"Pass"| CF
+    CF -->|"/* behavior"| S3
+    CF -->|"/api/* behavior"| APIGW
+    APIGW --> L
+    L --> DB
+    L -.-> CW
     WAF -.-> WM
-    Compute -.-> CI
+    CF -.-> CW
 ```
 
 ### 4.5 Component Explanations
 
 | Component | Purpose |
 |-----------|---------|
-| **Route 53** | DNS resolution for all four hostnames (apex, www, shop, ats). Alias records point directly to the ALB, avoiding an extra CNAME hop. |
-| **AWS WAF** | First line of defense. Six rules in priority order: general rate limiting, auth-specific rate limiting, three AWS managed rule sets (OWASP common, known bad inputs, SQLi), and a geo-block for non-US traffic. All rules emit CloudWatch metrics. |
-| **ACM Certificate** | Single certificate with four SANs (clarkfoster.com, www, shop, ats). DNS-validated via Route 53 records. Uses create-before-destroy lifecycle to avoid downtime during renewal. |
-| **ALB** | Layer 7 load balancer performing host-based and path-based routing. TLS 1.3 termination. HTTP listener redirects all traffic to HTTPS. Cross-zone load balancing across two availability zones. Six target groups (3 frontends on port 80, 3 backends on port 8080). |
-| **ECS Fargate** | Serverless container runtime. Six services, each running one task (desired count: 1). No EC2 instances to manage. Backend tasks include sidecar database containers for e-commerce (MySQL) and ATS (PostgreSQL). Portfolio backend is stateless with no sidecar. |
-| **ECR** | Container image registry with 8 repositories. Lifecycle policies keep only the 10 most recent images per repository to control storage costs. Images are scanned on push for known vulnerabilities. |
-| **Secrets Manager** | Stores 8 secrets (JWT key, admin credentials, SMTP credentials). Injected into the portfolio backend task as environment variables at startup via the ECS task execution role. Other backends use environment variables defined in task definitions. |
-| **CloudWatch** | Centralized logging for all 8 containers via the `awslogs` driver. 7-day retention balances troubleshooting access with storage cost. Container Insights provides cluster-level CPU, memory, and networking metrics. |
-| **GitHub Actions (OIDC)** | CI/CD pipeline with keyless AWS authentication. The OIDC provider trusts the GitHub repository and branch. No long-lived AWS access keys are stored in GitHub. The IAM role grants permissions for ECR push, ECS service updates, Terraform state access, and infrastructure management. |
+| **Route 53** | DNS resolution for all four hostnames (apex, www, shop, ats). Alias A records point to CloudFront distributions — no intermediate CNAME hop. |
+| **AWS WAF** | First line of defense attached to each CloudFront distribution. Five rules in priority order: general rate limiting, auth-specific rate limiting, and three AWS managed rule sets (OWASP common, known bad inputs, SQLi). All rules emit CloudWatch metrics. |
+| **ACM Certificate** | Single certificate with four SANs (clarkfoster.com, www, shop, ats). DNS-validated via Route 53 records. Must be issued in us-east-1 for CloudFront. Uses create-before-destroy lifecycle to avoid downtime during renewal. |
+| **CloudFront (3 distributions)** | CDN and TLS termination layer. Each distribution has two behaviors: `/*` → S3 static hosting, `/api/*` → API Gateway origin. Security headers (CSP, HSTS, X-Frame-Options) are injected via CloudFront response headers policy. |
+| **API Gateway (3 HTTP APIs)** | Serverless HTTP API acting as the Lambda proxy integration. Routes all `/api/*` requests to the corresponding Lambda function. Provides throttling and request validation. |
+| **Lambda (3 functions)** | Spring Boot 3.5.13 on Java 21 packaged as flat uber JARs via maven-shade-plugin. Uses `aws-serverless-java-container-springboot3` adapter (`StreamLambdaHandler`). SnapStart reduces cold start times. EventBridge warming rules invoke each function every 4 minutes. |
+| **S3 (3 static hosting buckets)** | Hosts the compiled Angular SPA for each application. Versioned hashed filenames enable aggressive cache-control headers. Bucket policy restricts access to CloudFront origin access control only — no public direct access. |
+| **Aurora Serverless v2 (1 shared cluster, 3 databases)** | PostgreSQL 15.17, 0.5–4 ACU. Single shared cluster hosts three databases (portfolio, ecommerce, ats). Scales to near-zero when idle. Cluster is in private VPC subnets; Lambda functions connect via security group rules. |
+| **Secrets Manager** | Stores Aurora-managed database credentials only. JWT signing key, admin password, and SMTP credentials are now Terraform variables injected as Lambda environment variables. No long-lived application secrets stored in Secrets Manager. |
+| **EventBridge (3 rules)** | Scheduled rules invoke each Lambda function every 4 minutes to keep the JVM warm and prevent cold starts. |
+| **CloudWatch** | Centralized logging for Lambda invocations and API Gateway access logs. 7-day retention balances troubleshooting access with storage cost. |
+| **GitHub Actions (OIDC)** | CI/CD pipeline with keyless AWS authentication. The OIDC provider trusts the GitHub repository and branch. No long-lived AWS access keys stored in GitHub. The IAM role grants permissions for Lambda updates, S3 sync, CloudFront invalidation, and Terraform state access. |
 | **Terraform Remote State** | S3 bucket in eu-west-2 with versioning and AES256 encryption. DynamoDB table provides state locking to prevent concurrent Terraform runs. Bootstrap module creates these resources before the main configuration is applied. |
 
 ### 4.6 Architecture Rationale
 
 **Why this architecture:**
 
-A single ALB with host-based routing serves three applications from one load balancer, avoiding the cost of three separate ALBs (~$16/month each). ECS Fargate eliminates EC2 management overhead — no patching, no capacity planning, no idle costs. The sidecar database pattern avoids RDS charges while keeping each application's data co-located with its backend. Terraform codifies the entire stack, and GitHub Actions OIDC removes the need for stored AWS credentials.
+Three independent Lambda functions replace a shared ECS cluster — isolating blast radius per application and eliminating always-on compute costs. CloudFront serves as the single entry point for each domain: static assets from S3 with aggressive caching, API traffic proxied to Lambda. Aurora Serverless v2 replaces sidecar database containers, providing managed backups, high availability, and near-zero idle costs. Terraform codifies the entire stack, and GitHub Actions OIDC removes the need for stored AWS credentials.
 
 **Key tradeoffs:**
 
 | Decision | Benefit | Cost |
 |----------|---------|------|
-| Single ALB for 3 applications vs. one ALB per app | ~$32/month savings (2 fewer ALBs). Simpler DNS — all domains point to one endpoint. Single WAF attachment covers everything. | Shared blast radius — ALB misconfiguration or limit exhaustion affects all three apps. Listener rule management grows with each new app. |
-| ECS Fargate vs. EC2-backed ECS | No server management, exact resource billing, automatic security patching of the underlying host. | Higher per-unit cost than reserved EC2 instances for sustained workloads. No SSH access for debugging — must rely on CloudWatch logs and exec. |
-| Sidecar databases vs. RDS | Eliminates ~$30+/month in RDS costs. Simpler deployment — database is part of the task definition. | No managed backups, no failover, no point-in-time recovery. Database restarts with the task. Acceptable for demonstration projects with seeded data. |
+| Lambda per application vs. shared ECS cluster | Isolated blast radius — one Lambda's cold start or failure does not affect others. No always-on compute costs (~$63/month total vs. ~$200/month ECS Fargate). | Cold starts on first request after idle. Mitigated by EventBridge 4-minute warming rules. |
+| Aurora Serverless v2 vs. sidecar database containers | Managed backups, automated patching, point-in-time recovery, multi-AZ failover. Near-zero idle cost (0.5 ACU minimum). | Cannot trivially inspect database without VPC bastion or tunneling. Initial connection cold start ~2–3s after long idle. |
+| CloudFront + S3 vs. Nginx on ECS | Zero server management for static content. Global CDN edge caching. Security headers via response headers policy. S3 costs far less than always-on Nginx containers. | Cache invalidation required on every frontend deploy. |
+| Lambda via API Gateway vs. ALB + ECS | No load balancer cost (~$16/month each, ~$48/month for 3). Lambda scales to zero when idle. | Lambda concurrency limits and 15-minute max duration apply. Streaming responses require response streaming configuration. |
 | GitHub Actions OIDC vs. stored IAM access keys | No long-lived credentials to rotate or leak. Token scoped to specific repo and branch. | Slightly more complex IAM trust policy. Debugging OIDC failures is less intuitive than key-based auth. |
-| Single VPC with public subnets only vs. public/private subnet layout | Simpler networking, fewer NAT Gateway costs ($32+/month). All containers get public IPs. | ECS tasks are directly reachable if security groups are misconfigured. A private subnet + NAT Gateway would add defense-in-depth. Mitigated by restricting ECS SG ingress to ALB SG only. |
 | 7-day CloudWatch log retention vs. longer | Low storage cost. | Limited historical debugging. Acceptable for a portfolio site — production systems would use 30–90 days or archive to S3. |
-| Geo-blocking non-US traffic via WAF | Reduces attack surface from regions without expected users. | Blocks legitimate international visitors (recruiters, peers). Can be toggled off if needed. |
 | Terraform remote state in eu-west-2 vs. us-east-1 | Separates state from application infrastructure. Reduces risk of accidental deletion when working in us-east-1. | Cross-region latency on `terraform plan/apply` (minimal in practice). |

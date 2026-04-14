@@ -1,6 +1,6 @@
 # API Documentation
 
-> **Platform**: Multi-application portfolio deployed on **AWS ECS Fargate** behind a single **Application Load Balancer** with **WAF**, **ACM TLS**, and **Route53** DNS routing.
+> **Platform**: Multi-application portfolio deployed on **AWS Lambda** + **API Gateway** + **CloudFront** with **WAF**, **ACM TLS**, **Aurora Serverless v2**, and **Route53** DNS routing.
 
 ---
 
@@ -19,25 +19,26 @@
 
 | Component | Detail |
 |---|---|
-| **Compute** | AWS ECS Fargate (serverless containers) |
-| **Load Balancer** | Application Load Balancer (HTTPS/443, HTTP/80 → 301 redirect) |
+| **Compute** | AWS Lambda (Java 21, SnapStart) + Spring Boot 3.5.13 |
+| **API Gateway** | REST API Gateway (regional) per application |
+| **CDN / Entry Point** | CloudFront distribution per application (with WAF) |
 | **TLS** | ACM certificate — `clarkfoster.com`, `www.`, `shop.`, `ats.` SANs |
-| **DNS** | Route53 Alias records → ALB |
-| **WAF** | AWS WAF v2 — rate limiting, AWS managed rulesets, geo-restriction |
-| **Secrets** | AWS Secrets Manager (JWT keys, admin credentials, SMTP credentials) |
-| **Logging** | CloudWatch Logs (7-day retention), Container Insights |
-| **Container Registry** | ECR with scan-on-push, lifecycle policy (keep last 10 images) |
+| **DNS** | Route53 Alias records → CloudFront distributions |
+| **WAF** | AWS WAF v2 (CloudFront-attached) — rate limiting, AWS managed rulesets, geo-restriction |
+| **Secrets** | AWS Secrets Manager (database credentials, Aurora-managed); JWT/admin/SMTP credentials via Terraform variables → Lambda env vars |
+| **Logging** | CloudWatch Logs (7-day retention) — Lambda function logs + API Gateway access logs |
+| **Database** | Aurora Serverless v2 (PostgreSQL 15.17, 0.5–4 ACU) — 1 shared cluster, 3 databases (portfolio, ecommerce, ats) |
 
 ### Domain Routing
 
-| Host | Path | Target Service | Port |
+| Host | Path | Target | Integration |
 |---|---|---|---|
-| `clarkfoster.com` / `www.clarkfoster.com` | `/api/*` | Portfolio Backend | 8080 |
-| `clarkfoster.com` / `www.clarkfoster.com` | `/*` | Portfolio Frontend | 80 |
-| `shop.clarkfoster.com` | `/api/*` | E-Commerce Backend | 8080 |
-| `shop.clarkfoster.com` | `/*` | E-Commerce Frontend | 80 |
-| `ats.clarkfoster.com` | `/api/*` | ATS Backend | 8080 |
-| `ats.clarkfoster.com` | `/*` | ATS Frontend | 80 |
+| `clarkfoster.com` / `www.clarkfoster.com` | `/api/*` | Portfolio Backend | CloudFront → API Gateway → Lambda proxy |
+| `clarkfoster.com` / `www.clarkfoster.com` | `/*` | Portfolio Frontend | CloudFront → S3 origin |
+| `shop.clarkfoster.com` | `/api/*` | E-Commerce Backend | CloudFront → API Gateway → Lambda proxy |
+| `shop.clarkfoster.com` | `/*` | E-Commerce Frontend | CloudFront → S3 origin |
+| `ats.clarkfoster.com` | `/api/*` | ATS Backend | CloudFront → API Gateway → Lambda proxy |
+| `ats.clarkfoster.com` | `/*` | ATS Frontend | CloudFront → S3 origin |
 
 ---
 
@@ -86,7 +87,7 @@ Content-Security-Policy: [strict per-app policy]
 ## 1 — Portfolio API
 
 **Base URL**: `https://clarkfoster.com/api`
-**Framework**: Spring Boot 4.0.4 · Java 25
+**Framework**: Spring Boot 3.5.13 · Java 21
 **Database**: PostgreSQL (prod) / H2 (dev)
 **Auth**: JWT via HTTP-only cookies (`access_token`, `refresh_token`)
 
@@ -239,7 +240,7 @@ Content-Security-Policy: [strict per-app policy]
     "imageUrl": "https://example.com/image.jpg",
     "githubUrl": "https://github.com/user/project",
     "demoUrl": "https://shop.clarkfoster.com",
-    "technologies": ["Angular", "Spring Boot", "MySQL"],
+    "technologies": ["Angular", "Spring Boot", "PostgreSQL"],
     "startDate": "2025-01-15",
     "endDate": "2025-06-30",
     "featured": true
@@ -473,8 +474,8 @@ These endpoints return `"status": "coming-soon"` and do not perform real operati
 ## 2 — E-Commerce API
 
 **Base URL**: `https://shop.clarkfoster.com/api`
-**Framework**: Spring Boot 4.0.4 · Java 25
-**Database**: MySQL 8.0 (sidecar container)
+**Framework**: Spring Boot 3.5.13 · Java 21
+**Database**: PostgreSQL 15.17 (Aurora Serverless v2)
 **Auth**: JWT via HTTP-only cookie (`ecommerce_jwt`)
 
 ### 2.1 Authentication
@@ -903,8 +904,8 @@ All catalog endpoints are **auto-generated** by Spring Data REST. Write operatio
 ## 3 — ATS (Applicant Tracking System) API
 
 **Base URL**: `https://ats.clarkfoster.com/api`
-**Framework**: Spring Boot 4.0.4 · Java 25
-**Database**: PostgreSQL 16 (sidecar container)
+**Framework**: Spring Boot 3.5.13 · Java 21
+**Database**: PostgreSQL 15.17 (Aurora Serverless v2)
 **Auth**: **None** (demo application — all endpoints are public)
 
 > **Note**: This is a demonstration application. All endpoints are publicly accessible with no authentication.

@@ -44,7 +44,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     {
       icon: '☁️',
       title: 'Cloud Infrastructure',
-      skills: ['AWS S3', 'Route 53', 'ECS/Fargate', 'CloudWatch', 'EC2', 'Lambda', 'Step Functions', 'Terraform', 'ALB', 'ACM', 'ECR']
+      skills: ['AWS Lambda', 'Aurora Serverless', 'CloudFront', 'API Gateway', 'S3', 'WAF', 'Route 53', 'ACM', 'CloudWatch', 'Terraform', 'EC2']
     },
     {
       icon: '🔧',

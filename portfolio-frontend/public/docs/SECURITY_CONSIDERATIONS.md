@@ -1,7 +1,7 @@
 # Security Considerations
 
 **Author:** Clark Foster
-**Last Updated:** March 2026
+**Last Updated:** April 2026
 
 ---
 
@@ -63,17 +63,17 @@ All projects use Spring Security's `BCryptPasswordEncoder` (work factor 10). BCr
 
 | Environment | Mechanism |
 |-------------|-----------|
-| Production (AWS) | AWS Secrets Manager — secrets injected into ECS task definitions at runtime |
+| Production (AWS) | AWS Secrets Manager for database credentials (Aurora-managed rotation); JWT keys, admin credentials, and SMTP credentials are Terraform variables injected as Lambda environment variables |
 | Local development | Environment variables via `docker-compose.yml` |
 
-Managed secrets include JWT signing keys, admin credentials, and SMTP credentials. Rotation scripts generate cryptographically random values via `openssl rand -base64 64` and update Secrets Manager in place.
+Only database credentials remain in AWS Secrets Manager (managed automatically by Aurora). JWT signing keys, admin credentials, and SMTP credentials are defined as Terraform variables and injected directly into Lambda function environment variables at deployment time.
 
 No secrets are committed to version control. The CI pipeline runs TruffleHog secret scanning on every push.
 
 ### 2.3 Transport Encryption
 
-- **TLS termination** at the Application Load Balancer using an ACM-managed wildcard certificate (`*.clarkfoster.com`) with automatic renewal.
-- **HSTS** enforced via Nginx with a 1-year `max-age`, `includeSubDomains`, and `preload` directives.
+- **TLS termination** at CloudFront edge locations using an ACM-managed wildcard certificate (`*.clarkfoster.com`) with automatic renewal.
+- **HSTS** enforced via CloudFront response headers policies with a 1-year `max-age`, `includeSubDomains`, and `preload` directives.
 
 ### 2.4 Sensitive Data Handling
 
@@ -118,7 +118,7 @@ Rate limiting is enforced at two layers:
 
 The rate-limit key combines the client IP and username, preventing both credential stuffing and distributed brute-force attacks against a single account.
 
-**Reverse proxy layer (Nginx):**
+**Reverse proxy layer (Nginx — local development only):**
 
 | Zone | Rate | Burst |
 |------|------|-------|
@@ -131,7 +131,7 @@ The Portfolio backend uses Spring Security's `CookieCsrfTokenRepository`. The `X
 
 ### 3.4 Security Headers
 
-All Nginx reverse proxies set the following response headers:
+CloudFront response headers policies (production) and Nginx (local development only) set the following response headers:
 
 ```
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
@@ -150,14 +150,14 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 | OWASP Top 10 (2021) | Mitigation |
 |----------------------|------------|
 | **A01 — Broken Access Control** | Role-based endpoint restrictions via Spring Security filter chains; Angular route guards enforce client-side access boundaries; `X-Frame-Options: DENY` prevents clickjacking; `frame-ancestors 'none'` in CSP |
-| **A02 — Cryptographic Failures** | BCrypt password hashing; TLS in transit (ACM + HSTS); secrets stored in AWS Secrets Manager, never in source; credit card numbers truncated before storage |
+| **A02 — Cryptographic Failures** | BCrypt password hashing; TLS in transit via CloudFront (ACM + HSTS); secrets stored in AWS Secrets Manager, never in source; credit card numbers truncated before storage |
 | **A03 — Injection** | All database access via Spring Data JPA with parameterized `@Query` methods — no string concatenation in SQL; Angular's built-in DOM sanitizer escapes template bindings |
 | **A04 — Insecure Design** | Refresh token rotation with session limits; short-lived access tokens (15 min); defense-in-depth with rate limiting at both application and proxy layers |
-| **A05 — Security Misconfiguration** | Infrastructure defined as code (Terraform); explicit CORS allowlists; restrictive CSP; security headers enforced at the Nginx layer; no default credentials |
+| **A05 — Security Misconfiguration** | Infrastructure defined as code (Terraform); explicit CORS allowlists; restrictive CSP; security headers enforced at the CloudFront layer (production) and Nginx (local development only); no default credentials |
 | **A06 — Vulnerable Components** | CI pipeline runs `npm audit` (moderate+), Maven dependency-check (CVSS ≥ 7), and Trivy container image scanning (Critical/High); SonarCloud continuous analysis across all six source modules |
 | **A07 — Auth & Session Failures** | HTTP-only/Secure/SameSite cookies; CSRF tokens on state-changing requests; automatic token refresh with silent re-authentication; brute-force lockout after 5 failed attempts |
-| **A08 — Software & Data Integrity** | GitHub Actions deployment via OIDC federation (no long-lived AWS credentials); CI/CD pipeline enforces build-test-scan-deploy sequence; multi-stage Docker builds (no build tools in runtime images) |
-| **A09 — Logging & Monitoring** | CloudWatch log groups for all ECS services (7-day retention); refresh token audit metadata (IP, user agent) for session forensics |
+| **A08 — Software & Data Integrity** | GitHub Actions deployment via OIDC federation (no long-lived AWS credentials); CI/CD pipeline enforces build-test-scan-deploy sequence; maven-shade-plugin produces deployable Lambda JARs from verified Maven builds |
+| **A09 — Logging & Monitoring** | CloudWatch log groups for all Lambda functions and API Gateways (7-day retention); refresh token audit metadata (IP, user agent) for session forensics |
 | **A10 — SSRF** | No user-supplied URLs are fetched server-side; `connect-src 'self'` in CSP restricts frontend outbound requests to the origin |
 
 ---
@@ -166,23 +166,23 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 
 ### 5.1 Network Architecture
 
-- **VPC isolation** — all services run in a dedicated VPC (`10.0.0.0/16`) with public and private subnets.
-- **ALB ingress** — the Application Load Balancer is the sole public entry point; backend services are not directly internet-facing.
-- **AWS WAF** — geo-restriction rules and managed rule sets attached to the ALB.
+- **VPC isolation** — all backend services (Lambda functions, Aurora clusters) run in a dedicated VPC (`10.0.0.0/16`) with private subnets only.
+- **CloudFront + API Gateway ingress** — CloudFront is the sole public entry point for all traffic; Lambda functions are not directly internet-facing.
+- **AWS WAF** — attached to the CloudFront distribution (us-east-1) with geo-restriction rules and managed rule sets applied globally at edge before traffic reaches origin.
 
 ### 5.2 IAM & Deployment
 
 - **GitHub Actions OIDC** — CI/CD authenticates to AWS using short-lived OIDC tokens scoped to `refs/heads/main` and pull requests. No static access keys exist.
-- **Least-privilege task roles** — ECS tasks assume IAM roles limited to Secrets Manager read, ECR pull, and CloudWatch log write.
+- **Least-privilege function roles** — Lambda functions assume IAM roles limited to Secrets Manager read, Aurora database access (via Secrets Manager), and CloudWatch log write.
 
-### 5.3 Container Security
+### 5.3 Dependency & Artifact Security
 
-- **Multi-stage builds** — all Dockerfiles separate the build stage (Maven/Node) from the runtime stage (JRE Alpine / Nginx Alpine), ensuring compilers and source code are excluded from production images.
-- **Trivy scanning** — container images are scanned for Critical and High CVEs in CI before deployment.
+- **Lambda JARs** — backends are packaged as uber JARs via maven-shade-plugin. No unnecessary build tools are included. Dockerfiles are used only for local development environments (no ECS, no sidecar containers in production).
+- **Trivy scanning** — container images (local dev) and Maven dependencies are scanned for Critical and High CVEs in CI before deployment.
 
 ### 5.4 Secrets Rotation
 
-Dedicated shell scripts (`rotate-all-secrets.sh`, `setup-jwt-secret.sh`) automate secret generation and rotation via AWS Secrets Manager. JWT signing keys are 64-byte random values generated with `openssl rand`.
+Dedicated shell scripts (`rotate-all-secrets.sh`, `setup-jwt-secret.sh`) automate secret generation and rotation. Database credentials are managed by Aurora's built-in secret rotation via Secrets Manager. JWT signing keys and other application secrets are defined as Terraform variables and updated through Terraform apply.
 
 ---
 
@@ -192,7 +192,7 @@ Dedicated shell scripts (`rotate-all-secrets.sh`, `setup-jwt-secret.sh`) automat
 |---------|-----------|------------|-----|
 | Authentication | JWT + refresh token rotation | JWT (1-hour, single token) | None (public demo) |
 | CSRF protection | Cookie-based XSRF token | Disabled (stateless API) | N/A |
-| Rate limiting | Application + Nginx | Nginx only | Nginx only |
+| Rate limiting | Application + CloudFront WAF | CloudFront WAF only | CloudFront WAF only |
 | Input validation | Jakarta Bean Validation | Jakarta Bean Validation | Jakarta Bean Validation |
 | Secrets management | AWS Secrets Manager | AWS Secrets Manager | Environment variables |
 | Security scanning | Trivy + TruffleHog + SonarCloud | Trivy + TruffleHog + SonarCloud | Trivy + TruffleHog + SonarCloud |

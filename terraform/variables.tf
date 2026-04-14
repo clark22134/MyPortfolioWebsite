@@ -28,40 +28,10 @@ variable "public_subnets" {
   default     = ["10.0.1.0/24", "10.0.2.0/24"]
 }
 
-variable "backend_port" {
-  description = "Backend application port"
-  type        = number
-  default     = 8080
-}
-
-variable "frontend_port" {
-  description = "Frontend application port"
-  type        = number
-  default     = 80
-}
-
-variable "backend_cpu" {
-  description = "CPU units for backend container (256, 512, 1024, 2048, 4096)"
-  type        = number
-  default     = 512
-}
-
-variable "backend_memory" {
-  description = "Memory for backend container in MB (512, 1024, 2048, 4096, 8192)"
-  type        = number
-  default     = 1024
-}
-
-variable "frontend_cpu" {
-  description = "CPU units for frontend container"
-  type        = number
-  default     = 256
-}
-
-variable "frontend_memory" {
-  description = "Memory for frontend container in MB"
-  type        = number
-  default     = 512
+variable "private_subnets" {
+  description = "List of private subnet CIDR blocks for Lambda and Aurora"
+  type        = list(string)
+  default     = ["10.0.10.0/24", "10.0.11.0/24"]
 }
 
 variable "github_repository" {
@@ -70,52 +40,33 @@ variable "github_repository" {
   default     = "clark22134/MyPortfolioWebsite"
 }
 
-# ATS ECS sizing
-variable "ats_backend_cpu" {
-  description = "CPU units for ATS backend container (includes PostgreSQL sidecar)"
-  type        = number
-  default     = 512
+# SES SMTP credentials for contact form email
+variable "ses_smtp_username" {
+  description = "SES SMTP username (IAM access key ID)"
+  type        = string
+  sensitive   = true
 }
 
-variable "ats_backend_memory" {
-  description = "Memory for ATS backend container in MB (includes PostgreSQL sidecar)"
-  type        = number
-  default     = 1024
+variable "ses_smtp_password" {
+  description = "SES SMTP password (derived from IAM secret access key)"
+  type        = string
+  sensitive   = true
 }
 
-variable "ats_frontend_cpu" {
-  description = "CPU units for ATS frontend container"
-  type        = number
-  default     = 256
+variable "ecommerce_jwt_secret" {
+  description = "Base64-encoded JWT secret for ecommerce backend"
+  type        = string
+  sensitive   = true
 }
 
-variable "ats_frontend_memory" {
-  description = "Memory for ATS frontend container in MB"
-  type        = number
-  default     = 512
+variable "portfolio_jwt_secret" {
+  description = "JWT secret for portfolio backend"
+  type        = string
+  sensitive   = true
 }
 
-# E-Commerce ECS sizing
-variable "ecommerce_backend_cpu" {
-  description = "CPU units for e-commerce backend container"
-  type        = number
-  default     = 512
-}
-
-variable "ecommerce_backend_memory" {
-  description = "Memory for e-commerce backend container in MB (includes MySQL sidecar)"
-  type        = number
-  default     = 2048
-}
-
-variable "ecommerce_frontend_cpu" {
-  description = "CPU units for e-commerce frontend container"
-  type        = number
-  default     = 256
-}
-
-variable "ecommerce_frontend_memory" {
-  description = "Memory for e-commerce frontend container in MB"
-  type        = number
-  default     = 512
+variable "admin_password" {
+  description = "Admin user password for portfolio backend"
+  type        = string
+  sensitive   = true
 }

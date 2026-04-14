@@ -2,8 +2,8 @@
 @if (showVideoIntro()) {
 	<div class="video-intro-overlay">
 		<video #introVideo class="intro-video" autoplay muted playsinline
-			(ended)="onVideoEnded()" (click)="togglePlayback(introVideo)">
-			<source src="grok-video.mp4" type="video/mp4">
+			(ended)="onVideoEnded()" (click)="togglePlayback(introVideo)"
+			[src]="videoSrc()">
 		</video>
 		@if (videoPaused()) {
 			<button class="play-video-btn" (click)="togglePlayback(introVideo)" aria-label="Play intro video">

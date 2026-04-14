@@ -2,6 +2,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { CurrencyPipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { CartService } from '../../services/cart.service';
 import { ShopFormService } from '../../services/shop-form.service';
 import { ShopValidators } from '../../validators/shop-validators';
@@ -86,24 +87,52 @@ export class CheckoutComponent implements OnInit {
     this.cartService.totalQuantity.subscribe(data => this.totalQuantity = data);
     this.cartService.computeCartTotals();
 
-    this.shopFormService.getCountries().subscribe(data => this.countries = data);
+    const countries$ = this.shopFormService.getCountries();
+    countries$.subscribe(data => this.countries = data);
 
     this.shopFormService.getCreditCardYears().subscribe(data => this.creditCardYears = data);
 
     const startMonth = new Date().getMonth() + 1;
     this.shopFormService.getCreditCardMonths(startMonth).subscribe(data => this.creditCardMonths = data);
 
-    // If logged in, fetch profile and pre-fill customer info
+    // If logged in, fetch profile and pre-fill customer info + auto-apply saved addresses
     if (this.isLoggedIn) {
-      this.authService.getProfile().subscribe({
-        next: (profile) => {
+      const profile$ = this.authService.getProfile();
+
+      forkJoin([countries$, profile$]).subscribe({
+        next: ([countries, profile]) => {
+          this.countries = countries;
           this.customerProfile = profile;
+
           // Pre-fill customer name + email
           this.checkoutFormGroup.get('customer')?.patchValue({
             firstName: profile.firstName,
             lastName: profile.lastName,
             email: profile.email,
           });
+
+          // Auto-apply saved shipping address
+          if (profile.defaultShippingAddress) {
+            this.useSavedShipping.set(true);
+            this.fillAddressGroup('shippingAddress', profile.defaultShippingAddress);
+          }
+
+          // Auto-apply saved billing address
+          if (profile.defaultBillingAddress) {
+            this.useSavedBilling.set(true);
+            this.fillAddressGroup('billingAddress', profile.defaultBillingAddress);
+          }
+
+          // Auto-apply saved card info
+          if (profile.cardType && profile.nameOnCard) {
+            this.useSavedCard.set(true);
+            this.checkoutFormGroup.get('creditCard')?.patchValue({
+              cardType: profile.cardType ?? '',
+              nameOnCard: profile.nameOnCard ?? '',
+              expirationMonth: profile.cardExpirationMonth ?? '',
+              expirationYear: profile.cardExpirationYear ?? '',
+            });
+          }
         },
         error: () => {
           // Session expired but localStorage was stale — clear auth state and let user fill manually

@@ -3,15 +3,21 @@ variable "environment" {
   type        = string
 }
 
-variable "alb_arn" {
-  description = "ARN of the Application Load Balancer"
-  type        = string
+# CloudFront WAF must be in us-east-1 region
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.31"
+      configuration_aliases = [aws.us_east_1]
+    }
+  }
 }
 
-# WAF Web ACL for DDoS protection, rate limiting, and geo-restriction
-resource "aws_wafv2_web_acl" "main" {
-  name  = "${var.environment}-portfolio-waf"
-  scope = "REGIONAL"
+resource "aws_wafv2_web_acl" "cloudfront" {
+  provider = aws.us_east_1
+  name     = "${var.environment}-cloudfront-waf"
+  scope    = "CLOUDFRONT"
 
   default_action {
     allow {}
@@ -35,13 +41,12 @@ resource "aws_wafv2_web_acl" "main" {
 
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "${var.environment}-rate-limit-general"
+      metric_name                = "${var.environment}-cf-rate-limit-general"
       sampled_requests_enabled   = true
     }
   }
 
-  # Rule 2: Strict rate limit on login/register endpoints only - 20 requests per 5 minutes
-  # Scoped to only login and register to prevent brute force; profile/logout are excluded
+  # Rule 2: Strict rate limit on auth endpoints - 20 requests per 5 minutes
   rule {
     name     = "rate-limit-auth"
     priority = 2
@@ -94,12 +99,12 @@ resource "aws_wafv2_web_acl" "main" {
 
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "${var.environment}-rate-limit-auth"
+      metric_name                = "${var.environment}-cf-rate-limit-auth"
       sampled_requests_enabled   = true
     }
   }
 
-  # Rule 3: AWS Managed Rules - Common Rule Set (protection against common attacks)
+  # Rule 3: AWS Managed Rules - Core Rule Set (protects against common threats)
   rule {
     name     = "aws-managed-common-rules"
     priority = 3
@@ -110,21 +115,21 @@ resource "aws_wafv2_web_acl" "main" {
 
     statement {
       managed_rule_group_statement {
-        name        = "AWSManagedRulesCommonRuleSet"
         vendor_name = "AWS"
+        name        = "AWSManagedRulesCommonRuleSet"
       }
     }
 
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "${var.environment}-aws-common-rules"
+      metric_name                = "${var.environment}-cf-common-rules"
       sampled_requests_enabled   = true
     }
   }
 
   # Rule 4: AWS Managed Rules - Known Bad Inputs
   rule {
-    name     = "aws-managed-bad-inputs"
+    name     = "aws-managed-known-bad-inputs"
     priority = 4
 
     override_action {
@@ -133,21 +138,21 @@ resource "aws_wafv2_web_acl" "main" {
 
     statement {
       managed_rule_group_statement {
-        name        = "AWSManagedRulesKnownBadInputsRuleSet"
         vendor_name = "AWS"
+        name        = "AWSManagedRulesKnownBadInputsRuleSet"
       }
     }
 
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "${var.environment}-aws-bad-inputs"
+      metric_name                = "${var.environment}-cf-bad-inputs"
       sampled_requests_enabled   = true
     }
   }
 
-  # Rule 5: AWS Managed Rules - SQL Injection Protection
+  # Rule 5: AWS Managed Rules - SQL Injection
   rule {
-    name     = "aws-managed-sqli"
+    name     = "aws-managed-sqli-rules"
     priority = 5
 
     override_action {
@@ -156,68 +161,36 @@ resource "aws_wafv2_web_acl" "main" {
 
     statement {
       managed_rule_group_statement {
-        name        = "AWSManagedRulesSQLiRuleSet"
         vendor_name = "AWS"
+        name        = "AWSManagedRulesSQLiRuleSet"
       }
     }
 
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "${var.environment}-aws-sqli"
-      sampled_requests_enabled   = true
-    }
-  }
-
-  # Rule 6: Geo-restriction - Block non-US traffic (optional, lower priority)
-  rule {
-    name     = "geo-block-non-us"
-    priority = 6
-
-    action {
-      block {}
-    }
-
-    statement {
-      not_statement {
-        statement {
-          geo_match_statement {
-            country_codes = ["US"]
-          }
-        }
-      }
-    }
-
-    visibility_config {
-      cloudwatch_metrics_enabled = true
-      metric_name                = "${var.environment}-geo-block"
+      metric_name                = "${var.environment}-cf-sqli-rules"
       sampled_requests_enabled   = true
     }
   }
 
   visibility_config {
     cloudwatch_metrics_enabled = true
-    metric_name                = "${var.environment}-portfolio-waf"
+    metric_name                = "${var.environment}-cloudfront-waf-metrics"
     sampled_requests_enabled   = true
   }
 
   tags = {
-    Name        = "${var.environment}-portfolio-waf"
+    Name        = "${var.environment}-cloudfront-waf"
     Environment = var.environment
   }
 }
 
-# Associate WAF with ALB
-resource "aws_wafv2_web_acl_association" "main" {
-  resource_arn = var.alb_arn
-  web_acl_arn  = aws_wafv2_web_acl.main.arn
-}
-
 output "web_acl_id" {
-  description = "ID of the WAF Web ACL"
-  value       = aws_wafv2_web_acl.main.id
+  description = "WAF Web ACL ID"
+  value       = aws_wafv2_web_acl.cloudfront.id
 }
 
 output "web_acl_arn" {
-  description = "ARN of the WAF Web ACL"
-  value       = aws_wafv2_web_acl.main.arn
+  description = "WAF Web ACL ARN"
+  value       = aws_wafv2_web_acl.cloudfront.arn
 }

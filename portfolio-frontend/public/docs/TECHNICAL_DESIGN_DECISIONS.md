@@ -1,7 +1,7 @@
 # Technical Design & Decisions
 
 **Author:** Clark Foster
-**Last Updated:** March 2026
+**Last Updated:** April 2026
 
 ---
 
@@ -20,19 +20,19 @@
 
 ## 1. Tech Stack Selection
 
-### 1.1 Backend — Spring Boot 4.0.4 / Java 25
+### 1.1 Backend — Spring Boot 3.5.13 / Java 21
 
 | Criterion | Choice | Alternatives Considered |
 |-----------|--------|------------------------|
-| Language | Java 25 | Kotlin, Go, Node.js (Express/NestJS) |
-| Framework | Spring Boot 4.0.4 | Quarkus, Micronaut, Django, FastAPI |
+| Language | Java 21 | Kotlin, Go, Node.js (Express/NestJS) |
+| Framework | Spring Boot 3.5.13 | Quarkus, Micronaut, Django, FastAPI |
 | Build Tool | Maven 3 | Gradle |
 
 **Why Java + Spring Boot:**
 
 Spring Boot was the deliberate choice here, not the default one. The three applications each have different data access patterns — the portfolio uses Spring Data JPA with a clean entity model, the e-commerce platform leans on Spring Data REST for auto-exposed read-only endpoints (products, categories, countries), and the ATS backend does heavier processing with Apache Tika, PDFBox, and POI for resume parsing. Spring's ecosystem handled all three without introducing additional frameworks.
 
-Java 25 over Kotlin: Kotlin is excellent, but every Spring tutorial, Stack Overflow answer, and debugging resource defaults to Java. For a portfolio that other engineers will read and evaluate, Java reduces friction. Virtual threads (Project Loom) in modern Java also close the async gap that used to favor Kotlin coroutines.
+Java 21 over Kotlin: Kotlin is excellent, but every Spring tutorial, Stack Overflow answer, and debugging resource defaults to Java. For a portfolio that other engineers will read and evaluate, Java reduces friction. Virtual threads (Project Loom) in modern Java also close the async gap that used to favor Kotlin coroutines.
 
 Why not Go: Go would have been faster at startup and lighter on memory, which matters on Fargate billing. But Go's ecosystem for full-stack web applications — ORM tooling, security middleware, mail integration — requires stitching together many libraries. Spring provides all of that out of the box with battle-tested defaults.
 
@@ -62,17 +62,17 @@ Standalone components (no NgModules) keep the bundle lean and the dependency gra
 - **E-Commerce:** Bootstrap 5.3 + ng-bootstrap + FontAwesome. An e-commerce store should look familiar, not novel. Bootstrap's grid, cards, and form components let the product catalog and checkout flow feel conventional. Customers expect this visual language.
 - **ATS:** Angular CDK only. The Kanban pipeline board and candidate modals are custom components. CDK provides the low-level drag-and-drop primitives without imposing Material Design's visual opinions.
 
-### 1.3 Database — PostgreSQL 16 & MySQL 8
+### 1.3 Database — PostgreSQL 15.17
 
 | Project | Database | Why |
 |---------|----------|-----|
-| Portfolio | PostgreSQL | Best default for greenfield projects. JSONB support for flexible project metadata. |
-| E-Commerce | MySQL 8.0 | Demonstrates polyglot persistence. MySQL's read performance with InnoDB suits a catalog-heavy read workload. |
-| ATS | PostgreSQL 16 | Geospatial indexes for candidate/job location matching. PostgreSQL's `earth_distance` and trigonometric functions support the Haversine distance calculation natively. |
+| Portfolio | PostgreSQL 15.17 | Best default for greenfield projects. JSONB support for flexible project metadata. |
+| E-Commerce | PostgreSQL 15.17 | Migrated from MySQL 8 during the Aurora consolidation. PostgreSQL's advanced indexing, CTEs, and JSONB support provide a superset of MySQL's capabilities for a catalog-heavy read workload. |
+| ATS | PostgreSQL 15.17 | Geospatial indexes for candidate/job location matching. PostgreSQL's `earth_distance` and trigonometric functions support the Haversine distance calculation natively. |
 
-**Why not a single database engine:** Running both PostgreSQL and MySQL is a deliberate demonstraion of polyglot data architecture. In production, I'd standardize on one engine to reduce operational overhead. In a portfolio context, it shows comfort with both and an understanding of when each fits.
+**Why PostgreSQL for all three applications:** Standardizing on a single database engine eliminates the operational overhead of maintaining two different engines (PostgreSQL and MySQL) with different backup strategies, monitoring configurations, and upgrade cycles. The e-commerce application was originally on MySQL 8 to demonstrate polyglot persistence, but consolidating onto PostgreSQL enabled a shared Aurora Serverless v2 cluster — reducing costs from three separate clusters to one. PostgreSQL provides a superset of the features both engines were using: JSONB for flexible metadata, advanced indexing, window functions, and CTEs. The migration from MySQL to PostgreSQL required updating column types (`TINYINT(1)` → `BOOLEAN`, `DATETIME` → `TIMESTAMP`), replacing MySQL-specific SQL syntax, and switching the JDBC driver and Hibernate dialect.
 
-**Why not a managed database service (RDS):** Cost. An `db.t3.micro` RDS instance in us-east-1 costs ~$15/month per database. That's $45/month for three databases on a portfolio site with negligible traffic. Running databases as ECS sidecar containers costs $0 in additional compute — they share the backend task's Fargate allocation. The trade-off is no automated backups, no multi-AZ failover, and no point-in-time recovery. For a demo portfolio with seeded data, that's acceptable. For a production system with real customer data, I'd move to RDS without hesitation.
+**Why Aurora Serverless v2 over RDS fixed instances:** Aurora auto-scales from 0.5 to 4 ACU based on load, eliminating idle compute costs. Three `db.t3.micro` RDS instances would cost ~$45/month fixed. A single shared Aurora cluster costs ~$10–15/month at typical portfolio traffic. Aurora also provides automated backups, point-in-time recovery, and encryption at rest — production-grade durability that the previous sidecar container databases lacked.
 
 **Why not DynamoDB:** The e-commerce and ATS data models are inherently relational. Products belong to categories, orders contain order items referencing products and customers, candidates belong to jobs with stage progressions. DynamoDB would require denormalization patterns (single-table design) that add complexity without a clear performance benefit at this scale.
 
@@ -122,7 +122,6 @@ All three applications live in a single repository with independent build paths:
 ├── ats-backend/           (Maven)
 ├── ats-frontend/          (Angular CLI)
 ├── terraform/             (IaC)
-├── ecs-task-definitions/  (Deployment)
 ├── scripts/               (Operations)
 └── docs/                  (Documentation)
 ```
@@ -147,47 +146,58 @@ Jobs and candidates both store `latitude` and `longitude` columns. The Haversine
 
 Indexes on `candidate.job_id`, `candidate.stage`, and `job.status` target the three most common query patterns: listing candidates per job, filtering candidates by pipeline stage, and listing active jobs.
 
-### 3.2 Sidecar Database Pattern
+### 3.2 Aurora Serverless v2 — Shared Cluster Pattern
 
 ```
-ECS Task
-├── Backend Container (Spring Boot) → localhost:3306 / localhost:5432
-└── Database Container (MySQL / PostgreSQL)
+Lambda Function (Spring Boot)
+    ↓ (VPC private subnet)
+Shared Aurora Serverless v2 Cluster
+    PostgreSQL 15.17 • 0.5–4 ACU auto-scaling
+    ├── portfolio   (database)
+    ├── ecommerce   (database)
+    └── ats         (database)
 ```
 
-The backend connects to the database on `localhost` because both containers share the same network namespace within the ECS task. This eliminates the need for service discovery, DNS resolution, or network-level security between the application and its database. The database is not addressable from outside the task.
+All three backends connect to a single shared Aurora Serverless v2 cluster over JDBC within the VPC, each targeting its own database with a separate schema. Aurora auto-scales capacity units based on combined load, scaling as low as 0.5 ACU during idle periods.
 
-**Startup ordering** is handled via ECS container dependencies with health checks. The backend container's `dependsOn` clause waits for the database container to report `HEALTHY` (via `mysqladmin ping` or `pg_isready`) before starting. This replaces Spring's retry-on-connect pattern and avoids the race condition where the application starts before the database accepts connections.
+**Why one shared cluster instead of three:** A single Aurora cluster with three databases is significantly cheaper than three separate clusters. Each cluster carries a minimum 0.5 ACU baseline (~$3–4/month), so three clusters cost ~$10–12/month at idle. One shared cluster costs ~$3–4/month at idle, saving ~$7–8/month. The three applications have staggered and light usage patterns — sharing a cluster pools their combined load without contention.
+
+**Why Aurora over RDS fixed instance:** Aurora Serverless v2 eliminates idle compute costs — the cluster scales as low as 0.5 ACU during off-peak hours. Three fixed `db.t3.micro` RDS instances would cost ~$45/month regardless of traffic. Aurora also provides automated backups, point-in-time recovery, and failover without additional configuration.
+
+**Why not sidecar containers:** The previous architecture ran databases as ECS sidecar containers sharing a task's network namespace. This worked for demo traffic but provided no durability — a task restart would wipe all data. Aurora provides managed storage, encryption at rest, and automated backups: the correct choice when dealing with real user data.
 
 ---
 
 ## 4. Cloud Infrastructure & Deployment
 
-### 4.1 Why AWS ECS Fargate
+### 4.1 Why AWS Lambda (Serverless)
 
-| Criterion | ECS Fargate | EKS (Kubernetes) | EC2 |
-|-----------|------------|-------------------|-----|
-| Operational overhead | Minimal — no cluster nodes to manage | High — control plane, node groups, kubectl | Medium — EC2 instances, AMIs, patching |
-| Cost at low scale | Pay per task per second | ~$73/month for control plane alone | t3.micro free tier, then ~$8/month |
-| Scaling | Auto-scale tasks | Auto-scale pods + nodes | Auto-scaling groups |
-| Deployment complexity | `aws ecs update-service` | Helm charts, kubectl apply | CodeDeploy, custom scripts |
+| Criterion | Lambda + API Gateway | ECS Fargate | EC2 |
+|-----------|---------------------|-------------|-----|
+| Operational overhead | None — no containers, clusters, or task definitions | Minimal — no EC2 nodes | Medium — AMIs, patching, sizing |
+| Idle cost | $0 (pay per request) | ~$60–80/month (6 tasks running 24/7) | ~$8–16/month |
+| Cold start | 1–2s with SnapStart | 120–180s (JVM startup in new task) | N/A — always on |
+| Scaling | Automatic, per-request | Change `desired_count` | Auto Scaling Groups |
+| Deployment | `aws lambda update-function-code` | Register new task def + `update-service` | CodeDeploy / custom |
 
-**Decision:** ECS Fargate was chosen because this workload runs 6 services at 1 replica each. Kubernetes is designed for orchestrating dozens to thousands of services with complex networking, service mesh, and rolling deployment requirements. That's a tool for a different scale. ECS does the job with a fraction of the configuration surface area.
+**Decision:** Lambda with API Gateway was chosen because this workload is a portfolio site with low and spiky traffic. Fargate tasks running 24/7 consumed ~$60–80/month for compute that sat idle >99% of the time. Lambda pays per request — the three backend functions cost ~$2–5/month with free tier. SnapStart (pre-initialized JVM snapshots) reduces Spring Boot cold starts from ~8s to 1–2s, eliminating the main Lambda drawback for Java workloads.
 
-EC2 was ruled out because managing instance patching, AMI updates, and right-sizing would consume more time than the applications themselves. Fargate's per-second billing means I pay for exactly what the containers consume with zero idle capacity.
+**Why not Fargate:** Fargate is the right tool at scale, but not at demo traffic levels. It was the previous architecture, and the overall migration from ECS Fargate to Lambda + Aurora Serverless v2 achieved ~68% total infrastructure cost reduction (~$200/month to ~$63/month).
 
 ### 4.2 Infrastructure as Code — Terraform
 
-The entire infrastructure is defined in Terraform (~800 lines across 6 modules):
+The entire infrastructure is defined in Terraform (~2,190 lines across 8 modules):
 
 | Module | Resources |
 |--------|-----------|
-| `networking` | VPC, 2 public subnets, IGW, route tables |
+| `networking` | VPC, 2 public + 2 private subnets, IGW, NAT Gateway, route tables |
 | `acm` | SSL certificate with DNS validation for 4 domains |
-| `alb` | Application Load Balancer, 6 target groups, listener rules |
-| `ecs` | Fargate cluster, 6 services, 6 task definitions, 8 ECR repos, IAM roles |
-| `route53` | DNS A records for 4 domains aliased to ALB |
-| `waf` | WAFv2 Web ACL with 6 rules attached to ALB |
+| `aurora` | 1 shared Aurora Serverless v2 cluster (3 databases, PostgreSQL 15.17, 0.5–4 ACU) |
+| `lambda` | 3 Lambda functions (Java 21, SnapStart, 2048 MB), IAM execution roles, EventBridge warm-up rules |
+| `api-gateway` | 3 REST API Gateways (regional), Lambda proxy integrations |
+| `cloudfront` | 3 CloudFront distributions, Route 53 DNS records for 4 domains |
+| `cloudfront-waf` | CloudFront WAFv2 Web ACL with 5 rules (us-east-1) |
+| `s3-static` | 3 S3 static hosting buckets |
 
 **Why Terraform over CloudFormation:** Terraform's HCL is more readable than CloudFormation JSON/YAML, has a better plan/apply workflow, and supports multi-cloud if needed. The state is stored in S3 with DynamoDB locking — standard remote backend pattern that supports team collaboration (even though this is a solo project, the pattern is production-correct).
 
@@ -196,46 +206,47 @@ The entire infrastructure is defined in Terraform (~800 lines across 6 modules):
 ### 4.3 CI/CD — GitHub Actions with OIDC
 
 ```
-GitHub Actions → OIDC → AWS STS → Temporary Credentials → ECR Push + ECS Deploy
+GitHub Actions → OIDC → AWS STS → Temporary Credentials → Lambda Update + S3 Sync
 ```
 
 **Why OIDC over IAM access keys:** IAM access keys are long-lived credentials stored as GitHub Secrets. If the repository is compromised, those keys give persistent AWS access until manually rotated. OIDC federation issues temporary credentials (valid for 1 hour) scoped to the specific GitHub repository and branch. No secrets to rotate, no keys to leak.
 
-The IAM policy grants the GitHub Actions role exactly what it needs: ECR push, ECS service updates, Terraform state management, and infrastructure resource access. It cannot create new IAM users, modify billing, or access other AWS accounts.
+The IAM policy grants the GitHub Actions role exactly what it needs: Lambda function updates, S3 deployments, CloudFront invalidations, Terraform state management, and infrastructure resource access. It cannot create new IAM users, modify billing, or access other AWS accounts.
 
-### 4.4 Multi-Stage Docker Builds
+### 4.4 Lambda Packaging — maven-shade-plugin Uber JAR
 
-All six Dockerfiles use multi-stage builds:
+All three backends are packaged as flat uber JARs using `maven-shade-plugin` for Lambda deployment:
 
-```dockerfile
-# Stage 1: Build (discarded)
-FROM maven:3-eclipse-temurin-25 AS build
-COPY . .
-RUN mvn clean package -DskipTests
-
-# Stage 2: Runtime (shipped)
-FROM eclipse-temurin:25-jre-alpine
-COPY --from=build target/*.jar app.jar
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-shade-plugin</artifactId>
+    <version>3.6.0</version>
+    <!-- Produces a flat uber JAR with all classes at the root classpath -->
+    <!-- Lambda's URLClassLoader can load this directly -->
+</plugin>
 ```
 
-**Why multi-stage:** The Maven build image is ~800MB (JDK, Maven, project dependencies). The runtime image is ~150MB (JRE-Alpine only). Shipping the build image would waste ECR storage and increase image pull time on every deployment. Multi-stage builds produce minimal runtime images with only the compiled artifact.
+**Why maven-shade-plugin instead of spring-boot-maven-plugin:** Spring Boot's default packaging nests all classes under `BOOT-INF/classes/`, which Lambda's `URLClassLoader` cannot traverse. The shade plugin produces a flat JAR where `com/portfolio/backend/StreamLambdaHandler.class` is directly at the root — required for Lambda to find and invoke the handler class.
 
-Frontend images follow the same pattern: `node:25-alpine` for the Angular build, `nginx:alpine` for serving the compiled static assets.
+**Lambda handler:** Each backend uses `aws-serverless-java-container-springboot3` to wrap the Spring Boot application context as a `RequestStreamHandler`. The handler class receives API Gateway proxy events and delegates to Spring's `DispatcherServlet`, making the Lambda function behave identically to a running servlet container.
 
-### 4.5 ALB Host-Based Routing
+**Local development:** Docker and multi-stage builds are still used for local development via `docker-compose`. Production deployments use the Lambda JAR exclusively.
 
-A single Application Load Balancer serves all three applications using host-based routing rules:
+### 4.5 CloudFront + API Gateway Routing
 
-| Host | Path | Target |
+Three independent CloudFront distributions serve the three applications, each with two configured origins:
+
+| Host | Path | Origin |
 |------|------|--------|
-| `clarkfoster.com` | `/api/*` | Portfolio Backend (8080) |
-| `clarkfoster.com` | `/*` | Portfolio Frontend (80) |
-| `shop.clarkfoster.com` | `/api/*` | E-Commerce Backend (8080) |
-| `shop.clarkfoster.com` | `/*` | E-Commerce Frontend (80) |
-| `ats.clarkfoster.com` | `/api/*` | ATS Backend (8080) |
-| `ats.clarkfoster.com` | `/*` | ATS Frontend (80) |
+| `clarkfoster.com` | `/api/*` | API Gateway → Portfolio Lambda |
+| `clarkfoster.com` | `/*` | S3 Bucket (Portfolio SPA) |
+| `shop.clarkfoster.com` | `/api/*` | API Gateway → E-Commerce Lambda |
+| `shop.clarkfoster.com` | `/*` | S3 Bucket (E-Commerce SPA) |
+| `ats.clarkfoster.com` | `/api/*` | API Gateway → ATS Lambda |
+| `ats.clarkfoster.com` | `/*` | S3 Bucket (ATS SPA) |
 
-**Why one ALB, not three:** Each ALB costs ~$16/month + data processing charges. Three ALBs would add ~$32/month in fixed costs for zero additional capability. Host-based routing rules are evaluated in priority order with negligible latency impact.
+**Why three CloudFront distributions, not one ALB:** CloudFront provides global edge caching, TLS termination at 400+ POPs worldwide, and DDoS protection via Shield Standard — all at lower cost than an ALB (~$1–2/month per distribution vs. $16–18/month for one ALB). Each distribution has its own WAF Web ACL association, cache policies, and origin configurations.
 
 **Why subdomains, not path-based routing:** `/shop/` and `/ats/` path prefixes would require every frontend route and API endpoint to be prefixed, complicating both the Angular router configuration and the Spring controller mappings. Subdomains keep each application's routing self-contained — `shop.clarkfoster.com/products` is the same path as a standalone deployment of the e-commerce app.
 
@@ -248,7 +259,7 @@ A single Application Load Balancer serves all three applications using host-base
 Security is enforced at five layers:
 
 ```
-Internet → WAF → ALB (HTTPS) → Nginx (security headers) → Spring Security → Application Logic
+Internet → CloudFront WAF → CloudFront (HTTPS) → API Gateway → Spring Security → Application Logic
 ```
 
 **Layer 1 — AWS WAF:**
@@ -257,10 +268,10 @@ Internet → WAF → ALB (HTTPS) → Nginx (security headers) → Spring Securit
 - AWS Managed Rule Sets: OWASP common vulnerabilities, known bad inputs, SQL injection detection
 - Geo-blocking: US-only traffic (appropriate for a personal portfolio — reduces attack surface from automated scanners)
 
-**Layer 2 — ALB + ACM:**
-- All HTTP traffic is 301-redirected to HTTPS at the listener level
+**Layer 2 — CloudFront + ACM:**
+- All HTTP traffic is redirected to HTTPS by CloudFront
 - ACM-managed certificate covers all four domains with automatic renewal
-- HTTP/2 enabled for multiplexed connections
+- HTTP/2 and HTTP/3 (QUIC) enabled at edge locations
 
 **Layer 3 — Nginx Security Headers:**
 All three frontends enforce identical security headers:
@@ -288,20 +299,20 @@ Sensitive configuration is never stored in code, environment files, or Docker im
 
 | Secret | Storage | Injection |
 |--------|---------|-----------|
-| JWT signing key | AWS Secrets Manager | ECS task environment variable |
-| Admin credentials | AWS Secrets Manager | ECS task environment variable |
-| SMTP credentials | AWS Secrets Manager | ECS task environment variable |
-| Database passwords (E-Commerce, ATS) | ECS task definition | Container environment variable |
+| JWT signing key | Terraform variable | Lambda environment variable |
+| Admin password | Terraform variable | Lambda environment variable |
+| SMTP credentials | Terraform variable | Lambda environment variable |
+| Database passwords | AWS Secrets Manager (Aurora-managed) | Lambda environment variable via Secrets Manager ARN |
 
-The ECS task execution role has a scoped IAM policy: `secretsmanager:GetSecretValue` on `arn:aws:secretsmanager:*:*:secret:portfolio/*` only. It cannot read secrets from other applications or AWS accounts.
+**Why Terraform variables over Secrets Manager for most secrets:** JWT signing keys, admin password, and SMTP credentials are injected as Lambda environment variables directly from Terraform variables defined at apply time. This simplifies the architecture — no runtime Secrets Manager API calls, no IAM policies for `secretsmanager:GetSecretValue`, and no cold-start latency from fetching secrets. Only database credentials remain in Secrets Manager because Aurora manages its own master password rotation natively.
 
-Rotation scripts (`scripts/rotate-all-secrets.sh`) generate cryptographically random values (64-byte base64 for JWT, 24-byte base64 for passwords) and force-restart ECS services to pick up the new values.
+The Lambda execution role has a scoped IAM policy for Secrets Manager access limited to `arn:aws:secretsmanager:*:*:secret:rds!*` for Aurora-managed credentials only.
 
 ### 5.3 Network Security
 
-- **ECS Security Group** allows inbound traffic only from the ALB security group on ports 8080 (backend) and 80 (frontend). There is no direct internet access to containers.
-- **Database containers** are not exposed on any port — they communicate with their backend via `localhost` within the shared ECS task network namespace.
-- **Egress** is unrestricted (required for ECR image pulls, Secrets Manager API calls, and outbound SMTP delivery).
+- **Lambda Security Group** allows only outbound connections to the Aurora security group (PostgreSQL port 5432) and HTTPS egress for Secrets Manager / SMTP calls. Inbound traffic arrives exclusively via API Gateway.
+- **Aurora Security Group** allows inbound connections only from the Lambda security group on port 5432.
+- **Private subnets** host all Lambda functions and Aurora clusters; they are unreachable from the public internet.
 
 ---
 
@@ -309,49 +320,40 @@ Rotation scripts (`scripts/rotate-all-secrets.sh`) generate cryptographically ra
 
 ### 6.1 Current State
 
-All services run at `desired_count = 1`. This is a portfolio site, not a production-at-scale system. The infrastructure is designed so that scaling up requires changing a single Terraform variable — not re-architecting.
+All Lambda functions are deployed with `desired_concurrency = unreserved`. This is a portfolio site. Lambda scales automatically from 0 to thousands of concurrent executions per function with no configuration changes required.
 
 ### 6.2 What Scales Without Changes
 
 | Component | Scaling Mechanism | Effort |
 |-----------|------------------|--------|
-| Frontend containers | Increase `desired_count` + ALB distributes across tasks | One variable change |
-| Backend containers | Increase `desired_count` + ALB distributes across tasks | One variable change |
-| ALB | AWS-managed auto-scaling (handles millions of connections) | None |
-| WAF | AWS-managed (no capacity planning required) | None |
-| ECR | Unlimited image storage (lifecycle policies manage cost) | None |
+| Lambda functions | AWS-managed auto-scaling (concurrent executions) | None |
+| S3 + CloudFront | AWS-managed (unlimited objects, global edge) | None |
+| API Gateway | AWS-managed auto-scaling | None |
+| CloudFront WAF | AWS-managed (no capacity planning required) | None |
+| Aurora Serverless v2 | Auto-scales ACU based on load | None |
 
-### 6.3 What Requires Re-Architecture to Scale
+### 6.3 What Requires Planning to Scale
 
 | Component | Current Limitation | Migration Path |
 |-----------|-------------------|----------------|
-| Databases | Sidecar containers — single instance, no replication, data loss on task restart | Migrate to RDS (PostgreSQL) / Aurora (MySQL) for managed replication, backups, and failover |
-| Session state | JWT is stateless (good), but refresh token validation requires DB lookups | Add Redis (ElastiCache) for token blacklisting at scale |
-| File storage | Resume uploads stored on ephemeral container filesystem | Migrate to S3 with pre-signed URLs |
-| Search | SQL `LIKE` queries for product search and candidate matching | Add Elasticsearch/OpenSearch for full-text search |
-| Async processing | Resume parsing is synchronous in the request lifecycle | Add SQS queue + Lambda worker for background processing |
+| Aurora ACU cap | Max 4 ACU (shared cluster) | Raise `max_capacity` in Terraform, or migrate to provisioned Aurora |
+| Lambda concurrency | Default burst limit (3000 initial, +500/min) | Request concurrency increase via AWS support |
+| Session state (in-memory rate limiter) | Per-invocation `ConcurrentHashMap`; independent across concurrent executions | Replace with ElastiCache Redis for distributed rate limiting |
+| File storage | Resume uploads use Lambda `/tmp` (2048 MB per invocation) | Move to S3 with pre-signed upload URLs |
+| Search | SQL `LIKE` queries for product search | Add OpenSearch for full-text product/candidate search |
+| Async processing | Resume parsing is synchronous in the request lifecycle | Add SQS + Lambda consumer for background parsing |
 
-### 6.4 ECS Auto-Scaling (Ready to Enable)
+### 6.4 Lambda Scaling Characteristics
 
-The Fargate services support target-tracking auto-scaling on CPU or memory utilization:
+Lambda scales automatically to match incoming request volume. SnapStart pre-initializes execution environments (Spring context loaded), reducing cold start time from ~8s to 1–2s. EventBridge rules invoke each function every 4 minutes to maintain warm execution environments during low-traffic periods.
 
-```hcl
-resource "aws_appautoscaling_target" "backend" {
-  max_capacity       = 4
-  min_capacity       = 1
-  resource_id        = "service/${cluster}/${service}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
-```
-
-This isn't currently enabled because auto-scaling on a portfolio site would only trigger from bot traffic or a DDoS — both handled by WAF rate limiting instead.
+Concurrency limits can be set per-function if linear cost scaling becomes a concern.
 
 ### 6.5 Deployment Safety
 
-- **Deployment circuit breaker** is enabled on all ECS services with automatic rollback. If a new task fails health checks, ECS rolls back to the previous task definition without manual intervention.
-- **Health check grace period** of 120 seconds gives Spring Boot applications time to start up before the ALB begins sending traffic.
-- **Task definition lifecycle** in Terraform is set to `ignore_changes = [task_definition]` — GitHub Actions manages task definition updates, preventing Terraform from reverting deployments.
+- **Lambda versioning** — each deployment publishes an immutable numbered version (e.g., v42). The `live` alias always points to the current version; rollback is a single alias update to a previous version number.
+- **SnapStart snapshots** — Lambda pre-creates initialized snapshots after each `publish-version` call. If the new version fails its warm-up invocation, the previous snapshot remains the `live` alias target.
+- **CloudFront invalidation** — frontend deployments always invalidate `/*` to ensure users receive the latest SPA build from the nearest edge location.
 
 ---
 
@@ -361,39 +363,33 @@ This isn't currently enabled because auto-scaling on a portfolio site would only
 
 | Resource | Count | Unit Cost | Monthly Cost |
 |----------|-------|-----------|-------------|
-| **ECS Fargate — Backend Tasks** | 3 tasks × 0.25 vCPU | $0.04048/vCPU-hr | ~$22 |
-| **ECS Fargate — Backend Memory** | 3 tasks × (1GB + 2GB + 1GB) | $0.004445/GB-hr | ~$13 |
-| **ECS Fargate — Frontend Tasks** | 3 tasks × 0.25 vCPU | $0.04048/vCPU-hr | ~$22 |
-| **ECS Fargate — Frontend Memory** | 3 tasks × 0.5GB | $0.004445/GB-hr | ~$5 |
-| **Application Load Balancer** | 1 ALB | ~$16.43/month base | ~$16 |
-| **ALB Data Processing** | Minimal traffic | $0.008/LCU-hr | ~$1 |
+| **Lambda** | 3 functions, ~5K req/mo each | First 1M req free + $0.20/M | ~$2–5 |
+| **API Gateway** | 3 REST APIs | First 1M req free + $3.50/M | ~$1–2 |
+| **Aurora Serverless v2** | 1 shared cluster (3 DBs), ~0.5 ACU avg | $0.12/ACU-hr | ~$10–15 |
+| **CloudFront** | 3 distributions | First 1TB transfer free | ~$1–2 |
+| **CloudFront WAF (us-east-1)** | 1 Web ACL + 5 rules | $5 + $1/rule/mo | ~$5–6 |
+| **S3** | 3 buckets, ~15MB each | $0.023/GB/month | ~$0.50 |
 | **Route53 Hosted Zone** | 1 zone | $0.50/month | ~$1 |
-| **Route53 DNS Queries** | Minimal | $0.40/million | <$1 |
 | **ACM Certificate** | 1 cert | Free | $0 |
-| **WAF Web ACL** | 1 ACL + 6 rules | $5 + $6 | ~$11 |
-| **WAF Requests** | Minimal | $0.60/million | <$1 |
-| **ECR Storage** | ~8 images × ~150MB | $0.10/GB/month | <$1 |
-| **CloudWatch Logs** | 7-day retention | $0.50/GB ingested | ~$2 |
-| **Secrets Manager** | 8 secrets | $0.40/secret/month | ~$3 |
-| **S3 (Terraform State)** | <1MB | $0.023/GB/month | <$1 |
-| **DynamoDB (State Lock)** | PAY_PER_REQUEST | ~$0/month at low usage | <$1 |
-| | | **Estimated Total** | **~$95–100/month** |
+| **CloudWatch Logs** | 3 log groups, 7-day retention | $0.50/GB ingested | ~$1–2 |
+| **Secrets Manager** | Aurora-managed DB credentials | $0.40/secret/month | ~$1 |
+| **NAT Gateway** | 1 (single AZ, Lambda VPC egress) | $0.045/hr + data | ~$33 |
+| **S3 + DynamoDB (Terraform State)** | <1MB | Negligible | <$1 |
+| | | **Estimated Total** | **~$63/month** |
+
+**Previous ECS Fargate architecture: ~$200/month. Cost reduction: ~68% (~$137/month saved).**
 
 ### 7.2 Cost Optimization Decisions
 
-**Sidecar databases over RDS: ~$45/month saved.** Three `db.t3.micro` RDS instances would cost ~$15/month each. Sidecar containers use the backend task's existing Fargate allocation. The memory cost is embedded in the backend task's memory reservation (2GB for e-commerce to accommodate MySQL, 1GB for ATS).
+**Lambda over Fargate: ~$55–80/month saved.** Six Fargate tasks running 24/7 cost ~$60–80/month for compute that was idle >99% of the time. Lambda charges only for actual execution time. For a portfolio with demo-level traffic, the pay-per-request model is strictly cheaper.
 
-**Single ALB over three: ~$32/month saved.** Host-based routing handles all three applications on one load balancer.
+**Shared Aurora cluster: ~$7–8/month saved vs. 3 separate clusters.** Three separate Aurora clusters each carry a 0.5 ACU minimum baseline (~$3–4/month each at idle). One shared cluster with three databases pools the workload and carries only one baseline charge.
 
-**7-day CloudWatch log retention: ~$8–10/month saved.** Default retention is indefinite. For a portfolio site, logs older than a week have no debugging value. If I needed long-term log analysis, I'd ship to S3 at $0.023/GB/month instead of paying CloudWatch's $0.50/GB ingestion rate.
+**CloudFront over ALB: ~$14–16/month saved.** One ALB cost ~$16–18/month. Three CloudFront distributions cost ~$1–2/month total, with the added benefit of global edge caching that reduces origin (Lambda) invocations.
 
-**ECR lifecycle policies: storage creep prevented.** Each repository retains only the last 10 images. Without this, every deployment would accumulate ~150MB of images indefinitely.
+**7-day CloudWatch log retention: ~$8–10/month saved.** Default retention is indefinite. For a portfolio site, logs older than a week have no debugging value. Long-term storage uses S3 at $0.023/GB/month if needed.
 
-**No NAT Gateway: ~$32/month saved.** The architecture uses public subnets with direct internet access. A private subnet + NAT Gateway pattern would be more secure (containers not directly addressable), but NAT Gateways cost $0.045/hour (~$32/month) plus data processing charges. Since the ECS security group already restricts inbound traffic to ALB-only, the practical security benefit of a NAT Gateway doesn't justify the cost for this workload.
-
-### 7.3 Cost Scaling Characteristics
-
-Fargate billing is linear: doubling task count doubles compute cost. There are no step-function pricing cliffs. At 2× scale (12 services, 2 replicas each), the estimated cost would be ~$160/month. At the point where cost becomes a concern, the conversation shifts to reserved capacity (Fargate Spot for non-critical workloads, Savings Plans for committed usage).
+**Terraform-injected secrets: ~$2–3/month saved.** Moving JWT keys, admin password, and SMTP credentials from Secrets Manager to Terraform variables reduced per-secret charges. Only Aurora-managed database credentials remain in Secrets Manager.
 
 ---
 
@@ -401,32 +397,26 @@ Fargate billing is linear: doubling task count doubles compute cost. There are n
 
 Every architecture involves trade-offs. Here are the ones I made deliberately:
 
-### 8.1 Sidecar Databases — Simplicity Over Durability
-
-**Trade-off:** Sidecar databases lose data when the ECS task restarts. There are no automated backups, no replication, and no point-in-time recovery.
-
-**Why it's acceptable:** All three databases are seeded with demo data on startup. The portfolio has minimal write state (admin account, projects). The e-commerce and ATS databases are demonstrating schema design and query patterns, not storing real customer data. If this were a production system with real users, I'd migrate to RDS on day one.
-
-### 8.2 Public Subnets — Cost Over Network Isolation
-
-**Trade-off:** Containers run in public subnets. In a private subnet architecture, containers would only be reachable through the ALB, and outbound traffic would route through a NAT Gateway.
-
-**Why it's acceptable:** The ECS security group already restricts inbound access to ALB-originated traffic. The containers are not directly addressable by external clients even in a public subnet. The ~$32/month NAT Gateway cost exceeds the security benefit for a portfolio workload with no sensitive customer data.
-
-### 8.3 Geo-Blocking — Security Over Global Accessibility
+### 8.1 Geo-Blocking — Security Over Global Accessibility
 
 **Trade-off:** WAF blocks all non-US traffic. International recruiters cannot access the site.
 
 **Why it's acceptable:** Reduces automated scanning and bot traffic from known attack-heavy regions. If international access became a requirement, the WAF rule is a single Terraform change to remove. The decision prioritizes reducing noise in logs and WAF metrics over global reach.
 
-### 8.4 Synchronous Resume Parsing — Simplicity Over Throughput
+### 8.2 Synchronous Resume Parsing — Simplicity Over Throughput
 
 **Trade-off:** Resume parsing (Tika + PDFBox + POI) runs synchronously in the HTTP request lifecycle. A large DOCX file blocks the thread for the duration of parsing.
 
 **Why it's acceptable:** The ATS is a demonstration of the parsing pipeline, not a high-volume production system. At the expected usage (single recruiter, tens of resumes), synchronous parsing completes in under 2 seconds. An SQS + Lambda architecture would add operational complexity (dead letter queues, retry policies, eventual consistency) for a problem that doesn't exist at this scale.
 
-### 8.5 Hardcoded Database Credentials — Pragmatic Scoping
+### 8.3 NAT Gateway Cost — Network Security Over Cost
 
-**Trade-off:** E-commerce MySQL and ATS PostgreSQL sidecar credentials are defined in ECS task definitions rather than Secrets Manager.
+**Trade-off:** A single NAT Gateway costs ~$33/month — the largest single line item. This is required for Lambda functions in private subnets to reach external services (Secrets Manager, SMTP, etc.).
 
-**Why it's acceptable but not ideal:** These databases are only reachable via `localhost` within the task — there is no network path to reach them externally. The credentials protect against a threat (unauthorized database access) that the network architecture already prevents. That said, rotating them requires a task definition update and redeployment. For production, I'd move them to Secrets Manager for operational consistency with the portfolio backend's secret management pattern.
+**Why it's acceptable:** Private subnets are the production-correct network architecture. Lambda functions and Aurora clusters are unreachable from the public internet. The NAT Gateway cost is the price of proper network isolation. A single NAT Gateway (one AZ) reduces cost versus two (multi-AZ), accepting reduced availability during an AZ outage — acceptable for a portfolio site.
+
+### 8.4 Shared Aurora Cluster — Cost Over Isolation
+
+**Trade-off:** All three applications share a single Aurora Serverless v2 cluster. A noisy-neighbor scenario (e.g., heavy ATS resume parsing queries) could impact portfolio or e-commerce database performance.
+
+**Why it's acceptable:** At portfolio-level traffic, the three applications collectively use a fraction of the minimum 0.5 ACU capacity. Contention is not a realistic concern. If any application grew to production scale, splitting it to a dedicated cluster is a Terraform variable change and a connection string update.

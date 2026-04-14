@@ -1,4 +1,5 @@
-import { Component, signal, AfterViewInit, ElementRef, viewChild } from '@angular/core';
+import { Component, signal, AfterViewInit, ElementRef, viewChild, computed, inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { RouterOutlet, RouterLink } from '@angular/router';
 import { ProductCategoryMenu } from './components/product-category-menu/product-category-menu.component';
 import { SearchComponent } from './components/search/search.component';
@@ -18,6 +19,15 @@ export class App implements AfterViewInit {
   mobileMenuOpen = signal(false);
   showVideoIntro = signal(true);
   videoPaused = signal(false);
+
+  private platformId = inject(PLATFORM_ID);
+  private isMobile = signal(this.detectMobile());
+  videoSrc = computed(() => this.isMobile() ? 'grok-video.mp4' : 'desktop_intro_video.mp4');
+
+  private detectMobile(): boolean {
+    if (!isPlatformBrowser(this.platformId)) return false;
+    return window.innerWidth < 992;
+  }
 
   private introVideo = viewChild<ElementRef<HTMLVideoElement>>('introVideo');
 

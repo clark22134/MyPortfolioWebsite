@@ -1,5 +1,6 @@
 package com.clarksprojects.ats.controller;
 
+import com.clarksprojects.ats.config.SecurityConfig;
 import com.clarksprojects.ats.dto.CandidateResponse;
 import com.clarksprojects.ats.dto.ParsedResume;
 import com.clarksprojects.ats.entity.PipelineStage;
@@ -8,7 +9,8 @@ import com.clarksprojects.ats.service.CandidateService;
 import com.clarksprojects.ats.service.ResumeParserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -25,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(TalentPoolController.class)
+@Import(SecurityConfig.class)
 @TestPropertySource(properties = "app.upload.resume-dir=${java.io.tmpdir}/ats-test-uploads")
 class TalentPoolControllerTest {
 

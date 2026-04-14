@@ -18,83 +18,64 @@
 
 ### 1.1 Architecture Overview
 
-All three applications — Portfolio (`clarkfoster.com`), E-Commerce (`shop.clarkfoster.com`), and HireFlow ATS (`ats.clarkfoster.com`) — share a common deployment topology: Angular SPA frontends served by Nginx, Spring Boot backends on Java 25, and databases (PostgreSQL or MySQL) running as ECS Fargate sidecar containers. A single Application Load Balancer with host-based routing distributes traffic to all six services.
+All three applications — Portfolio (`clarkfoster.com`), E-Commerce (`shop.clarkfoster.com`), and HireFlow ATS (`ats.clarkfoster.com`) — share a serverless deployment topology: Angular SPA frontends hosted on S3 and served via CloudFront CDN, Spring Boot backends on Java 21 running as AWS Lambda functions behind API Gateway, and Aurora Serverless v2 databases (PostgreSQL 15.17) in private VPC subnets.
 
 ```
-Internet → Route 53 → WAF → ALB (host-based routing)
-                                ├─ clarkfoster.com      → Portfolio  Frontend / Backend
-                                ├─ shop.clarkfoster.com → E-Commerce Frontend / Backend + MySQL sidecar
-                                └─ ats.clarkfoster.com  → ATS        Frontend / Backend + PostgreSQL sidecar
+Internet → Route 53 → CloudFront (with WAF)
+                           ├─ clarkfoster.com      → S3 (SPA) / API Gateway → Lambda → Aurora
+                           ├─ shop.clarkfoster.com → S3 (SPA) / API Gateway → Lambda → Aurora
+                           └─ ats.clarkfoster.com  → S3 (SPA) / API Gateway → Lambda → Aurora
 ```
 
-### 1.2 Horizontal Scaling — ECS Fargate
+### 1.2 Scaling — Lambda + Aurora Serverless v2
 
-Every service runs as a Fargate task with `desired_count = 1`. Scaling any service horizontally requires changing a single Terraform variable — no re-architecture.
+Every backend runs as a Lambda function. Lambda scales automatically from 0 to 1000+ concurrent executions with no configuration change. Aurora Serverless v2 scales from 0.5 to 4 ACU based on database load. All three applications share a single Aurora cluster with three separate databases.
 
-| Component | Current Allocation | Scaling Mechanism |
-|-----------|-------------------|-------------------|
-| Portfolio Backend | 512 CPU / 1024 MB | Increase `desired_count`, ALB distributes |
-| Portfolio Frontend | 256 CPU / 512 MB | Increase `desired_count`, ALB distributes |
-| E-Commerce Backend + MySQL | 512 CPU / 2048 MB | Increase `desired_count`, ALB distributes |
-| E-Commerce Frontend | 256 CPU / 512 MB | Increase `desired_count`, ALB distributes |
-| ATS Backend + PostgreSQL | 512 CPU / 1024 MB | Increase `desired_count`, ALB distributes |
-| ATS Frontend | 256 CPU / 512 MB | Increase `desired_count`, ALB distributes |
+| Component | Current Config | Scaling Mechanism |
+|-----------|---------------|-------------------|
+| Portfolio Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
+| E-Commerce Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
+| ATS Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
+| Portfolio Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
+| E-Commerce Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
+| ATS Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
+| Databases (1 shared Aurora cluster) | Aurora Serverless v2 (0.5–4 ACU) — 3 databases: portfolio, ecommerce, ats | Auto-scales ACU units based on connection/CPU load |
 
-Fargate charges per-second for vCPU and memory. There is no idle cluster capacity to pay for. Scaling from 1 to N replicas is linear in cost with no step-function pricing cliffs.
+Lambda charges per request (first 1M requests/month free, then $0.20 per 1M). There is no always-on compute cost. Scaling to handle a traffic spike is automatic — Lambda provisions additional execution environments concurrently without operator intervention.
 
-**Auto-scaling is not enabled** because the workload is a portfolio with negligible organic traffic. The only load spikes come from bots or scanners — handled by WAF rate limiting rather than auto-scaling to absorb the traffic. The infrastructure is ready for target-tracking auto-scaling when needed:
-
-```hcl
-resource "aws_appautoscaling_target" "backend" {
-  max_capacity       = 4
-  min_capacity       = 1
-  resource_id        = "service/${cluster}/${service}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
-
-resource "aws_appautoscaling_policy" "cpu" {
-  policy_type        = "TargetTrackingScaling"
-  target_tracking_scaling_policy_configuration {
-    target_value       = 70.0
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 60
-  }
-}
-```
+**Cold start mitigation:** SnapStart (enabled on all three functions) reduces Java cold start time from 5–10s to under 2s by snapshotting the initialized JVM checkpoint. Additionally, EventBridge rules trigger a warming invocation every 4 minutes to keep execution environments alive during typical usage patterns.
 
 ### 1.3 Vertically Managed Components
 
 | Component | Scaling Behavior | Operator Effort |
 |-----------|-----------------|-----------------|
-| **ALB** | AWS-managed auto-scaling — handles millions of concurrent connections | None |
+| **CloudFront** | AWS-managed global CDN — handles any traffic volume at 400+ edge POPs | None |
+| **API Gateway** | AWS-managed — auto-scales to 10,000 req/s per region by default | None |
 | **WAF** | AWS-managed — no capacity planning | None |
 | **Route 53** | AWS-managed DNS with 100% SLA | None |
-| **ECR** | Unlimited image storage; lifecycle policies retain last 10 images per repo | None |
+| **S3** | Unlimited object storage; auto-scales for GET throughput (3,500+ req/s per prefix) | None |
 | **CloudWatch Logs** | 7-day retention limits accumulation; ingest scales automatically | None |
 
 ### 1.4 What Requires Re-Architecture to Scale
 
-The sidecar database pattern is the primary scaling constraint. Each database container shares the Fargate task's network namespace with its backend and cannot be independently scaled or replicated.
+The Aurora Serverless v2 max ACU setting (currently 4 ACU on the single shared cluster) is the primary tunable database constraint. File storage, search, and parsing scale paths remain relevant for real production traffic.
 
-| Component | Current Limitation | Migration Path | Trigger Threshold |
-|-----------|-------------------|----------------|-------------------|
-| **Databases** | Single-instance sidecars, ephemeral storage, no replication | RDS (PostgreSQL) / Aurora (MySQL) with read replicas | Real user data, >1 replica needed |
-| **File storage** | Resume uploads on ephemeral container filesystem | S3 with pre-signed URLs | Multi-instance ATS backend |
+| Component | Current Config | Scaling Path | Trigger Threshold |
+|-----------|---------------|--------------|-------------------|
+| **Databases** | Aurora Serverless v2 (0.5–4 ACU) — PostgreSQL 15.17 | Increase max ACU to 16; add Aurora read replica | >500 concurrent DB connections |
+| **File storage** | Resume uploads on Lambda ephemeral `/tmp` (2048 MB) | S3 with pre-signed URLs for direct upload | Multi-instance concurrent uploads |
 | **Search** | SQL `LIKE` for products, regex for candidate skills | OpenSearch / Elasticsearch | >10K products or >5K candidates |
-| **Resume parsing** | Synchronous in HTTP request lifecycle | SQS + Lambda background worker | >50 concurrent uploads |
-| **Rate limiting** | In-memory `ConcurrentHashMap` per instance | Redis (ElastiCache) | >1 backend replica |
+| **Resume parsing** | Synchronous in Lambda invocation | SQS + Lambda background worker | >50 concurrent uploads |
+| **Rate limiting** | In-memory `ConcurrentHashMap` per Lambda instance | Redis (ElastiCache) | >1 Lambda concurrent execution |
+| **Lambda concurrency** | Default 1000 per region (shared across all functions) | Request reserved concurrency increase from AWS | Controlled traffic growth beyond portfolio scale |
 
 ### 1.5 Scaling Characteristics by Project
 
-**Portfolio:** The lightest workload. Stateless read-heavy traffic (project listings, homepage). The only write path is the contact form (SMTP delivery). Scales horizontally with no state coordination — JWT is stateless, access tokens are self-contained. The sole scaling concern is refresh token validation, which hits the database. At multi-instance scale, the H2 embedded database in dev would be replaced by the PostgreSQL production database, and refresh token lookups would need connection pooling tuning.
+**Portfolio:** The lightest workload. Stateless read-heavy traffic (project listings, homepage). The only write path is the contact form (SMTP delivery). Scales horizontally with no state coordination — JWT is stateless, access tokens are self-contained. Refresh token validation hits Aurora Serverless v2 (PostgreSQL 15.17) via a VPC-internal connection. Lambda keeps a warm connection pool via HikariCP initialized at startup; SnapStart preserves this connection pool state in the checkpoint snapshot.
 
-**E-Commerce:** Read-heavy catalog browsing (Spring Data REST auto-exposed endpoints with pagination) with write spikes during checkout. The cart merge logic (guest → authenticated) and order placement are the write-intensive paths. MySQL sits as a sidecar — at scale, this becomes the bottleneck first. Product catalog reads are the prime candidate for caching since the inventory changes infrequently. At multi-replica scale, the local `ConcurrentHashMap`-based state won't exist (E-Commerce doesn't use the rate limiter), but session consistency through JWT makes horizontal scaling straightforward for the application tier.
+**E-Commerce:** Read-heavy catalog browsing (Spring Data REST auto-exposed endpoints with pagination) with write spikes during checkout. The cart merge logic (guest → authenticated) and order placement are the write-intensive paths. Aurora Serverless v2 scales to meet connection demand automatically. Product catalog reads are the prime candidate for caching since the inventory changes infrequently. Session consistency through stateless JWT makes horizontal Lambda scaling straightforward for the application tier.
 
-**ATS (HireFlow):** The most computationally intensive. Resume parsing (Apache Tika → PDFBox/POI → regex skill extraction) is CPU-bound and synchronous. The Haversine distance calculation for candidate-job scoring runs in application code across all eligible candidates. At scale, the parsing pipeline needs to move off the request thread (SQS queue), and the scoring algorithm benefits from pre-computed distance caches or spatial database indexes. The 12 MB upload limit (`client_max_body_size 12m` in Nginx) already constrains per-request memory impact.
+**ATS (HireFlow):** The most computationally intensive. Resume parsing (Apache Tika → PDFBox/POI → regex skill extraction) is CPU-bound and synchronous. The Haversine distance calculation for candidate-job scoring runs in application code across all eligible candidates. Lambda's default 2048 MB memory allocation handles the parsing workload for typical resumes; the function timeout is set to 30 seconds. At scale, the parsing pipeline should move off the synchronous Lambda invocation path (SQS queue), and the scoring algorithm benefits from pre-computed distance caches or spatial database indexes. The 12 MB upload limit in the Nginx local dev config already constrains per-request memory impact; API Gateway enforces a 10 MB payload limit in production.
 
 ---
 
@@ -102,16 +83,16 @@ The sidecar database pattern is the primary scaling constraint. Each database co
 
 ### 2.1 Identified Bottlenecks
 
-#### Bottleneck 1 — Sidecar Databases (All Projects)
+#### Bottleneck 1 — Aurora Cold Start (All Projects)
 
-**Impact:** The database container shares CPU and memory with its backend inside a single Fargate task. Under load, the JVM and database compete for the same 1024–2048 MB allocation. The E-Commerce backend's 2048 MB task accommodates MySQL's memory requirements; the ATS backend's 1024 MB is tighter for PostgreSQL + Spring Boot cohabitation.
+**Impact:** Aurora Serverless v2 may pause when a cluster has been idle for an extended period. The first database connection after a pause incurs a 1–2 second reconnection delay. Under normal portfolio traffic this is rarely observed; under zero-traffic overnight scenarios, the delay affects the first early-morning request.
 
 **Mitigation (current):**
-- Spring JPA `open-in-view=false` on E-Commerce and ATS backends — prevents lazy-loading queries from holding database connections open through the full HTTP response lifecycle
-- `spring.jpa.hibernate.ddl-auto=validate` in production — no schema-altering operations at runtime
-- Health checks (`pg_isready`, `mysqladmin ping`) with a 10-second interval ensure the database is responsive; ECS restarts the task if health checks fail
+- EventBridge warming rules ping all three Lambda functions every 4 minutes, keeping both the Lambda execution environment and the Aurora connection pool alive during normal hours
+- HikariCP connection pool with `connectionTimeout=30000` and `idleTimeout=600000` handles brief Aurora reconnection gracefully
+- SnapStart ensures the Lambda itself doesn't add cold start latency on top of any Aurora reconnection
 
-**Mitigation (at scale):** Migrate to managed RDS/Aurora instances. The sidecar pattern was a deliberate cost decision (~$45/month savings) that trades durability for simplicity at portfolio-level traffic.
+**Mitigation (at scale):** Increase Aurora minimum ACU from 0.5 to 1 or 2; use Aurora Global Database for multi-region read replicas; switch to Aurora Provisioned for predictable high-throughput workloads.
 
 #### Bottleneck 2 — Synchronous Resume Parsing (ATS)
 
@@ -125,7 +106,7 @@ The sidecar database pattern is the primary scaling constraint. Each database co
 **Mitigation (at scale):**
 1. Accept the upload, return `202 Accepted` with a job ID
 2. Enqueue parsing work to SQS
-3. Lambda or ECS worker picks up the message, parses, and writes results to the database
+3. A dedicated Lambda worker picks up the message, parses, and writes results to the database
 4. Frontend polls or uses WebSocket for completion notification
 
 #### Bottleneck 3 — In-Memory Rate Limiting (Portfolio)
@@ -175,9 +156,9 @@ private static final long LOCKOUT_DURATION_SECONDS = 1800;
 
 | Bottleneck | Severity (Current) | Severity (At Scale) | Mitigation Effort |
 |-----------|--------------------|--------------------|-------------------|
-| Sidecar databases | Low — adequate for demo traffic | **Critical** — single point of failure, no replication | Medium — Terraform RDS module + connection string change |
-| Synchronous resume parsing | Low — sub-second for typical files | **High** — thread pool exhaustion under concurrent load | Medium — SQS + Lambda worker pattern |
-| In-memory rate limiting | None — single instance is correct | **High** — bypassed by multi-instance routing | Low — Redis drop-in replacement |
+| Aurora cold start (idle resume) | Low — EventBridge warming mitigates | Low — increase min ACU or use Provisioned | Low — adjust ACU settings |
+| Synchronous resume parsing | Low — sub-second for typical files | **High** — Lambda timeout under concurrent load | Medium — SQS + Lambda worker pattern |
+| In-memory rate limiting | None — WAF handles as primary gate | **High** — bypassed by multi-instance routing | Low — Redis drop-in replacement |
 | SQL LIKE product search | None — 100 products | **Medium** — linear scan at scale | Medium — OpenSearch integration |
 | Haversine scoring | None — small candidate pool | **Medium** — O(n) per request | Low–Medium — PostGIS or pre-computation |
 
@@ -203,9 +184,9 @@ location / {
 
 Angular CLI generates content-hashed filenames for production builds (`main.a1b2c3d4.js`). These files are immutable — the hash changes when content changes. Browsers cache them indefinitely by default (`Cache-Control: public, max-age=31536000` for hashed assets), and a deployment simply generates new filenames. `index.html` is always fetched fresh (no hash in the filename) and references the new asset hashes, ensuring cache busting on deployment.
 
-#### Layer 2 — ALB Connection Reuse
+#### Layer 2 — API Gateway Connection Management
 
-The Application Load Balancer maintains persistent connections to backend targets (HTTP keep-alive). This avoids TCP handshake overhead per request. The ALB also handles HTTP/2 multiplexing on the client side, converting to HTTP/1.1 toward the backend targets where needed.
+API Gateway manages HTTP connections between clients and Lambda functions. Each API Gateway endpoint handles TLS termination, request routing, and throttling. API Gateway supports HTTP/2 on the client side and invokes Lambda functions via the AWS internal invoke API, eliminating traditional connection pooling overhead between the gateway and backend.
 
 #### Layer 3 — JPA Second-Level Cache (Hibernate)
 
@@ -226,34 +207,28 @@ Hibernate's first-level cache (the persistence context) is active by default on 
 When traffic warrants caching, the layered approach below introduces caching progressively without architectural disruption:
 
 ```
-Browser ─→ CloudFront CDN ─→ ALB ─→ Nginx ─→ Spring Boot ─→ Redis ─→ Database
-  (L1)         (L2)                              (L3)          (L4)       (L5)
+Browser ─→ CloudFront CDN ─→ API Gateway ─→ Lambda (Spring Boot) ─→ Redis ─→ Aurora
+  (L1)         (L2)              (L3)              (L4)              (L5)     (L6)
 ```
 
 **Layer 1 — Browser Cache (existing):** Content-hashed static assets. No changes needed.
 
-**Layer 2 — CloudFront CDN (new):** Place CloudFront in front of the ALB. Configure it to cache static asset responses (`/assets/*`, `*.js`, `*.css`, `*.woff2`) at edge locations. API paths (`/api/*`) pass through uncached. This reduces ALB and Nginx load for static content and improves latency for geographically distributed users. Estimated cost: ~$1/month at portfolio-level traffic.
+**Layer 2 — CloudFront CDN (existing):** CloudFront already serves SPA assets from S3 at edge locations. API paths (`/api/*`) route through API Gateway to Lambda. Static content is served directly from CloudFront’s edge cache, reducing latency for geographically distributed users.
 
-**Layer 3 — Nginx Proxy Cache (new):** Enable Nginx's built-in `proxy_cache` for API responses with stable data:
+**Layer 3 — API Gateway Caching (new):** Enable API Gateway’s built-in response caching for stable API responses:
 
-```nginx
-proxy_cache_path /tmp/nginx_cache levels=1:2 keys_zone=api_cache:10m max_size=100m inactive=10m;
-
-location /api/products {
-    proxy_cache api_cache;
-    proxy_cache_valid 200 5m;    # Cache 200 responses for 5 minutes
-    proxy_cache_use_stale error timeout updating;
-    add_header X-Cache-Status $upstream_cache_status;
-}
-```
+- Configure per-stage caching with TTL for read-heavy endpoints (`/api/products`, `/api/projects`)
+- Cache sizes from 0.5 GB to 237 GB available
+- Cache key based on request path, query parameters, and headers
+- Invalidation via `Cache-Control: max-age=0` header or API call
 
 This is effective for the E-Commerce product catalog where the same product list page is fetched by many users within a cache window.
 
 **Layer 4 — Redis Application Cache (new):** Add ElastiCache Redis for:
 - **Product catalog results** — `@Cacheable("products")` on the product service. Invalidate on product updates (event-driven or TTL-based).
 - **Candidate scoring results** — Cache scores keyed by `(jobId, candidateId, scoreVersion)`. Invalidate when candidate data changes.
-- **Rate limiting state** — Replace `ConcurrentHashMap` with Redis `INCR` + `EXPIRE`. Shared across all backend instances.
-- **JWT refresh token blacklist** — On token revocation, write the token ID to Redis with TTL matching the remaining token lifetime. Faster than a database lookup on every refresh.
+- **Rate limiting state** — Replace `ConcurrentHashMap` with Redis `INCR` + `EXPIRE`. Shared across all Lambda execution environments.
+- **JWT refresh token blacklist** — On token revocation, write the token ID to Redis with TTL matching the remaining token lifetime. Faster than an Aurora lookup on every refresh.
 
 ```java
 @Cacheable(value = "products", key = "#categoryId + '-' + #page + '-' + #size")
@@ -265,7 +240,7 @@ public Page<Product> getProductsByCategory(Long categoryId, int page, int size) 
 public Product updateProduct(Long id, ProductDTO dto) { ... }
 ```
 
-**Layer 5 — Database Query Cache (existing, implicit):** PostgreSQL and MySQL both maintain internal query caches and buffer pools. PostgreSQL's `shared_buffers` defaults to 128 MB (adequate for the sidecar workload). MySQL's InnoDB buffer pool defaults to 128 MB. These are tunable but not explicitly configured because the sidecar databases operate within the Fargate task's memory constraint.
+**Layer 5 — Database Query Cache (Aurora-managed):** Aurora PostgreSQL 15.17 maintains internal buffer pools for the shared cluster. The single Aurora Serverless v2 cluster has dedicated compute and memory that scales with ACU allocation; there is no resource contention between the databases and the Lambda functions. Buffer pool size scales proportionally with ACU allocation.
 
 ### 3.4 Cache Invalidation Strategy
 
@@ -293,30 +268,33 @@ The portfolio database has three tables (`users`, `projects`, `refresh_tokens`) 
 
 The low row count (single-digit users, tens of projects) means full table scans are effectively free. No custom indexes are needed at current scale.
 
-#### E-Commerce — MySQL 8.0
+#### E-Commerce — PostgreSQL 15.17 (Aurora Serverless v2)
+
+The E-Commerce database was migrated from MySQL 8.0 to PostgreSQL 15.17 during the Aurora consolidation. It shares the same Aurora Serverless v2 cluster as Portfolio and ATS.
 
 ```sql
 -- Existing indexes (from schema)
-PRIMARY KEY (id)                          -- All tables
-UNIQUE KEY uk_customer_email (email)      -- customer table
-FOREIGN KEY (category_id) → product_category(id)  -- product table
-FOREIGN KEY (customer_id) → customer(id)           -- orders table
-FOREIGN KEY (order_id) → orders(id)                -- order_item table
-FOREIGN KEY (product_id) → product(id)             -- order_item table
+PRIMARY KEY (id)                                              -- All tables
+UNIQUE (email)                                                -- customer table
+FOREIGN KEY (category_id) REFERENCES product_category(id)     -- product table
+FOREIGN KEY (customer_id) REFERENCES customer(id)             -- orders table
+FOREIGN KEY (order_id) REFERENCES orders(id)                  -- order_item table
+FOREIGN KEY (product_id) REFERENCES product(id)               -- order_item table
 ```
 
 **Index gaps identified:**
 
 | Missing Index | Query It Would Optimize | Impact |
 |--------------|------------------------|--------|
-| `(category_id, date_created DESC)` on `product` | Product listing sorted by newest within category | Avoids filesort on category page loads |
-| `(customer_id, date_created DESC)` on `orders` | Order history for a specific customer | Currently scans all orders to find one customer's records |
-| `(status)` on `orders` | Admin order filtering by status | Full scan on status filter at scale |
-| `(product_id, units_in_stock)` on `product` | Stock availability checks | Useful for inventory-aware queries |
+| `CREATE INDEX idx_product_category_date ON product (category_id, date_created DESC)` | Product listing sorted by newest within category | Avoids sort on category page loads |
+| `CREATE INDEX idx_orders_customer_date ON orders (customer_id, date_created DESC)` | Order history for a specific customer | Currently scans all orders to find one customer’s records |
+| `CREATE INDEX idx_orders_status ON orders (status)` | Admin order filtering by status | Full scan on status filter at scale |
+| `CREATE INDEX idx_product_stock ON product (product_id, units_in_stock)` | Stock availability checks | Useful for inventory-aware queries |
+| `CREATE INDEX idx_product_search ON product USING GIN (to_tsvector('english', name))` | Full-text product search | Replaces `LIKE '%keyword%'` with indexed tsvector search |
 
-At 100 rows, these missing indexes have zero measurable impact. At 100K+ orders, the `(customer_id, date_created)` composite index becomes critical for the order history page.
+At 100 rows, these missing indexes have zero measurable impact. At 100K+ orders, the `(customer_id, date_created)` composite index becomes critical for the order history page. PostgreSQL’s GIN indexes enable efficient full-text search as an alternative to the current `LIKE` pattern.
 
-#### ATS — PostgreSQL 16
+#### ATS — PostgreSQL 15.17 (Aurora Serverless v2)
 
 ```sql
 -- Existing indexes (from schema)
@@ -374,26 +352,26 @@ All three backends use HikariCP (Spring Boot's default connection pool), but no 
 
 | Setting | Default Value | Implication |
 |---------|---------------|-------------|
-| `maximumPoolSize` | 10 | Maximum 10 concurrent database connections per backend instance |
+| `maximumPoolSize` | 10 | Maximum 10 concurrent database connections per Lambda execution environment |
 | `minimumIdle` | Same as max (10) | Connection pool stays fully populated even during idle periods |
 | `connectionTimeout` | 30,000 ms | Request waits up to 30 seconds for a connection before failing |
 | `idleTimeout` | 600,000 ms (10 min) | Idle connections are retired after 10 minutes (only if pool > `minimumIdle`) |
 | `maxLifetime` | 1,800,000 ms (30 min) | Connections are recycled after 30 minutes regardless of activity |
 
-**At current scale (1 instance per backend, demo traffic):** The default of 10 connections is adequate — sidecar databases handle concurrent connections easily, and request volume doesn't approach pool exhaustion.
+**At current scale (Lambda with demo traffic):** The default of 10 connections per Lambda execution environment is adequate — the single shared Aurora Serverless v2 cluster handles concurrent connections across all three databases, and request volume doesn’t approach pool exhaustion. SnapStart preserves the initialized HikariCP pool in the JVM checkpoint, so warm invocations reuse established connections.
 
-**At scale:** The pool size should be tuned relative to the database's max connection limit. PostgreSQL defaults to 100 max connections; MySQL's InnoDB defaults to 151. With N backend replicas, the formula is:
+**At scale:** The pool size should be tuned relative to the Aurora cluster’s max connection limit. Aurora Serverless v2 max connections scale with ACU (approximately 90 connections per ACU). With N concurrent Lambda execution environments across all three functions, the formula is:
 
 $$\text{maximumPoolSize} \leq \frac{\text{DB max connections} - \text{reserved connections}}{N}$$
 
-For 4 backend replicas against PostgreSQL (100 max connections, 10 reserved for admin):
+For 20 concurrent Lambda environments against Aurora (4 ACU ≈ 360 max connections, 30 reserved for admin):
 
-$$\text{maximumPoolSize} \leq \frac{100 - 10}{4} = 22$$
+$$\text{maximumPoolSize} \leq \frac{360 - 30}{20} = 16$$
 
 Recommended production configuration:
 
 ```properties
-spring.datasource.hikari.maximum-pool-size=20
+spring.datasource.hikari.maximum-pool-size=16
 spring.datasource.hikari.minimum-idle=5
 spring.datasource.hikari.connection-timeout=20000
 spring.datasource.hikari.idle-timeout=300000
@@ -403,24 +381,23 @@ spring.datasource.hikari.leak-detection-threshold=60000
 
 ### 4.4 Database Engine Considerations
 
-#### PostgreSQL (Portfolio, ATS)
+#### PostgreSQL 15.17 — Shared Aurora Serverless v2 Cluster (All Three Applications)
 
-PostgreSQL's MVCC model favors read-heavy workloads with concurrent writes. Each transaction sees a consistent snapshot without locking readers. This is well-matched to the ATS's pattern of recruiter reads (Kanban board, job listings) concurrent with candidate stage updates (drag-and-drop).
+All three applications (Portfolio, E-Commerce, ATS) run on PostgreSQL 15.17 via a single shared Aurora Serverless v2 cluster with three separate databases. The E-Commerce database was migrated from MySQL 8.0 to PostgreSQL during the Aurora consolidation.
 
-For the ATS's geographic queries, PostgreSQL offers two paths:
+PostgreSQL's MVCC model favors read-heavy workloads with concurrent writes. Each transaction sees a consistent snapshot without locking readers. This is well-matched to the ATS's pattern of recruiter reads (Kanban board, job listings) concurrent with candidate stage updates (drag-and-drop), and the E-Commerce catalog's read-heavy browsing with occasional checkout writes.
+
+**E-Commerce-specific strengths (post-migration from MySQL):**
+- **B-tree index on PK** — product detail pages (`SELECT * FROM product WHERE id = ?`) are efficient single-index lookups
+- **Covering indexes** — `CREATE INDEX ... INCLUDE (name, unit_price)` serves category listing pages from the index alone, without a heap lookup
+- **GIN indexes for full-text search** — `to_tsvector`/`to_tsquery` enables indexed full-text product search, replacing `LIKE '%keyword%'` patterns
+- **Shared buffer cache** — frequently accessed catalog data stays in memory between requests
+
+**ATS-specific strengths (geographic queries):**
 - **Current:** Haversine in application code — simple, testable, adequate at small scale
 - **At scale:** PostGIS extension with `ST_DWithin` and GiST spatial indexes — orders-of-magnitude faster for proximity filtering across large candidate pools
 
-PostgreSQL's `shared_buffers` (default 128 MB) and `effective_cache_size` (default 4 GB, but constrained by Fargate task memory) should be tuned when migrating to RDS. A `db.t3.small` (2 GB RAM) instance would set `shared_buffers = 512 MB` and `effective_cache_size = 1.5 GB`.
-
-#### MySQL 8.0 (E-Commerce)
-
-MySQL's InnoDB engine is optimized for the E-Commerce read pattern: clustered indexes on the primary key mean product lookups by ID are a single B-tree traversal. InnoDB's buffer pool caches both data and indexes in memory — at 128 MB default, the entire 100-product catalog sits in memory after the first read.
-
-For the E-Commerce platform, MySQL's strengths are:
-- **Clustered index on PK** — product detail pages (`SELECT * FROM product WHERE id = ?`) are single-page I/O
-- **Covering indexes** — a composite `(category_id, date_created, name, unit_price)` index would serve category listing pages from the index alone, without touching the table
-- **InnoDB buffer pool** — frequently accessed catalog data stays in memory between requests
+Aurora Serverless v2 manages `shared_buffers` and `effective_cache_size` automatically based on the current ACU allocation. At 0.5 ACU (~1 GB RAM), Aurora allocates approximately 256 MB to the buffer cache; at 4 ACU (~8 GB RAM), the buffer cache scales to approximately 5.3 GB. No manual tuning is needed — Aurora adjusts these parameters dynamically as ACUs scale.
 
 ### 4.5 Database Performance Monitoring
 
@@ -429,13 +406,13 @@ Currently, database performance is not directly monitored — there are no slow 
 **What's available today:**
 - Spring Boot Actuator `/actuator/health` — reports database connectivity (UP/DOWN) but not query latency
 - CloudWatch Logs — application logs with 7-day retention; no structured query timing
-- Container Insights — ECS-level CPU and memory metrics for the task (aggregated across backend + database sidecar)
+- CloudWatch Lambda Insights — per-function metrics for memory utilization, duration, cold starts, and concurrent executions
 
 **Recommended instrumentation (at scale):**
 - Enable Actuator's `hikaricp` metrics endpoint — exposes pool utilization, connection wait time, and active connections via Micrometer
-- Enable slow query logs: PostgreSQL `log_min_duration_statement = 200` (log queries >200ms); MySQL `slow_query_log = ON` with `long_query_time = 0.2`
+- Enable slow query logs: PostgreSQL `log_min_duration_statement = 200` (log queries >200ms) via Aurora cluster parameter group
 - Add Micrometer + CloudWatch integration for JPA query timing: `spring.jpa.properties.hibernate.generate_statistics=true` in non-production profiles
-- At RDS migration, enable Performance Insights (free tier includes 7 days of retention) for visual query analysis
+- Enable Performance Insights on the Aurora cluster (free tier includes 7 days of retention) for visual query analysis
 
 ### 4.6 Schema Design for Performance
 
@@ -455,30 +432,30 @@ The candidate's pipeline stage (`APPLIED`, `SCREENING`, `INTERVIEW`, etc.) is st
 
 ### Current Resource Allocation
 
-| Service | CPU (units) | Memory (MB) | vCPU Equivalent | Fargate Cost/Month (est.) |
-|---------|-------------|-------------|-----------------|--------------------------|
-| Portfolio Backend | 512 | 1024 | 0.25 | ~$14 |
-| Portfolio Frontend | 256 | 512 | 0.25 | ~$9 |
-| E-Commerce Backend + MySQL | 512 | 2048 | 0.25 | ~$18 |
-| E-Commerce Frontend | 256 | 512 | 0.25 | ~$9 |
-| ATS Backend + PostgreSQL | 512 | 1024 | 0.25 | ~$14 |
-| ATS Frontend | 256 | 512 | 0.25 | ~$9 |
-| **Total** | **2304** | **5632** | **1.5 vCPU** | **~$73** |
+| Service | Memory | SnapStart | Estimated Cost/Month |
+|---------|--------|-----------|---------------------|
+| Portfolio Backend (Lambda) | 2048 MB | Enabled | ~$0 (free tier) |
+| E-Commerce Backend (Lambda) | 2048 MB | Enabled | ~$0 (free tier) |
+| ATS Backend (Lambda) | 2048 MB | Enabled | ~$0 (free tier) |
+| Frontends (S3 + CloudFront) | N/A | N/A | ~$1–3 (S3 storage + CloudFront transfer) |
+| Aurora Serverless v2 (1 shared cluster, 3 DBs) | 0.5–4 ACU | N/A | ~$43 (0.5 ACU minimum × $0.12/ACU-hour) |
+| **Total** | — | — | **~$45–50** |
+
+Lambda pricing: first 1M requests/month free, then $0.20/1M requests. At portfolio-level traffic, all three backends remain within the free tier. Aurora Serverless v2 is the primary ongoing cost.
 
 ### Rate Limiting Configuration (Multi-Layer)
 
 | Layer | Scope | Limit | Action |
 |-------|-------|-------|--------|
 | **WAF** (Layer 1) | All endpoints, per IP | 2,000 req / 5 min | Block |
-| **WAF** (Layer 2) | `/api/auth/*`, per IP | 20 req / 5 min | Block |
-| **Nginx** (Layer 3) | General, per IP | 30 req/s, burst 60 | 503 |
-| **Nginx** (Layer 4) | API, per IP | 10 req/s | 503 |
-| **Spring** (Layer 5) | Auth, per IP + username | 5 attempts / 15 min | 30-min lockout |
+| **WAF** (Layer 3) | `/api/auth/*`, per IP | 20 req / 5 min | Block |
+| **API Gateway** (Layer 3) | Per-account, per-region | 10,000 req/s (default) | 429 |
+| **Spring** (Layer 4) | Auth, per IP + username | 5 attempts / 15 min | 30-min lockout |
 
 ### Health Check Timings
 
 | Component | Path | Interval | Timeout | Healthy Threshold | Unhealthy Threshold | Grace Period |
 |-----------|------|----------|---------|-------------------|---------------------|--------------|
-| Frontends | `/` | 30s | 10s | 2 | 2 | — |
-| Backends | `/actuator/health` | 30s | 15s | 2 | 5 | 120s |
-| DB (ECS sidecar) | `pg_isready` / `mysqladmin ping` | 10s | 5s | — | 10 retries | 30s |
+| Frontends | S3 + CloudFront health origin checks | — | — | — | — | — |
+| Backends | `/actuator/health` (Lambda health via API Gateway) | — | — | — | — | — |
+| Aurora Serverless v2 | Managed by AWS — automatic health monitoring | — | — | — | — | — |
