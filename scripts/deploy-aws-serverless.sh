@@ -120,7 +120,7 @@ if [ "$DEPLOY_FRONTENDS" = true ]; then
   }
 
   sync_frontend "portfolio-frontend/dist/portfolio-frontend/browser" "$PORTFOLIO_BUCKET" "Portfolio"
-  sync_frontend "ecommerce-frontend/dist/ecommerce-frontend/browser" "$ECOMMERCE_BUCKET" "E-Commerce"
+  sync_frontend "ecommerce-frontend/dist/angular-ecommerce/browser" "$ECOMMERCE_BUCKET" "E-Commerce"
   sync_frontend "ats-frontend/dist/ats-frontend/browser" "$ATS_BUCKET" "ATS"
 
   echo -e "${YELLOW}Invalidating CloudFront caches...${NC}"
