@@ -104,6 +104,12 @@ jobs:
     defaults:
       run:
         working-directory: terraform
+    env:
+      TF_VAR_ses_smtp_username: ${{ secrets.SES_SMTP_USERNAME }}
+      TF_VAR_ses_smtp_password: ${{ secrets.SES_SMTP_PASSWORD }}
+      TF_VAR_ecommerce_jwt_secret: ${{ secrets.ECOMMERCE_JWT_SECRET }}
+      TF_VAR_portfolio_jwt_secret: ${{ secrets.PORTFOLIO_JWT_SECRET }}
+      TF_VAR_admin_password: ${{ secrets.ADMIN_PASSWORD }}
     steps:
       - uses: actions/checkout@v6
 
@@ -217,7 +223,7 @@ jobs:
           cp ecommerce-backend/target/spring-boot-ecommerce-0.0.1-SNAPSHOT.jar artifacts/ecommerce-backend.jar
           cp ats-backend/target/ats-backend-0.0.1-SNAPSHOT.jar artifacts/ats-backend.jar
           cp -r portfolio-frontend/dist/portfolio-frontend/browser artifacts/portfolio-frontend
-          cp -r ecommerce-frontend/dist/ecommerce-frontend/browser artifacts/ecommerce-frontend
+          cp -r ecommerce-frontend/dist/angular-ecommerce/browser artifacts/ecommerce-frontend
           cp -r ats-frontend/dist/ats-frontend/browser artifacts/ats-frontend
 
       - name: Upload Build Artifacts
