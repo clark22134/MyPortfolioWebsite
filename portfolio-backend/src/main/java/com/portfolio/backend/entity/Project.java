@@ -45,7 +45,7 @@ public class Project {
     @Size(max = 500)
     private String demoUrl;
     
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     private List<String> technologies;
     
     private LocalDate startDate;

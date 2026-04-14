@@ -26,11 +26,11 @@ jobs:
         uses: actions/checkout@v6
 
       # ── Java setup ───────────────────────────────────────────────
-      - name: Set up JDK 25
+      - name: Set up JDK 21
         if: inputs.type == 'java'
         uses: actions/setup-java@v5
         with:
-          java-version: '25'
+          java-version: '21'
           distribution: 'temurin'
           cache: 'maven'
 
@@ -49,9 +49,9 @@ jobs:
       # ── Node setup ──────────────────────────────────────────────
       - name: Set up Node.js
         if: inputs.type == 'node'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: '${{ inputs.component }}/package-lock.json'
 
@@ -75,7 +75,7 @@ jobs:
       # ── Artifacts ───────────────────────────────────────────────
       - name: Upload Java Artifact
         if: inputs.type == 'java'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.component }}-jar
           path: ${{ inputs.component }}/target/*.jar
@@ -83,7 +83,7 @@ jobs:
 
       - name: Upload Node Artifact
         if: inputs.type == 'node'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.component }}-dist
           path: ${{ inputs.component }}/dist/

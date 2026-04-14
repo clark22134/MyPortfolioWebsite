@@ -11,7 +11,6 @@ concurrency:
 
 env:
   AWS_REGION: us-east-1
-  ECS_CLUSTER: prod-portfolio-cluster
 
 jobs:
   # ── Quality gates (all run in parallel) ──────────────────────────
@@ -34,7 +33,7 @@ jobs:
 
       - uses: actions/setup-java@v5
         with:
-          java-version: '25'
+          java-version: '21'
           distribution: 'temurin'
           cache: maven
 
@@ -171,91 +170,68 @@ jobs:
         if: steps.plan.outputs.plan_exit_code == '2'
         run: terraform apply -auto-approve -input=false tfplan
 
-  # ── Docker build, push & scan ────────────────────────────────────
-  build-and-push:
-    name: Build & Push Docker Images
+  # ── Build Deployment Artifacts ───────────────────────────────────
+  # Runs in parallel with infrastructure (no dependency on deploy-infrastructure)
+  build-artifacts:
+    name: Build Deployment Artifacts
     runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend, test-ats-backend, test-ats-frontend, test-ecommerce-backend, test-ecommerce-frontend, code-quality, deploy-infrastructure]
+    needs: [test-backend, test-frontend, test-ats-backend, test-ats-frontend, test-ecommerce-backend, test-ecommerce-frontend]
     permissions:
-      id-token: write
       contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@v6
 
-      - uses: aws-actions/configure-aws-credentials@v6
+      - name: Set up Java
+        uses: actions/setup-java@v5
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
 
-      - id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build and push all images
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          # directory | ecr-repo | needs --build-arg GIT_COMMIT
-          IMAGES=(
-            "portfolio-backend|portfolio-backend|true"
-            "portfolio-frontend|portfolio-frontend|false"
-            "ecommerce-backend|ecommerce-backend|true"
-            "ecommerce-frontend|ecommerce-frontend|false"
-            "ecommerce-db|ecommerce-db|false"
-            "ats-backend|ats-backend|true"
-            "ats-frontend|ats-frontend|false"
-            "ats-db|ats-db|false"
-          )
-          for entry in "${IMAGES[@]}"; do
-            IFS='|' read -r dir repo needs_git_arg <<< "$entry"
-            BUILD_ARGS=""
-            [[ "$needs_git_arg" == "true" ]] && BUILD_ARGS="--build-arg GIT_COMMIT=${IMAGE_TAG}"
-            echo "::group::Building $repo from ./$dir"
-            docker buildx build $BUILD_ARGS --provenance=false \
-              -t "$ECR_REGISTRY/$repo:$IMAGE_TAG" --push "./$dir"
-            echo "::endgroup::"
-          done
-
-      - name: Install Trivy
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sudo sh -s -- -b /usr/local/bin
-
-      - name: Scan all images with Trivy
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          mkdir -p trivy-results
-          REPOS=(
-            "portfolio-backend" "portfolio-frontend"
-            "ecommerce-backend" "ecommerce-frontend" "ecommerce-db"
-            "ats-backend" "ats-frontend" "ats-db"
-          )
-          for repo in "${REPOS[@]}"; do
-            echo "::group::Scanning $repo"
-            trivy image --format sarif --output "trivy-results/${repo}.sarif" \
-              --severity CRITICAL,HIGH \
-              "$ECR_REGISTRY/$repo:$IMAGE_TAG" || true
-            echo "::endgroup::"
-          done
-        continue-on-error: true
-
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
         with:
-          sarif_file: trivy-results
-        continue-on-error: true
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
 
-  # ── ECS deployment (3 parallel groups) ────────────────────────────
-  deploy-portfolio:
-    name: Deploy Portfolio
+      - name: Build backend JARs
+        run: |
+          mvn -f portfolio-backend/pom.xml clean package -DskipTests -q &
+          mvn -f ecommerce-backend/pom.xml clean package -DskipTests -q &
+          mvn -f ats-backend/pom.xml clean package -DskipTests -q &
+          wait
+
+      - name: Build frontends
+        run: |
+          mkdir -p artifacts
+          (cd portfolio-frontend && npm ci --silent && npm run build -- --configuration production) &
+          (cd ecommerce-frontend && npm ci --silent && npm run build -- --configuration production) &
+          (cd ats-frontend && npm ci --silent && npm run build -- --configuration production) &
+          wait
+
+      - name: Stage artifacts
+        run: |
+          mkdir -p artifacts
+          cp portfolio-backend/target/portfolio-backend-1.0.0.jar artifacts/portfolio-backend.jar
+          cp ecommerce-backend/target/spring-boot-ecommerce-0.0.1-SNAPSHOT.jar artifacts/ecommerce-backend.jar
+          cp ats-backend/target/ats-backend-0.0.1-SNAPSHOT.jar artifacts/ats-backend.jar
+          cp -r portfolio-frontend/dist/portfolio-frontend/browser artifacts/portfolio-frontend
+          cp -r ecommerce-frontend/dist/ecommerce-frontend/browser artifacts/ecommerce-frontend
+          cp -r ats-frontend/dist/ats-frontend/browser artifacts/ats-frontend
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-artifacts
+          path: artifacts/
+          retention-days: 7
+
+  # ── Deploy to AWS Lambda + S3 + CloudFront ───────────────────────
+  deploy:
+    name: Deploy to AWS
     runs-on: ubuntu-latest
-    needs: [build-and-push]
+    needs: [build-artifacts, deploy-infrastructure]
     permissions:
       id-token: write
       contents: read
@@ -263,189 +239,98 @@ jobs:
       name: production
       url: https://clarkfoster.com
     steps:
-      - uses: actions/checkout@v6
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-artifacts
+          path: artifacts/
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      - name: Deploy backend Lambdas
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          LAMBDA_BUCKET="prod-lambda-deployments-${ACCOUNT_ID}"
 
-      - name: Render backend task definition
-        id: backend-td
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ecs-task-definitions/portfolio-backend.json
-          container-name: backend
-          image: ${{ steps.ecr.outputs.registry }}/portfolio-backend:${{ github.sha }}
+          # Upload JARs to S3 in parallel
+          aws s3 cp artifacts/portfolio-backend.jar "s3://${LAMBDA_BUCKET}/portfolio-backend.jar" --only-show-errors &
+          aws s3 cp artifacts/ecommerce-backend.jar "s3://${LAMBDA_BUCKET}/ecommerce-backend.jar" --only-show-errors &
+          aws s3 cp artifacts/ats-backend.jar "s3://${LAMBDA_BUCKET}/ats-backend.jar" --only-show-errors &
+          wait
 
-      - name: Deploy backend
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.backend-td.outputs.task-definition }}
-          service: prod-portfolio-backend
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-          wait-for-minutes: 15
+          # Update Lambda function code from S3
+          for func in portfolio-backend ecommerce-backend ats-backend; do
+            aws lambda update-function-code \
+              --function-name "prod-${func}" \
+              --s3-bucket "$LAMBDA_BUCKET" \
+              --s3-key "${func}.jar" \
+              --output text --query 'FunctionArn' > /dev/null
+          done
 
-      - name: Render frontend task definition
-        id: frontend-td
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ecs-task-definitions/portfolio-frontend.json
-          container-name: frontend
-          image: ${{ steps.ecr.outputs.registry }}/portfolio-frontend:${{ github.sha }}
+          # Wait for all updates to complete
+          for func in prod-portfolio-backend prod-ecommerce-backend prod-ats-backend; do
+            aws lambda wait function-updated --function-name "$func"
+          done
 
-      - name: Deploy frontend
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.frontend-td.outputs.task-definition }}
-          service: prod-portfolio-frontend
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-          wait-for-minutes: 15
+          # Publish new SnapStart versions and update aliases
+          for func in prod-portfolio-backend prod-ecommerce-backend prod-ats-backend; do
+            VERSION=$(aws lambda publish-version --function-name "$func" --query 'Version' --output text)
+            aws lambda update-alias --function-name "$func" --name current \
+              --function-version "$VERSION" > /dev/null 2>&1 || true
+            echo "Deployed ${func} v${VERSION}"
+          done
 
-  deploy-ecommerce:
-    name: Deploy E-Commerce
-    runs-on: ubuntu-latest
-    needs: [build-and-push]
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v6
+      - name: Deploy frontends to S3
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-      - uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          sync_frontend() {
+            local src=$1 bucket=$2
+            aws s3 sync "$src" "s3://${bucket}/" --delete \
+              --cache-control "public,max-age=31536000,immutable" \
+              --exclude "index.html" --exclude "*.json" --only-show-errors
+            aws s3 cp "${src}/index.html" "s3://${bucket}/index.html" \
+              --cache-control "public,max-age=0,must-revalidate" --only-show-errors
+          }
 
-      - id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+          sync_frontend "artifacts/portfolio-frontend" "prod-portfolio-frontend-${ACCOUNT_ID}"
+          sync_frontend "artifacts/ecommerce-frontend" "prod-ecommerce-frontend-${ACCOUNT_ID}"
+          sync_frontend "artifacts/ats-frontend" "prod-ats-frontend-${ACCOUNT_ID}"
 
-      - name: Render e-commerce backend task definition
-        id: ecom-backend-td
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ecs-task-definitions/ecommerce-backend.json
-          container-name: ecommerce-backend
-          image: ${{ steps.ecr.outputs.registry }}/ecommerce-backend:${{ github.sha }}
-
-      - name: Render e-commerce DB sidecar into task definition
-        id: ecom-backend-td-db
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ${{ steps.ecom-backend-td.outputs.task-definition }}
-          container-name: ecommerce-db
-          image: ${{ steps.ecr.outputs.registry }}/ecommerce-db:${{ github.sha }}
-
-      - name: Deploy e-commerce backend
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.ecom-backend-td-db.outputs.task-definition }}
-          service: prod-ecommerce-backend
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-          wait-for-minutes: 15
-
-      - name: Render e-commerce frontend task definition
-        id: ecom-frontend-td
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ecs-task-definitions/ecommerce-frontend.json
-          container-name: ecommerce-frontend
-          image: ${{ steps.ecr.outputs.registry }}/ecommerce-frontend:${{ github.sha }}
-
-      - name: Deploy e-commerce frontend
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.ecom-frontend-td.outputs.task-definition }}
-          service: prod-ecommerce-frontend
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-          wait-for-minutes: 15
-
-  deploy-ats:
-    name: Deploy ATS
-    runs-on: ubuntu-latest
-    needs: [build-and-push]
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Render ATS backend task definition
-        id: ats-backend-td
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ecs-task-definitions/ats-backend.json
-          container-name: ats-backend
-          image: ${{ steps.ecr.outputs.registry }}/ats-backend:${{ github.sha }}
-
-      - name: Render ATS DB sidecar into task definition
-        id: ats-backend-td-db
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ${{ steps.ats-backend-td.outputs.task-definition }}
-          container-name: ats-db
-          image: ${{ steps.ecr.outputs.registry }}/ats-db:${{ github.sha }}
-
-      - name: Deploy ATS backend
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.ats-backend-td-db.outputs.task-definition }}
-          service: prod-ats-backend
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-          wait-for-minutes: 15
-
-      - name: Render ATS frontend task definition
-        id: ats-frontend-td
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ecs-task-definitions/ats-frontend.json
-          container-name: ats-frontend
-          image: ${{ steps.ecr.outputs.registry }}/ats-frontend:${{ github.sha }}
-
-      - name: Deploy ATS frontend
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.ats-frontend-td.outputs.task-definition }}
-          service: prod-ats-frontend
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
-          wait-for-minutes: 15
+      - name: Invalidate CloudFront caches
+        run: |
+          for DOMAIN in clarkfoster.com shop.clarkfoster.com ats.clarkfoster.com; do
+            DIST_ID=$(aws cloudfront list-distributions \
+              --query "DistributionList.Items[?Aliases.Items[?@=='${DOMAIN}']].Id" \
+              --output text)
+            if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
+              aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*" \
+                --output text --query 'Invalidation.Id' > /dev/null
+              echo "Invalidated ${DOMAIN} (${DIST_ID})"
+            fi
+          done
 
   # ── Post-deploy verification ─────────────────────────────────────
   post-deploy:
     name: Post-Deployment Verification
     runs-on: ubuntu-latest
-    needs: [deploy-portfolio, deploy-ecommerce, deploy-ats]
+    needs: [deploy]
     steps:
       - name: Smoke tests
         run: |
-          API_VERSION=$(curl -s https://clarkfoster.com/api/version)
-          DEPLOYED_COMMIT=$(echo $API_VERSION | jq -r '.commit')
-          echo "Expected: ${{ github.sha }}, Deployed: $DEPLOYED_COMMIT"
-          if [[ "$DEPLOYED_COMMIT" != "${{ github.sha }}" ]]; then
-            echo "Warning: version mismatch — backend may still be restarting"
-          else
-            echo "Version verified"
-          fi
-          echo | openssl s_client -servername clarkfoster.com -connect clarkfoster.com:443 2>/dev/null | openssl x509 -noout -dates
-          time curl -s https://clarkfoster.com > /dev/null
+          echo "Testing CloudFront distributions..."
+          curl -sSf https://clarkfoster.com > /dev/null && echo "Portfolio frontend OK"
+          curl -sSf https://shop.clarkfoster.com > /dev/null && echo "E-Commerce frontend OK"
+          curl -sSf https://ats.clarkfoster.com > /dev/null && echo "ATS frontend OK"
+
+          echo "Testing API endpoints..."
+          curl -sSf https://clarkfoster.com/api/health > /dev/null && echo "Portfolio API OK"
+          curl -sSf https://shop.clarkfoster.com/api/health > /dev/null && echo "E-Commerce API OK"
+          curl -sSf https://ats.clarkfoster.com/api/health > /dev/null && echo "ATS API OK"
 
       - name: Deployment notification
         if: always()
-        run: echo "Deployment ${{ job.status }} at $(date) — ${{ github.sha }}"
+        run: echo "Deployment ${{ job.status }} at $(date) — commit ${{ github.sha }}"

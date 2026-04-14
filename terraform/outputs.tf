@@ -3,14 +3,80 @@ output "vpc_id" {
   value       = module.networking.vpc_id
 }
 
-output "public_subnet_ids" {
-  description = "Public subnet IDs"
-  value       = module.networking.public_subnet_ids
+output "private_subnet_ids" {
+  description = "Private subnet IDs"
+  value       = module.networking.private_subnet_ids
 }
 
-output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = module.alb.alb_dns_name
+# CloudFront Distribution URLs
+output "portfolio_cloudfront_domain" {
+  description = "CloudFront domain for Portfolio application"
+  value       = module.portfolio_cloudfront.distribution_domain_name
+}
+
+output "ecommerce_cloudfront_domain" {
+  description = "CloudFront domain for E-Commerce application"
+  value       = module.ecommerce_cloudfront.distribution_domain_name
+}
+
+output "ats_cloudfront_domain" {
+  description = "CloudFront domain for ATS application"
+  value       = module.ats_cloudfront.distribution_domain_name
+}
+
+# CloudFront Distribution IDs (for cache invalidation)
+output "portfolio_cloudfront_distribution_id" {
+  description = "CloudFront distribution ID for Portfolio application"
+  value       = module.portfolio_cloudfront.distribution_id
+}
+
+output "ecommerce_cloudfront_distribution_id" {
+  description = "CloudFront distribution ID for E-Commerce application"
+  value       = module.ecommerce_cloudfront.distribution_id
+}
+
+output "ats_cloudfront_distribution_id" {
+  description = "CloudFront distribution ID for ATS application"
+  value       = module.ats_cloudfront.distribution_id
+}
+
+# S3 Bucket Names (for frontend deployments)
+output "portfolio_s3_bucket_name" {
+  description = "S3 bucket name for Portfolio frontend"
+  value       = module.portfolio_s3.bucket_id
+}
+
+output "ecommerce_s3_bucket_name" {
+  description = "S3 bucket name for E-Commerce frontend"
+  value       = module.ecommerce_s3.bucket_id
+}
+
+output "ats_s3_bucket_name" {
+  description = "S3 bucket name for ATS frontend"
+  value       = module.ats_s3.bucket_id
+}
+
+# Lambda Function ARNs
+output "portfolio_lambda_arn" {
+  description = "ARN of Portfolio Lambda function"
+  value       = module.portfolio_lambda.function_arn
+}
+
+output "ecommerce_lambda_arn" {
+  description = "ARN of E-Commerce Lambda function"
+  value       = module.ecommerce_lambda.function_arn
+}
+
+output "ats_lambda_arn" {
+  description = "ARN of ATS Lambda function"
+  value       = module.ats_lambda.function_arn
+}
+
+# Shared Aurora Database Endpoint
+output "shared_db_endpoint" {
+  description = "Shared Aurora cluster endpoint"
+  value       = module.shared_aurora.cluster_endpoint
+  sensitive   = true
 }
 
 output "domain_name" {
@@ -23,20 +89,9 @@ output "certificate_arn" {
   value       = module.acm.certificate_arn
 }
 
-output "certificate_validation_records" {
-  description = "DNS validation records for the SSL certificate"
-  value       = module.acm.certificate_validation_records
-  sensitive   = false
-}
-
-output "ecs_cluster_name" {
-  description = "Name of the ECS cluster"
-  value       = module.ecs.ecs_cluster_name
-}
-
-output "nameservers" {
-  description = "Name servers for Route53 hosted zone"
-  value       = module.route53.nameservers
+output "waf_acl_arn" {
+  description = "ARN of the CloudFront WAF ACL"
+  value       = module.cloudfront_waf.web_acl_arn
 }
 
 output "website_url" {

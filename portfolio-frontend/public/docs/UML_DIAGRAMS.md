@@ -554,7 +554,7 @@ sequenceDiagram
     participant CheckoutCtrl as CheckoutController
     participant CheckoutSvc as CheckoutServiceImpl
     participant CustomerRepo as CustomerRepository
-    participant DB as MySQL
+    participant DB as Aurora DB
 
     Client->>JwtFilter: POST /api/checkout/purchase<br/>{customer, shippingAddress, billingAddress,<br/>order, orderItems}<br/>Cookie: ecommerce_jwt=...
 
@@ -984,5 +984,5 @@ These patterns appear across all three projects and reflect shared architectural
 | **Filter-Based Security** | All three (Portfolio: `JwtRequestFilter`, E-Commerce: `JwtAuthenticationFilter`, ATS: none — demo mode) | Spring Security's filter chain runs before controllers. The JWT filter extracts, validates, and sets the security context. ATS skips this for demo access, but the security filter chain is still configured (CORS, CSRF disabled, stateless sessions). |
 | **Record DTOs** | All three backends | Java records provide immutable, concise DTOs with automatic `equals()`, `hashCode()`, and `toString()`. Used for request payloads (`LoginRequest`, `Purchase`, `StageMoveRequest`), response payloads (`PurchaseResponse`, `ParsedResume`, `DashboardStats`), and API wrappers (`ApiResponse<T>`). |
 | **Global Exception Handler** | All three backends (`@RestControllerAdvice`) | Centralizes error response formatting. Maps `MethodArgumentNotValidException` → 400, `ResourceNotFoundException` → 404, `AuthenticationException` → 401, `IOException` → 500. Returns consistent `Map<String, String>` error shapes. |
-| **Multi-Stage Docker Build** | All six services | Stage 1 (Maven or Node) compiles the application. Stage 2 (JRE Alpine or Nginx Alpine) runs it. Keeps production images small — no compilers, build tools, or source code in the final image. |
-| **Sidecar Database** | E-Commerce (MySQL), ATS (PostgreSQL) | Database containers run in the same ECS task as the backend, communicating over `localhost`. Avoids managed database costs and cross-network latency. Tradeoff: no managed backups or failover. |
+| **Lambda JAR Packaging (maven-shade-plugin)** | All three backends | maven-shade-plugin produces a flat uber JAR (all classes at the root, no BOOT-INF nesting) required by Lambda's `URLClassLoader`. The `StreamLambdaHandler` adapter (from `aws-serverless-java-container-springboot3`) translates Lambda's `InputStream`/`OutputStream` into a synthetic HTTP request handled by the Spring `DispatcherServlet`. |
+| **Aurora Serverless v2** | All three backends | Aurora Serverless v2 clusters replace sidecar database containers. Each cluster scales from 0.5 to 2 ACUs based on load, providing managed backups, automated patching, multi-AZ failover, and near-zero idle costs. Lambda connects to Aurora over private VPC subnets via security group rules. |

@@ -51,6 +51,7 @@ describe('CheckoutComponent', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    TestBed.resetTestingModule();
   });
 
   it('should create', () => {
@@ -75,9 +76,18 @@ describe('CheckoutComponent - useSaved* toggles', () => {
     }
 
     fixture.detectChanges();
+
+    // Flush states requests triggered by auto-apply of saved addresses in ngOnInit
+    if (profile?.defaultShippingAddress || profile?.defaultBillingAddress) {
+      const statesReqs = httpTesting.match(req => req.url.includes('/api/states/search/findByCountryCode'));
+      statesReqs.forEach(req => req.flush({ _embedded: { states: [{ id: 1, name: 'Illinois' }] } }));
+      fixture.detectChanges();
+    }
   }
 
   beforeEach(async () => {
+    TestBed.resetTestingModule();
+
     // Simulate logged-in user in localStorage; return null for other keys (e.g. cartItems)
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
       if (key === 'authUser') return JSON.stringify({ email: 'john@example.com' });
@@ -144,15 +154,7 @@ describe('CheckoutComponent - useSaved* toggles', () => {
   it('should show saved shipping summary when toggle is checked', () => {
     flushInitRequests();
 
-    const toggles = fixture.nativeElement.querySelectorAll('.saved-toggle input[type="checkbox"]');
-    const shippingToggle = toggles[0] as HTMLInputElement;
-    shippingToggle.click();
-
-    // fillAddressGroup triggers a states lookup
-    const statesReq = httpTesting.expectOne(req => req.url.includes('/api/states/search/findByCountryCode'));
-    statesReq.flush({ _embedded: { states: [{ id: 1, name: 'Illinois' }] } });
-    fixture.detectChanges();
-
+    // useSavedShipping is already true from auto-apply in ngOnInit
     const el: HTMLElement = fixture.nativeElement;
     expect(el.textContent).toContain('123 Main St');
     expect(el.textContent).toContain('Springfield');
@@ -161,14 +163,7 @@ describe('CheckoutComponent - useSaved* toggles', () => {
   it('should show saved billing summary when toggle is checked', () => {
     flushInitRequests();
 
-    const toggles = fixture.nativeElement.querySelectorAll('.saved-toggle input[type="checkbox"]');
-    const billingToggle = toggles[1] as HTMLInputElement;
-    billingToggle.click();
-
-    const statesReq = httpTesting.expectOne(req => req.url.includes('/api/states/search/findByCountryCode'));
-    statesReq.flush({ _embedded: { states: [{ id: 1, name: 'Illinois' }] } });
-    fixture.detectChanges();
-
+    // useSavedBilling is already true from auto-apply in ngOnInit
     const el: HTMLElement = fixture.nativeElement;
     expect(el.textContent).toContain('456 Oak Ave');
   });
@@ -176,11 +171,7 @@ describe('CheckoutComponent - useSaved* toggles', () => {
   it('should show saved card details when toggle is checked', () => {
     flushInitRequests();
 
-    const toggles = fixture.nativeElement.querySelectorAll('.saved-toggle input[type="checkbox"]');
-    const cardToggle = toggles[2] as HTMLInputElement;
-    cardToggle.click();
-    fixture.detectChanges();
-
+    // useSavedCard is already true from auto-apply in ngOnInit
     const el: HTMLElement = fixture.nativeElement;
     expect(el.textContent).toContain('Visa');
     expect(el.textContent).toContain('1234');
@@ -189,36 +180,35 @@ describe('CheckoutComponent - useSaved* toggles', () => {
   it('should hide shipping form fields when useSavedShipping is toggled on', () => {
     flushInitRequests();
 
-    // Before toggle: shipping form should be visible
-    expect(fixture.nativeElement.querySelector('#shippingStreet')).toBeTruthy();
-
-    // Toggle saved shipping on
+    // After init, useSavedShipping is already true — toggle off first to show form
     const shippingToggle = fixture.nativeElement.querySelector('.saved-toggle input[type="checkbox"]') as HTMLInputElement;
     shippingToggle.click();
+    fixture.detectChanges();
 
+    // Form should be visible after toggling off
+    expect(fixture.nativeElement.querySelector('#shippingStreet')).toBeTruthy();
+
+    // Toggle saved shipping back on
+    shippingToggle.click();
     const statesReq = httpTesting.expectOne(req => req.url.includes('/api/states/search/findByCountryCode'));
     statesReq.flush({ _embedded: { states: [{ id: 1, name: 'Illinois' }] } });
     fixture.detectChanges();
 
-    // After toggle: shipping form should be hidden
+    // After toggle on: shipping form should be hidden
     expect(fixture.nativeElement.querySelector('#shippingStreet')).toBeFalsy();
   });
 
   it('should re-show shipping form fields when useSavedShipping is toggled off', () => {
     flushInitRequests();
 
-    const shippingToggle = fixture.nativeElement.querySelector('.saved-toggle input[type="checkbox"]') as HTMLInputElement;
-
-    // Toggle on
-    shippingToggle.click();
-    const statesReq = httpTesting.expectOne(req => req.url.includes('/api/states/search/findByCountryCode'));
-    statesReq.flush({ _embedded: { states: [{ id: 1, name: 'Illinois' }] } });
-    fixture.detectChanges();
+    // After init, useSavedShipping is already true so form is hidden
     expect(fixture.nativeElement.querySelector('#shippingStreet')).toBeFalsy();
 
-    // Toggle off
+    // Toggle off to re-show form
+    const shippingToggle = fixture.nativeElement.querySelector('.saved-toggle input[type="checkbox"]') as HTMLInputElement;
     shippingToggle.click();
     fixture.detectChanges();
+
     expect(fixture.nativeElement.querySelector('#shippingStreet')).toBeTruthy();
   });
 });

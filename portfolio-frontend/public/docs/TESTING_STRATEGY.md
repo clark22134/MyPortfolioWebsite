@@ -169,7 +169,7 @@ Integration tests verify that components work together with real (or in-memory) 
 | Repository | `@DataJpaTest` | H2 | Test JPA entity mappings, custom queries, cascade operations, and constraint enforcement in isolation |
 | Web Slice | `@WebMvcTest(Controller.class)` | None (mocked) | Test a single controller with mocked services. Verifies request mapping, serialization, and validation annotations |
 
-**H2 Usage:** The E-Commerce and ATS backends declare `com.h2database:h2` with `<scope>test</scope>`. During tests, Spring Boot auto-configures an in-memory H2 database that replaces the production MySQL/PostgreSQL. The Portfolio backend uses `@DataJpaTest` for repository tests against an embedded database.
+**H2 Usage:** The E-Commerce and ATS backends declare `com.h2database:h2` with `<scope>test</scope>`. During tests, Spring Boot auto-configures an in-memory H2 database that replaces the production PostgreSQL. The Portfolio backend uses `@DataJpaTest` for repository tests against an embedded database.
 
 ### 4.2 Frontend Integration Patterns
 
@@ -212,7 +212,7 @@ The Portfolio frontend includes automated end-to-end accessibility testing using
 
 ### 5.2 Smoke Tests (Post-Deploy)
 
-After every ECS deployment, the production CI/CD pipeline runs smoke verification:
+After every Lambda deployment, the production CI/CD pipeline runs smoke verification:
 
 ```
 GET https://clarkfoster.com/api/version
@@ -254,17 +254,17 @@ This enforces accessibility as a merge gate — no PR can be merged if it introd
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| **JUnit 5** | (via Spring Boot 4.0.4) | Test framework — assertions, lifecycle, parameterized tests |
-| **Mockito** | (via Spring Boot 4.0.4) | Mocking framework — `@Mock`, `@InjectMocks`, `when/verify` |
-| **AssertJ** | (via Spring Boot 4.0.4) | Fluent assertion library |
-| **Hamcrest** | (via Spring Boot 4.0.4) | Matcher-based assertions for MockMvc response validation |
-| **Spring Boot Test** | 4.0.4 | `@SpringBootTest`, `@AutoConfigureMockMvc`, `TestRestTemplate` |
-| **Spring Security Test** | (via Spring Boot 4.0.4) | `@WithMockUser`, CSRF helpers, OAuth2 test support |
-| **Spring WebMvc Test** | 4.0.4 | `@WebMvcTest`, `MockMvc` for controller slice testing |
-| **Spring Data JPA Test** | 4.0.4 | `@DataJpaTest`, `TestEntityManager` for repository testing |
+| **JUnit 5** | (via Spring Boot 3.5.13) | Test framework — assertions, lifecycle, parameterized tests |
+| **Mockito** | (via Spring Boot 3.5.13) | Mocking framework — `@Mock`, `@InjectMocks`, `when/verify` |
+| **AssertJ** | (via Spring Boot 3.5.13) | Fluent assertion library |
+| **Hamcrest** | (via Spring Boot 3.5.13) | Matcher-based assertions for MockMvc response validation |
+| **Spring Boot Test** | 3.3.5 | `@SpringBootTest`, `@AutoConfigureMockMvc`, `TestRestTemplate` |
+| **Spring Security Test** | (via Spring Boot 3.5.13) | `@WithMockUser`, CSRF helpers, OAuth2 test support |
+| **Spring WebMvc Test** | 3.3.5 | `@WebMvcTest`, `MockMvc` for controller slice testing |
+| **Spring Data JPA Test** | 3.3.5 | `@DataJpaTest`, `TestEntityManager` for repository testing |
 | **H2 Database** | (test scope) | In-memory database for integration tests (E-Commerce, ATS) |
 | **JaCoCo** | 0.8.14 | Code coverage — generates XML/HTML reports during `mvn test` |
-| **Maven Surefire** | (via Spring Boot) | Test execution plugin with Java 25 module compatibility flags |
+| **Maven Surefire** | (via Spring Boot) | Test execution plugin with Java 21 module compatibility flags |
 
 ### 7.2 Frontend Test Stack
 
@@ -634,7 +634,7 @@ On merge to `main`, all tests re-run before deployment:
 | **1. Quality Gates** | All 6 backend/frontend test suites in parallel | Deployment aborted — no infrastructure changes, no images built |
 | **2. Terraform** | `terraform validate` + `terraform plan` | Infrastructure changes blocked |
 | **3. Docker Build** | Trivy image scan (CRITICAL/HIGH) | SARIF uploaded to GitHub Security; image not deployed |
-| **4. ECS Deploy** | — | Rolling update to ECS services |
+| **4. Lambda Deploy** | — | Update Lambda function code + publish new version |
 | **5. Smoke Tests** | `GET /api/version` — verify commit SHA, response time, TLS cert | Alert/manual rollback |
 
 ### 10.3 Reusable Test Workflow

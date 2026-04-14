@@ -13,6 +13,12 @@ variable "public_subnets" {
   type        = list(string)
 }
 
+variable "private_subnets" {
+  description = "List of private subnet CIDR blocks"
+  type        = list(string)
+  default     = []
+}
+
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
@@ -70,6 +76,37 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
+# Private subnets for Lambda and Aurora
+resource "aws_subnet" "private" {
+  count                   = length(var.private_subnets)
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.private_subnets[count.index]
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  map_public_ip_on_launch = false
+
+  tags = {
+    Name        = "${var.environment}-portfolio-private-subnet-${count.index + 1}"
+    Environment = var.environment
+  }
+}
+
+# Route table for private subnets (no internet access needed for serverless)
+resource "aws_route_table" "private" {
+  count  = length(var.private_subnets) > 0 ? 1 : 0
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name        = "${var.environment}-portfolio-private-rt"
+    Environment = var.environment
+  }
+}
+
+resource "aws_route_table_association" "private" {
+  count          = length(var.private_subnets)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private[0].id
+}
+
 output "vpc_id" {
   description = "VPC ID"
   value       = aws_vpc.main.id
@@ -78,4 +115,9 @@ output "vpc_id" {
 output "public_subnet_ids" {
   description = "Public subnet IDs"
   value       = aws_subnet.public[*].id
+}
+
+output "private_subnet_ids" {
+  description = "Private subnet IDs"
+  value       = aws_subnet.private[*].id
 }

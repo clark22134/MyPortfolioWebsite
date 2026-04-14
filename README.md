@@ -41,7 +41,7 @@ A production-grade, multi-application platform comprising three full-stack web a
 | **E-Commerce** | Full shopping platform with product catalog, persistent cart, checkout, and order tracking | `shop.clarkfoster.com` |
 | **HireFlow ATS** | Applicant tracking system with Kanban pipeline, resume parsing, and candidate scoring | `ats.clarkfoster.com` |
 
-All three applications share a single AWS ECS Fargate cluster, one Application Load Balancer with host-based routing, a WAF with 6 protective rules, and a wildcard TLS certificate — running at **~$95/month**.
+All three applications share a single serverless infrastructure layer with CloudFront global CDN, API Gateway regional endpoints, Lambda functions (Java 21 with SnapStart), a shared Aurora Serverless v2 cluster (3 databases), and a CloudFront WAF — running at **~$63/month** (~68% cost reduction from previous Fargate architecture).
 
 ---
 
@@ -55,59 +55,81 @@ All three applications share a single AWS ECS Fargate cluster, one Application L
                                   │  ats.clarkfoster.com    │
                                   └───────────┬─────────────┘
                                               │
-                                  ┌───────────▼─────────────┐
-                                  │     AWS WAF v2          │
-                                  │  Rate limiting (2K/5m)  │
-                                  │  Auth limiting (20/5m)  │
-                                  │  OWASP managed rules    │
-                                  │  Geo-restriction (US)   │
-                                  └───────────┬─────────────┘
+                    ┌─────────────────────────┼─────────────────────────┐
+                    │                         │                         │
+           ┌────────▼────────┐       ┌────────▼────────┐       ┌───────▼─────────┐
+           │  CloudFront CDN │       │  CloudFront CDN │       │  CloudFront CDN │
+           │  Portfolio      │       │  E-Commerce     │       │  HireFlow ATS   │
+           │  Global Edge    │       │  Global Edge    │       │  Global Edge    │
+           └────────┬────────┘       └────────┬────────┘       └────────┬────────┘
+                    │                         │                         │
+                    └─────────────────────────┼─────────────────────────┘
                                               │
                                   ┌───────────▼─────────────┐
-                                  │  Application Load       │
-                                  │  Balancer (HTTPS/443)   │
-                                  │  TLS 1.2+ termination   │
-                                  │  ACM wildcard cert      │
+                                  │  CloudFront WAF         │
+                                  │  (us-east-1)            │
+                                  │  Rate limiting:         │
+                                  │   2000/5m (general)     │
+                                  │   20/5m (auth)          │
+                                  │  AWS Managed Rules      │
+                                  │  (SQLi, XSS, bad inputs)│
                                   └───────────┬─────────────┘
                                               │
                     ┌─────────────────────────┼─────────────────────────┐
-                    │ Host: clarkfoster.com   │ Host: shop.*            │ Host: ats.*
+                    │ clarkfoster.com         │ shop.*                  │ ats.*
                     │                         │                         │
            ┌────────▼────────┐       ┌────────▼────────┐       ┌───────▼─────────┐
            │   Portfolio     │       │   E-Commerce    │       │   HireFlow ATS  │
            │                 │       │                 │       │                 │
            │ ┌─────────────┐ │       │ ┌─────────────┐ │       │ ┌─────────────┐ │
-           │ │  Frontend   │ │       │ │  Frontend   │ │       │ │  Frontend   │ │
-           │ │  (Nginx)    │ │       │ │  (Nginx)    │ │       │ │  (Nginx)    │ │
+           │ │  S3 Static  │ │       │ │  S3 Static  │ │       │ │  S3 Static  │ │
+           │ │  Hosting    │ │       │ │  Hosting    │ │       │ │  Hosting    │ │
            │ │  Angular 21 │ │       │ │  Angular 21 │ │       │ │  Angular 21 │ │
+           │ │  (via CF)   │ │       │ │  (via CF)   │ │       │ │  (via CF)   │ │
            │ └─────────────┘ │       │ └─────────────┘ │       │ └─────────────┘ │
            │                 │       │                 │       │                 │
            │ ┌─────────────┐ │       │ ┌─────────────┐ │       │ ┌─────────────┐ │
-           │ │  Backend    │ │       │ │  Backend    │ │       │ │  Backend    │ │
-           │ │  Spring     │ │       │ │  Spring     │ │       │ │  Spring     │ │
-           │ │  Boot 4     │ │       │ │  Boot 4     │ │       │ │  Boot 4     │ │
-           │ │  Java 25    │ │       │ │  Java 25    │ │       │ │  Java 25    │ │
+           │ │ API Gateway │ │       │ │ API Gateway │ │       │ │ API Gateway │ │
+           │ │  (regional) │ │       │ │  (regional) │ │       │ │  (regional) │ │
            │ └──────┬──────┘ │       │ └──────┬──────┘ │       │ └──────┬──────┘ │
            │        │        │       │        │        │       │        │        │
            │ ┌──────▼──────┐ │       │ ┌──────▼──────┐ │       │ ┌──────▼──────┐ │
-           │ │ PostgreSQL  │ │       │ │   MySQL 8   │ │       │ │ PostgreSQL  │ │
-           │ │  (sidecar)  │ │       │ │  (sidecar)  │ │       │ │  (sidecar)  │ │
+           │ │   Lambda    │ │       │ │   Lambda    │ │       │ │   Lambda    │ │
+           │ │  Java 21    │ │       │ │  Java 21    │ │       │ │  Java 21    │ │
+           │ │  SnapStart  │ │       │ │  SnapStart  │ │       │ │  SnapStart  │ │
+           │ │  Spring     │ │       │ │  Spring     │ │       │ │  Spring     │ │
+           │ │  Boot 3     │ │       │ │  Boot 3     │ │       │ │  Boot 3     │ │
+           │ │  2048 MB    │ │       │ │  2048 MB    │ │       │ │  2048 MB    │ │
+           │ └──────┬──────┘ │       │ └──────┬──────┘ │       │ └──────┬──────┘ │
+           │        │        │       │        │        │       │        │        │
+           │ ┌──────▼──────┐ │       │ ┌──────▼──────┐ │       │ ┌──────▼──────┐ │
+           │ │  Shared     │ │       │ │  Shared     │ │       │ │  Shared     │ │
+           │ │  Aurora     │ │       │ │  Aurora     │ │       │ │  Aurora     │ │
+           │ │  Serverless │ │       │ │  Serverless │ │       │ │  Serverless │ │
+           │ │  v2 PG 15.17│ │       │ │  v2 PG 15.17│ │       │ │  v2 PG 15.17│ │
+           │ │  0.5-4 ACU  │ │       │ │  0.5-4 ACU  │ │       │ │  0.5-4 ACU  │ │
            │ └─────────────┘ │       │ └─────────────┘ │       │ └─────────────┘ │
            └─────────────────┘       └─────────────────┘       └─────────────────┘
 
-                              AWS ECS Fargate Cluster
-                         ┌──────────────────────────────┐
-                         │  6 services, 8 containers     │
-                         │  ECR image registry            │
-                         │  Secrets Manager (8 secrets)   │
-                         │  CloudWatch Logs (7-day)       │
-                         │  Deployment circuit breakers   │
-                         └──────────────────────────────┘
+                          AWS Serverless Infrastructure
+                     ┌────────────────────────────────────┐
+                     │  3 Lambda functions (SnapStart)    │
+                     │  3 API Gateways (REST regional)    │
+                     │  3 S3 buckets (static hosting)     │
+                     │  3 CloudFront distributions        │
+                     │  1 shared Aurora Serverless v2     │
+                     │    cluster (3 databases)           │
+                     │  CloudFront WAF (shared)           │
+                     │  CloudWatch Logs (7-day)           │
+                     │  EventBridge (Lambda warming)      │
+                     └────────────────────────────────────┘
 ```
 
-**Infrastructure-as-Code:** 6 Terraform modules (networking, ACM, ALB, ECS, Route53, WAF) with remote state in S3 + DynamoDB locking.
+**Infrastructure-as-Code:** 8 Terraform modules (networking, ACM, S3, CloudFront, CloudFront WAF, API Gateway, Lambda, Aurora) with remote state in S3 + DynamoDB locking. ~2190 lines of modular infrastructure code.
 
-**CI/CD:** GitHub Actions with OIDC-based AWS authentication (no long-lived credentials), parallel test jobs, Trivy/TruffleHog security scans, SonarCloud quality gates, and deployment circuit breakers with automatic rollback.
+**CI/CD:** GitHub Actions with OIDC-based AWS authentication (no long-lived credentials), parallel test jobs, Trivy/TruffleHog security scans, SonarCloud quality gates, Lambda deployment with versioning and aliases.
+
+**Cost Optimization:** Migrated from ECS Fargate (~$200/month) to serverless architecture (~$63/month) — ~68% cost reduction while upgrading databases to managed Aurora Serverless v2.
 
 ---
 
@@ -116,13 +138,14 @@ All three applications share a single AWS ECS Fargate cluster, one Application L
 | Layer | Technology |
 |-------|-----------|
 | **Frontend** | Angular 21, TypeScript 5.9, RxJS, Angular CDK, Bootstrap 5 (E-Commerce), SCSS |
-| **Backend** | Spring Boot 4.0.4, Java 25, Spring Security, Spring Data JPA, Spring Data REST |
-| **Databases** | PostgreSQL 16 (Portfolio, ATS), MySQL 8.0 (E-Commerce), H2 (tests) |
+| **Backend** | Spring Boot 3.5.13, Java 21, Spring Security, Spring Data JPA, Spring Data REST |
+| **Databases** | Aurora Serverless v2 (1 shared cluster, 3 databases), PostgreSQL 15.17, H2 (local tests) |
 | **Auth** | JWT (JJWT), HTTP-only cookies, BCrypt, refresh token rotation |
 | **Parsing** | Apache Tika, PDFBox, Apache POI (ATS resume parsing) |
-| **Containers** | Docker multi-stage builds, Nginx Alpine (frontends), JRE Alpine (backends) |
-| **Orchestration** | AWS ECS Fargate, Application Load Balancer, ECR |
-| **Infrastructure** | Terraform, AWS VPC, Route53, ACM, WAF v2, Secrets Manager, CloudWatch |
+| **Hosting** | S3 Static (frontends), CloudFront CDN (global edge), Lambda (backends) |
+| **Compute** | AWS Lambda (Java 21 runtime, SnapStart, EventBridge warming) |
+| **API Layer** | API Gateway (REST regional), Lambda proxy integration |
+| **Infrastructure** | Terraform, AWS VPC, Route53, ACM, CloudFront WAF, CloudWatch |
 | **CI/CD** | GitHub Actions, OIDC, SonarCloud, Trivy, TruffleHog, JaCoCo |
 | **Testing** | JUnit 5, Mockito, Vitest, Karma, axe-core + Puppeteer (WCAG 2.1 AA) |
 
@@ -226,16 +249,18 @@ ats-frontend/
 
 | Component | Configuration | Monthly Cost |
 |-----------|--------------|:------------:|
-| **ECS Fargate** | 6 services, 1.5 vCPU equivalent across tasks | ~$60 |
-| **ALB** | Single ALB, 6 target groups, host-based routing | ~$16 |
-| **WAF v2** | 6 rules (rate limit, OWASP, geo-block) | ~$11 |
-| **Secrets Manager** | 8 secrets (admin, JWT, email credentials) | ~$3 |
-| **CloudWatch** | 7-day log retention, Container Insights | ~$2 |
-| **Route53** | 1 hosted zone, 4 A records | ~$1 |
-| **ECR** | 8 repos, lifecycle policy (keep last 10 images) | <$1 |
-| **Total** | | **~$95** |
+| **Lambda** | 3 functions (Java 21, SnapStart, 2048 MB), EventBridge warming every 4 min | ~$6–8 |
+| **Aurora Serverless v2** | 1 shared cluster (3 databases), PostgreSQL 15.17, 0.5–4 ACU | ~$25–30 |
+| **CloudFront** | 3 distributions, global edge caching, TLS termination | ~$3–5 |
+| **API Gateway** | 3 REST APIs (regional), Lambda proxy integration | ~$1–2 |
+| **CloudFront WAF** | 5 rules (rate limit, OWASP, geo-block), shared WebACL | ~$5–6 |
+| **S3** | 3 buckets (static hosting), versioning + encryption | ~$1 |
+| **VPC + NAT** | Private subnets, NAT Gateway for Lambda VPC egress | ~$8–10 |
+| **CloudWatch** | 7-day log retention across all log groups | ~$1–2 |
+| **Route53 + ACM** | 1 hosted zone, wildcard TLS certificate | ~$1 |
+| **Total** | | **~$63** |
 
-**Cost decisions:** Database sidecars instead of RDS (~$45/mo saved), public subnets instead of NAT Gateway (~$32/mo saved), single ALB for 3 apps (~$32/mo saved). Each has a documented migration path for scale.
+**Cost decisions:** Serverless Lambda instead of ECS Fargate (~$120/mo saved), CloudFront CDN instead of ALB (~$16/mo saved), 1 shared Aurora cluster instead of 3 (~$50/mo saved). Migrated from ~$200/month Fargate architecture to ~$63/month serverless.
 
 ---
 
@@ -255,9 +280,9 @@ ats-frontend/
 
 ### Prerequisites
 
-- **Java 25** (Eclipse Temurin recommended)
+- **Java 21** (Eclipse Temurin recommended)
 - **Maven 3.9+**
-- **Node.js 25+** and **npm 10+**
+- **Node.js 22+** and **npm 10+**
 - **Docker** and **Docker Compose**
 - **AWS CLI v2** (for deployment only)
 - **Terraform 1.5+** (for infrastructure provisioning only)
@@ -283,8 +308,6 @@ ats-frontend/
    CONTACT_EMAIL=your_contact@email.com
 
    # E-Commerce
-   MYSQL_PASSWORD=your_mysql_password
-   MYSQL_ROOT_PASSWORD=your_mysql_root_password
    ECOMMERCE_JWT_SECRET=your_ecommerce_jwt_secret
 
    # ATS
@@ -349,18 +372,18 @@ See `make help` for the full list of available commands.
    make terraform-apply
    ```
 
-3. **Set up secrets:**
+3. **Set up secrets in `.env`:**
    ```bash
-   ./scripts/setup-admin-secrets.sh
-   ./scripts/setup-email-secrets.sh
-   ./scripts/setup-jwt-secret.sh
+   # Add TF_VAR exports for JWT secrets, admin password, and SMTP credentials
+   # These are injected as Lambda environment variables via Terraform
+   source .env
    ```
 
-4. **Deploy to ECS:**
+4. **Deploy to production:**
    ```bash
-   ./deploy-local.sh
+   ./scripts/deploy-aws-serverless.sh
    ```
-   This builds Docker images, pushes to ECR, updates ECS services, and verifies the deployment.
+   This builds backend JARs and frontend bundles, uploads JARs to Lambda via S3, syncs frontend assets to S3, publishes SnapStart versions, and invalidates CloudFront caches.
 
 > **Note:** CI/CD via GitHub Actions handles production deployments automatically on pushes to `main`. Manual deployment is only needed for initial setup or out-of-band changes.
 
@@ -420,15 +443,12 @@ cd portfolio-frontend && node a11y-tests/axe-test.js
 
 | Area | Improvement | Rationale |
 |------|-------------|-----------|
-| **Databases** | Migrate sidecars to RDS/Aurora | Automated backups, replication, multi-AZ |
 | **Search** | Add Elasticsearch for product search | Full-text search at scale (100K+ products) |
 | **Caching** | Add Redis (ElastiCache) for sessions and queries | Required for multi-instance rate limiting and performance |
 | **Resume Parsing** | SQS + Lambda async pipeline | Non-blocking resume processing at scale |
-| **CDN** | CloudFront for static assets | Reduced latency, edge caching |
 | **Geospatial** | PostGIS for candidate proximity | Spatial indexes for 50K+ candidate searches |
 | **Monitoring** | Prometheus + Grafana or CloudWatch dashboards | Application-level metrics and alerting |
 | **E2E Testing** | Playwright or Cypress test suites | Browser-based user flow validation |
-| **Auto-scaling** | ECS Service Auto Scaling policies | Respond to traffic spikes automatically |
 | **Payments** | Stripe integration for real payment processing | Replace simplified card form with production payment flow |
 
 ---

@@ -1,15 +1,17 @@
 package com.clarksprojects.ats.controller;
 
+import com.clarksprojects.ats.config.SecurityConfig;
 import com.clarksprojects.ats.dto.CandidateRequest;
 import com.clarksprojects.ats.dto.CandidateResponse;
 import com.clarksprojects.ats.dto.StageMoveRequest;
 import com.clarksprojects.ats.entity.PipelineStage;
 import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.service.CandidateService;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -24,6 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(CandidateController.class)
+@Import(SecurityConfig.class)
 class CandidateControllerTest {
 
     @Autowired

@@ -32,15 +32,15 @@ Acts as a living technical portfolio, demonstrating full-stack development, secu
 | Layer | Stack |
 |-------|-------|
 | Frontend | Angular 21, TypeScript 5.9, SCSS, standalone components |
-| Backend | Spring Boot 4.0.4, Java 25, Spring Security, Spring Mail |
-| Database | PostgreSQL (production), H2 (development) |
+| Backend | Spring Boot 3.5.13, Java 21, Spring Security, Spring Mail |
+| Database | Aurora Serverless v2 (PostgreSQL 15.17) |
 | Auth | JWT access tokens (15 min) + refresh tokens (7 days), BCrypt, CSRF via XSRF-TOKEN |
-| Infrastructure | Docker, Nginx, AWS ECS Fargate, ALB, Route53, ACM |
+| Infrastructure | AWS Lambda (Java 21), API Gateway, CloudFront, S3, Route53, ACM |
 
 ```
-Browser → ALB (clarkfoster.com)
-             ├─ /api/* → Spring Boot (port 8080)
-             └─ /*     → Nginx → Angular SPA (port 80)
+Browser → CloudFront (clarkfoster.com)
+             ├─ /api/* → API Gateway → Lambda (Spring Boot)
+             └─ /*     → S3 (Angular SPA)
 ```
 
 ---
@@ -77,15 +77,15 @@ Demonstrates a production-grade e-commerce implementation covering the full purc
 | Layer | Stack |
 |-------|-------|
 | Frontend | Angular 21, TypeScript 5.9, Bootstrap 5.3, FontAwesome 7, ng-bootstrap |
-| Backend | Spring Boot 4.0.4, Java 25, Spring Data REST, Spring Security |
-| Database | MySQL (sidecar container in ECS task) |
+| Backend | Spring Boot 3.5.13, Java 21, Spring Data REST, Spring Security |
+| Database | Aurora Serverless v2 (PostgreSQL 15.17) |
 | Auth | JWT (1-hour expiration), HTTP-only cookies, BCrypt |
-| Infrastructure | Docker, Nginx, AWS ECS Fargate, ALB, Route53, ACM |
+| Infrastructure | AWS Lambda (Java 21), API Gateway, CloudFront, S3, Route53, ACM |
 
 ```
-Browser → ALB (shop.clarkfoster.com)
-             ├─ /api/* → Spring Boot (port 8080) ↔ MySQL (localhost:3306, sidecar)
-             └─ /*     → Nginx → Angular SPA (port 80)
+Browser → CloudFront (shop.clarkfoster.com)
+             ├─ /api/* → API Gateway → Lambda (Spring Boot)
+             └─ /*     → S3 (Angular SPA)
 ```
 
 Spring Data REST auto-exposes read-only endpoints for products, categories, countries, and states. Write operations (cart, checkout, orders) go through explicit controllers.
@@ -126,15 +126,15 @@ Covers the core workflow of applicant tracking: posting roles, collecting candid
 | Layer | Stack |
 |-------|-------|
 | Frontend | Angular 21, TypeScript 5.9, Angular CDK (drag-drop) |
-| Backend | Spring Boot 4.0.4, Java 25, Spring Data JPA, Apache Tika/PDFBox/POI |
-| Database | PostgreSQL 16 (sidecar container in ECS task) |
+| Backend | Spring Boot 3.5.13, Java 21, Spring Data JPA, Apache Tika/PDFBox/POI |
+| Database | Aurora Serverless v2 (PostgreSQL 15.17) |
 | Auth | Stateless API, CORS configured (demo mode — no auth enforcement) |
-| Infrastructure | Docker, Nginx, AWS ECS Fargate, ALB, Route53, ACM |
+| Infrastructure | AWS Lambda (Java 21), API Gateway, CloudFront, S3, Route53, ACM |
 
 ```
-Browser → ALB (ats.clarkfoster.com)
-             ├─ /api/* → Spring Boot (port 8080) ↔ PostgreSQL (localhost:5432, sidecar)
-             └─ /*     → Nginx → Angular SPA (port 80)
+Browser → CloudFront (ats.clarkfoster.com)
+             ├─ /api/* → API Gateway → Lambda (Spring Boot)
+             └─ /*     → S3 (Angular SPA)
 ```
 
 Database is seeded with 6 jobs and 100 candidates across realistic profiles (skills, locations, pipeline stages) for immediate demonstration.
@@ -143,44 +143,45 @@ Database is seeded with 6 jobs and 100 candidates across realistic profiles (ski
 
 ## 4. Shared Cloud Infrastructure
 
-All three systems run on a single AWS infrastructure stack, managed entirely through Terraform with remote state in S3 and DynamoDB locking.
+All three systems run on a single AWS infrastructure stack, managed entirely through Terraform (~2,190 lines across 8 modules) with remote state in S3 and DynamoDB locking.
 
 ### Compute
 
-- **AWS ECS Fargate** — 6 services (3 frontends, 3 backends) running as serverless containers on a single cluster (`prod-portfolio-cluster`)
-- **Databases** run as sidecar containers within backend tasks (MySQL for e-commerce, PostgreSQL for ATS) — no managed RDS
-- **ECR** hosts 8 container images with lifecycle policies retaining the last 10 images per repository
+- **AWS Lambda** — 3 functions (one per backend), Java 21 runtime, 2048 MB memory, SnapStart enabled for sub-second cold starts, EventBridge warming every 4 minutes
+- **Aurora Serverless v2** — one shared PostgreSQL 15.17 cluster with three separate databases (portfolio, ecommerce, ats), auto-scaling from 0.5 to 4 ACU
+- **S3 + CloudFront** — 3 S3 buckets (static frontend hosting) behind 3 CloudFront distributions with global edge caching
 
 ### Networking
 
-- **VPC** (10.0.0.0/16) with 2 public subnets across availability zones
-- **Application Load Balancer** with host-based and path-based routing rules directing traffic to the correct frontend or backend target group
-- **HTTP → HTTPS redirect** enforced at the ALB listener level
+- **VPC** (10.0.0.0/16) with 2 public + 2 private subnets; Lambda functions run in private subnets to reach Aurora clusters
+- **API Gateway** (REST, regional) — one per application, proxies all `/api/*` requests to the respective Lambda function
+- **CloudFront** — fronts both the S3 frontend bucket and the API Gateway origin, terminating TLS at the edge
 - **ACM certificate** covering clarkfoster.com + www, shop, and ats subdomains, DNS-validated via Route53
 
 ### Security
 
-- **WAF** with 5 rules: general rate limiting (2000 req/5 min), auth endpoint rate limiting (20 req/5 min), and three AWS managed rule sets (common vulnerabilities, known bad inputs, SQL injection)
-- **Security groups** restrict ECS task ingress to ALB-originated traffic only
-- **Nginx** adds security headers on all frontends: HSTS, CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff
-- **Secrets Manager** stores JWT signing keys, admin credentials, and SMTP credentials — injected as environment variables into ECS tasks
+- **CloudFront WAF** (us-east-1) with 5 rules: general rate limiting (2000 req/5 min), auth endpoint rate limiting (20 req/5 min), and three AWS managed rule sets (common vulnerabilities, known bad inputs, SQL injection)
+- **Security groups** restrict Lambda ingress to API Gateway and Aurora egress to the database security group only
+- **Nginx** (CloudFront response headers policy) adds security headers: HSTS, CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff
+- **Secrets Manager** stores database credentials only (Aurora-managed rotation); JWT signing keys, admin password, and SMTP credentials are Terraform variables injected directly as Lambda environment variables
 
 ### CI/CD
 
 - **GitHub Actions** with OIDC federation (no stored AWS credentials)
-- **Deployment script** builds images, pushes to ECR, registers new task definitions, updates ECS services, and waits for stabilization with a 15-minute timeout
-- **SonarQube** configured for static analysis across all 6 codebases
+- **Deployment pipeline** builds Maven JARs, uploads to Lambda via `update-function-code`, syncs Angular builds to S3, and invalidates CloudFront caches
+- **SonarCloud** configured for static analysis across all 6 codebases
 
 ### Observability
 
-- **CloudWatch Logs** for all 8 containers (7-day retention)
-- **Container Insights** enabled on the ECS cluster
+- **CloudWatch Logs** for all 3 Lambda functions (7-day retention)
+- **CloudWatch Lambda Insights** for memory, duration, and cold start telemetry
 - **WAF metrics** with sampled request logging
 - **Spring Actuator** health endpoints on all backends (`/actuator/health`)
 
 ### Cost Controls
 
-- Fargate billing: pay per vCPU-second and GB-second (no idle EC2 instances)
-- Sidecar databases avoid managed RDS costs
-- ECR lifecycle policies auto-delete old images
+- Lambda billing: pay per request and per 100ms execution (no idle costs)
+- Aurora Serverless v2 scales to near-zero ACU during idle periods
+- No ALB, no ECS, no ECR — fully serverless (no container orchestration)
 - 7-day log retention limits CloudWatch storage
+- **Estimated monthly cost: ~$63** (~68% reduction from ~$200 ECS Fargate baseline)
