@@ -177,13 +177,15 @@ module "portfolio_lambda" {
 }
 
 # API Gateway for Portfolio Backend
+# Use the SnapStart alias invoke ARN so cold starts use the pre-initialized snapshot.
 module "portfolio_api_gateway" {
   source = "./modules/api-gateway"
   
   environment          = var.environment
   api_name             = "portfolio-api"
-  lambda_invoke_arn    = module.portfolio_lambda.function_invoke_arn
+  lambda_invoke_arn    = module.portfolio_lambda.alias_invoke_arn
   lambda_function_name = module.portfolio_lambda.function_name
+  lambda_alias         = module.portfolio_lambda.alias_name
 }
 
 # S3 bucket for Portfolio Frontend

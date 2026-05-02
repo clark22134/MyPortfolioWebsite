@@ -290,6 +290,35 @@ jobs:
             echo "Deployed ${func} v${VERSION}"
           done
 
+      - name: Refresh API Gateway Lambda permissions
+        # When Terraform recreates aws_lambda_permission resources (e.g. after a
+        # config change), the new IAM policy can take time to propagate. Re-applying
+        # the permission here — right after alias updates and before smoke tests —
+        # guarantees a fresh, recently-propagated statement is in place.
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          for app in portfolio ecommerce ats; do
+            FUNC="prod-${app}-backend"
+            REST_ID=$(aws apigateway get-rest-apis \
+              --query "items[?name=='prod-${app}-api'].id" \
+              --output text 2>/dev/null || echo "")
+            if [ -z "$REST_ID" ] || [ "$REST_ID" = "None" ]; then
+              echo "No API Gateway found for ${app}, skipping"
+              continue
+            fi
+            SOURCE_ARN="arn:aws:execute-api:${AWS_REGION}:${ACCOUNT_ID}:${REST_ID}/*/*"
+            aws lambda remove-permission \
+              --function-name "$FUNC" --qualifier current \
+              --statement-id AllowAPIGatewayInvoke 2>/dev/null || true
+            aws lambda add-permission \
+              --function-name "$FUNC" --qualifier current \
+              --statement-id AllowAPIGatewayInvoke \
+              --action lambda:InvokeFunction \
+              --principal apigateway.amazonaws.com \
+              --source-arn "$SOURCE_ARN"
+            echo "Refreshed API Gateway permission for ${FUNC}:current"
+          done
+
       - name: Deploy frontends to S3
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
