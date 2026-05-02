@@ -106,12 +106,19 @@ resource "aws_api_gateway_deployment" "main" {
   rest_api_id = aws_api_gateway_rest_api.main.id
 
   triggers = {
+    # Include integration URIs so that changing the Lambda target (e.g. from
+    # the unqualified function ARN to a SnapStart alias ARN) forces a new
+    # stage deployment. Without this, Terraform updates the integration URI
+    # in-place but the stage keeps serving the old deployment and the
+    # resource-policy permission check fails with "Invalid permissions".
     redeployment = sha1(jsonencode([
       aws_api_gateway_resource.proxy.id,
       aws_api_gateway_method.proxy.id,
       aws_api_gateway_integration.lambda.id,
+      aws_api_gateway_integration.lambda.uri,
       aws_api_gateway_method.root.id,
       aws_api_gateway_integration.root_lambda.id,
+      aws_api_gateway_integration.root_lambda.uri,
     ]))
   }
 
