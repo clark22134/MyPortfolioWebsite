@@ -1,5 +1,8 @@
 .PHONY: help install build test clean docker-up docker-down docker-build deploy-backends deploy-frontends deploy terraform-init terraform-plan terraform-apply
 
+BACKENDS  := portfolio-backend ats-backend ecommerce-backend
+FRONTENDS := portfolio-frontend ats-frontend ecommerce-frontend
+
 # Help
 help:
 	@echo "Portfolio Website - Makefile Commands"
@@ -27,33 +30,38 @@ help:
 # Install dependencies
 install:
 	@echo "Installing backend dependencies..."
-	cd portfolio-backend && mvn clean install -DskipTests
-	cd ats-backend && mvn clean install -DskipTests
-	cd ecommerce-backend && mvn clean install -DskipTests
+	@for app in $(BACKENDS); do \
+		echo "--- $$app ---"; \
+		(cd $$app && mvn clean install -DskipTests) || exit 1; \
+	done
 	@echo "Installing frontend dependencies..."
-	cd portfolio-frontend && npm ci
-	cd ats-frontend && npm ci
-	cd ecommerce-frontend && npm ci
+	@for app in $(FRONTENDS); do \
+		echo "--- $$app ---"; \
+		(cd $$app && npm ci) || exit 1; \
+	done
 
 # Build applications
 build:
 	@echo "Building backends..."
-	cd portfolio-backend && mvn clean package -DskipTests
-	cd ats-backend && mvn clean package -DskipTests
-	cd ecommerce-backend && mvn clean package -DskipTests
+	@for app in $(BACKENDS); do \
+		echo "--- $$app ---"; \
+		(cd $$app && mvn clean package -DskipTests) || exit 1; \
+	done
 	@echo "Building frontends..."
-	cd portfolio-frontend && npm run build -- --configuration production
-	cd ats-frontend && npm run build -- --configuration production
-	cd ecommerce-frontend && npm run build -- --configuration production
+	@for app in $(FRONTENDS); do \
+		echo "--- $$app ---"; \
+		(cd $$app && npm run build -- --configuration production) || exit 1; \
+	done
 
 # Run tests
 test:
 	@echo "Running backend tests..."
-	cd portfolio-backend && mvn test
-	cd ats-backend && mvn test
-	cd ecommerce-backend && mvn test
+	@for app in $(BACKENDS); do \
+		echo "--- $$app ---"; \
+		(cd $$app && mvn test) || exit 1; \
+	done
 	@echo "Running frontend tests..."
-	@for app in portfolio-frontend ats-frontend ecommerce-frontend; do \
+	@for app in $(FRONTENDS); do \
 		echo "--- $$app ---"; \
 		if [ ! -d "$$app/node_modules" ]; then \
 			echo "Installing $$app dependencies..."; \
@@ -64,10 +72,12 @@ test:
 
 # Clean build artifacts
 clean:
-	cd portfolio-backend && mvn clean
-	cd ats-backend && mvn clean
-	cd ecommerce-backend && mvn clean
-	rm -rf portfolio-frontend/dist ats-frontend/dist ecommerce-frontend/dist
+	@for app in $(BACKENDS); do \
+		(cd $$app && mvn clean) || exit 1; \
+	done
+	@for app in $(FRONTENDS); do \
+		rm -rf $$app/dist; \
+	done
 
 # Docker Compose
 docker-up:
@@ -84,9 +94,11 @@ LAMBDA_BUCKET = prod-lambda-deployments-$(shell aws sts get-caller-identity --qu
 
 deploy-backends: build
 	@echo "Uploading JARs to S3..."
-	aws s3 cp portfolio-backend/target/portfolio-backend-1.0.0.jar s3://$(LAMBDA_BUCKET)/portfolio-backend.jar --region us-east-1
-	aws s3 cp ecommerce-backend/target/spring-boot-ecommerce-0.0.1-SNAPSHOT.jar s3://$(LAMBDA_BUCKET)/ecommerce-backend.jar --region us-east-1
-	aws s3 cp ats-backend/target/ats-backend-0.0.1-SNAPSHOT.jar s3://$(LAMBDA_BUCKET)/ats-backend.jar --region us-east-1
+	@for app in $(BACKENDS); do \
+		JAR=$$(ls $$app/target/*.jar 2>/dev/null | grep -v -E 'sources|javadoc|original-' | head -1); \
+		if [ -z "$$JAR" ]; then echo "No JAR found for $$app"; exit 1; fi; \
+		aws s3 cp $$JAR s3://$(LAMBDA_BUCKET)/$$app.jar --region us-east-1 || exit 1; \
+	done
 	@echo "Updating Lambda functions..."
 	@for func in portfolio-backend ecommerce-backend ats-backend; do \
 		aws lambda update-function-code --function-name prod-$$func \
