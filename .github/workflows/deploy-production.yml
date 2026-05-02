@@ -283,8 +283,10 @@ jobs:
           # Publish new SnapStart versions and update aliases
           for func in prod-portfolio-backend prod-ecommerce-backend prod-ats-backend; do
             VERSION=$(aws lambda publish-version --function-name "$func" --query 'Version' --output text)
+            echo "Waiting for ${func} v${VERSION} to become active..."
+            aws lambda wait published-version-active --function-name "$func" --qualifier "$VERSION"
             aws lambda update-alias --function-name "$func" --name current \
-              --function-version "$VERSION" > /dev/null 2>&1 || true
+              --function-version "$VERSION" > /dev/null
             echo "Deployed ${func} v${VERSION}"
           done
 
@@ -323,45 +325,76 @@ jobs:
     name: Post-Deployment Verification
     runs-on: ubuntu-latest
     needs: [deploy]
+    permissions:
+      id-token: write
+      contents: read
     steps:
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Smoke tests
         run: |
           check_url() {
             local name="$1"
             local url="$2"
+            local expected="${3:-}"
+            local max_attempts="${4:-5}"
             local body
             local status
 
-            for attempt in 1 2 3; do
+            for attempt in $(seq 1 "$max_attempts"); do
               body=$(mktemp)
               status=$(curl -sS -L --max-time 30 -o "$body" -w "%{http_code}" "$url" || true)
 
-              if [ "$status" -ge 200 ] && [ "$status" -lt 400 ]; then
+              if [ "$status" -ge 200 ] && [ "$status" -lt 400 ] && { [ -z "$expected" ] || grep -Fq "$expected" "$body"; }; then
                 echo "${name} OK"
                 rm -f "$body"
                 return 0
               fi
 
-              echo "${name} returned HTTP ${status} (attempt ${attempt}/3)"
+              echo "${name} returned HTTP ${status} (attempt ${attempt}/${max_attempts})"
+              if [ -n "$expected" ]; then
+                echo "Expected response to contain: ${expected}"
+              fi
               sed -n '1,20p' "$body"
               rm -f "$body"
-              if [ "$attempt" -lt 3 ]; then
-                sleep 10
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                sleep 15
               fi
             done
 
             return 1
           }
 
+          failed=0
+
           echo "Testing CloudFront distributions..."
-          check_url "Portfolio frontend" "https://clarkfoster.com"
-          check_url "E-Commerce frontend" "https://shop.clarkfoster.com"
-          check_url "ATS frontend" "https://ats.clarkfoster.com"
+          check_url "Portfolio frontend" "https://clarkfoster.com" || failed=1
+          check_url "E-Commerce frontend" "https://shop.clarkfoster.com" || failed=1
+          check_url "ATS frontend" "https://ats.clarkfoster.com" || failed=1
 
           echo "Testing API endpoints..."
-          check_url "Portfolio API" "https://clarkfoster.com/api/health"
-          check_url "E-Commerce API" "https://shop.clarkfoster.com/api/health"
-          check_url "ATS API" "https://ats.clarkfoster.com/api/health"
+          check_url "Portfolio API" "https://clarkfoster.com/api/health" '"status"' || failed=1
+          check_url "E-Commerce API" "https://shop.clarkfoster.com/api/health" '"status"' || failed=1
+          check_url "ATS API" "https://ats.clarkfoster.com/api/health" '"status"' || failed=1
+
+          exit "$failed"
+
+      - name: Print backend logs on smoke failure
+        if: failure()
+        run: |
+          START_TIME=$(( ($(date +%s) - 900) * 1000 ))
+
+          for func in prod-portfolio-backend prod-ecommerce-backend prod-ats-backend; do
+            echo "--- Recent logs for ${func} ---"
+            aws logs filter-log-events \
+              --log-group-name "/aws/lambda/${func}" \
+              --start-time "$START_TIME" \
+              --query 'events[].message' \
+              --output text 2>/dev/null | tail -200 || true
+          done
 
       - name: Deployment notification
         if: always()

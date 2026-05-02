@@ -34,6 +34,7 @@ public class SecurityConfig {
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/refresh",
+            "/api/health",
             "/api/projects/**",
             "/api/contact/**",
             "/h2-console/**",
