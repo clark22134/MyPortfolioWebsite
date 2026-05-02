@@ -388,12 +388,37 @@ jobs:
           START_TIME=$(( ($(date +%s) - 900) * 1000 ))
 
           for func in prod-portfolio-backend prod-ecommerce-backend prod-ats-backend; do
+            echo "===== ${func} ====="
+            echo "--- Alias 'current' config ---"
+            aws lambda get-alias --function-name "$func" --name current 2>/dev/null || echo "(no alias)"
+            echo "--- Alias resource policy ---"
+            aws lambda get-policy --function-name "$func" --qualifier current 2>/dev/null \
+              | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d.get("Policy",d))' 2>/dev/null \
+              || echo "(no policy)"
+            echo "--- Function configuration (alias version) ---"
+            VER=$(aws lambda get-alias --function-name "$func" --name current --query 'FunctionVersion' --output text 2>/dev/null || echo "")
+            if [ -n "$VER" ] && [ "$VER" != "None" ]; then
+              aws lambda get-function-configuration --function-name "$func" --qualifier "$VER" \
+                --query '{State:State,LastUpdateStatus:LastUpdateStatus,SnapStart:SnapStart}' 2>/dev/null || true
+            fi
             echo "--- Recent logs for ${func} ---"
             aws logs filter-log-events \
               --log-group-name "/aws/lambda/${func}" \
               --start-time "$START_TIME" \
               --query 'events[].message' \
               --output text 2>/dev/null | tail -200 || true
+          done
+
+          echo "===== API Gateway execution logs ====="
+          for api in prod-portfolio-api prod-ecommerce-api prod-ats-api; do
+            REST_ID=$(aws apigateway get-rest-apis --query "items[?name=='${api}'].id" --output text 2>/dev/null)
+            if [ -n "$REST_ID" ] && [ "$REST_ID" != "None" ]; then
+              LG="API-Gateway-Execution-Logs_${REST_ID}/prod"
+              echo "--- ${api} (${LG}) ---"
+              aws logs filter-log-events --log-group-name "$LG" --start-time "$START_TIME" \
+                --query 'events[].message' --output text 2>/dev/null | tail -100 \
+                || echo "(no execution log group — enable logging or none generated)"
+            fi
           done
 
       - name: Deployment notification

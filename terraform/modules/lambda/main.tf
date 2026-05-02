@@ -219,11 +219,18 @@ resource "aws_cloudwatch_log_group" "lambda" {
 }
 
 # Lambda alias for SnapStart
+# The deploy workflow updates `function_version` after publishing each new
+# version, so Terraform must ignore drift here to avoid reverting the alias
+# back to $LATEST (which would break API Gateway invocations).
 resource "aws_lambda_alias" "main" {
   count            = var.enable_snapstart ? 1 : 0
   name             = "current"
   function_name    = aws_lambda_function.main.function_name
   function_version = aws_lambda_function.main.version
+
+  lifecycle {
+    ignore_changes = [function_version]
+  }
 }
 
 # EventBridge rule to keep Lambda warm (optional)
