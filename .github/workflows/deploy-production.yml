@@ -326,15 +326,42 @@ jobs:
     steps:
       - name: Smoke tests
         run: |
+          check_url() {
+            local name="$1"
+            local url="$2"
+            local body
+            local status
+
+            for attempt in 1 2 3; do
+              body=$(mktemp)
+              status=$(curl -sS -L --max-time 30 -o "$body" -w "%{http_code}" "$url" || true)
+
+              if [ "$status" -ge 200 ] && [ "$status" -lt 400 ]; then
+                echo "${name} OK"
+                rm -f "$body"
+                return 0
+              fi
+
+              echo "${name} returned HTTP ${status} (attempt ${attempt}/3)"
+              sed -n '1,20p' "$body"
+              rm -f "$body"
+              if [ "$attempt" -lt 3 ]; then
+                sleep 10
+              fi
+            done
+
+            return 1
+          }
+
           echo "Testing CloudFront distributions..."
-          curl -sSf https://clarkfoster.com > /dev/null && echo "Portfolio frontend OK"
-          curl -sSf https://shop.clarkfoster.com > /dev/null && echo "E-Commerce frontend OK"
-          curl -sSf https://ats.clarkfoster.com > /dev/null && echo "ATS frontend OK"
+          check_url "Portfolio frontend" "https://clarkfoster.com"
+          check_url "E-Commerce frontend" "https://shop.clarkfoster.com"
+          check_url "ATS frontend" "https://ats.clarkfoster.com"
 
           echo "Testing API endpoints..."
-          curl -sSf https://clarkfoster.com/api/health > /dev/null && echo "Portfolio API OK"
-          curl -sSf https://shop.clarkfoster.com/api/health > /dev/null && echo "E-Commerce API OK"
-          curl -sSf https://ats.clarkfoster.com/api/health > /dev/null && echo "ATS API OK"
+          check_url "Portfolio API" "https://clarkfoster.com/api/health"
+          check_url "E-Commerce API" "https://shop.clarkfoster.com/api/health"
+          check_url "ATS API" "https://ats.clarkfoster.com/api/health"
 
       - name: Deployment notification
         if: always()
