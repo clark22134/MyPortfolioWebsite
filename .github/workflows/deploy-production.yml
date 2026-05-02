@@ -117,7 +117,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.10.0
           terraform_wrapper: false
@@ -194,7 +194,7 @@ jobs:
           cache: maven
 
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -226,7 +226,7 @@ jobs:
           cp -r ats-frontend/dist/ats-frontend/browser artifacts/ats-frontend
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: deployment-artifacts
           path: artifacts/
@@ -245,7 +245,7 @@ jobs:
       url: https://clarkfoster.com
     steps:
       - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: deployment-artifacts
           path: artifacts/
