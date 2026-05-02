@@ -30,6 +30,12 @@ variable "lambda_function_name" {
   type        = string
 }
 
+variable "lambda_alias" {
+  description = "Optional Lambda alias to invoke (e.g. SnapStart 'current' alias). Empty string targets $LATEST."
+  type        = string
+  default     = ""
+}
+
 # API Gateway REST API
 resource "aws_api_gateway_rest_api" "main" {
   name        = "${var.environment}-${var.api_name}"
@@ -133,6 +139,7 @@ resource "aws_lambda_permission" "api_gateway" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = var.lambda_function_name
+  qualifier     = var.lambda_alias != "" ? var.lambda_alias : null
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
 }

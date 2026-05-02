@@ -1,3 +1,4 @@
+import { createSpyObj, type SpyObj } from '../../../test-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
@@ -11,13 +12,13 @@ import { LoginResponse } from '../../models/user.model';
 describe('LoginComponent', () => {
   let component: LoginComponent;
   let fixture: ComponentFixture<LoginComponent>;
-  let authService: jasmine.SpyObj<AuthService>;
+  let authService: SpyObj<AuthService>;
   let router: Router;
   let currentUserSubject: BehaviorSubject<LoginResponse | null>;
 
   beforeEach(async () => {
     currentUserSubject = new BehaviorSubject<LoginResponse | null>(null);
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['login', 'isAuthenticated'], {
+    const authServiceSpy = createSpyObj('AuthService', ['login', 'isAuthenticated'], {
       currentUser$: currentUserSubject.asObservable()
     });
 
@@ -33,10 +34,10 @@ describe('LoginComponent', () => {
       ]
     }).compileComponents();
 
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
-    authService.isAuthenticated.and.returnValue(false);
+    authService = TestBed.inject(AuthService) as SpyObj<AuthService>;
+    authService.isAuthenticated.mockReturnValue(false);
     router = TestBed.inject(Router);
-    spyOn(router, 'navigate');
+    vi.spyOn(router, 'navigate');
     fixture = TestBed.createComponent(LoginComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -113,7 +114,7 @@ describe('LoginComponent', () => {
       email: 'test@example.com',
       fullName: 'Test User'
     };
-    authService.login.and.returnValue(of(mockResponse));
+    authService.login.mockReturnValue(of(mockResponse));
 
     component.credentials.username = 'testuser';
     component.credentials.password = 'password123';
@@ -133,7 +134,7 @@ describe('LoginComponent', () => {
       email: 'test@example.com',
       fullName: 'Test User'
     };
-    authService.login.and.returnValue(of(mockResponse));
+    authService.login.mockReturnValue(of(mockResponse));
 
     component.credentials.username = 'testuser';
     component.credentials.password = 'password123';
@@ -150,7 +151,7 @@ describe('LoginComponent', () => {
       email: 'test@example.com',
       fullName: 'Test User'
     };
-    authService.login.and.returnValue(of(mockResponse));
+    authService.login.mockReturnValue(of(mockResponse));
 
     component.credentials.username = 'testuser';
     component.credentials.password = 'password123';
@@ -163,7 +164,7 @@ describe('LoginComponent', () => {
   });
 
   it('should display error message on login failure', () => {
-    authService.login.and.returnValue(
+    authService.login.mockReturnValue(
       throwError(() => ({ error: { message: 'Invalid credentials' } }))
     );
 

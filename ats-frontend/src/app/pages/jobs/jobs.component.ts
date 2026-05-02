@@ -28,6 +28,7 @@ export class JobsComponent implements OnInit {
   expandedJobId: number | null = null;
   topMatches: TopCandidateMatch[] = [];
   loadingMatches = false;
+  loading = true;
   selectedJob: Job | null = null;
   jobsPage = 1;
   readonly jobsPageSize = 5;
@@ -40,10 +41,16 @@ export class JobsComponent implements OnInit {
   }
 
   loadJobs(): void {
+    this.loading = true;
     this.jobService.getAll().subscribe({
       next: (jobs) => {
         this.jobs = jobs;
         this.rebuildGroups();
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loading = false;
         this.cdr.detectChanges();
       }
     });

@@ -56,6 +56,9 @@
 		<div class="mobile-drawer-auth" (click)="closeMobileMenu()">
 			<app-login-status></app-login-status>
 		</div>
+		<nav class="mobile-drawer-links" aria-label="Mobile primary navigation">
+			<a routerLink="/about" class="mobile-drawer-link" (click)="closeMobileMenu()">About</a>
+		</nav>
 		<div class="mobile-drawer-categories">
 			<app-product-category-menu></app-product-category-menu>
 		</div>
@@ -84,6 +87,7 @@
               </div>
 
               <div class="header-center">
+                <a routerLink="/about" class="header-nav-link" aria-label="About Us">About</a>
                 <app-login-status></app-login-status>
               </div>
 

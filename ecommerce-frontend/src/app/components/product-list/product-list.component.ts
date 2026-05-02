@@ -75,7 +75,8 @@ export class ProductListComponent implements OnInit {
 
   processResult() {
     return (data: GetResponseProducts) => {
-      this.products.set(data._embedded.products);
+      // Spring Data REST omits `_embedded` when a page is empty, so guard for it.
+      this.products.set(data._embedded?.products ?? []);
       this.thePageNumber.set(data.page.number + 1);
       this.thePageSize.set(data.page.size);
       this.theTotalElements.set(data.page.totalElements);

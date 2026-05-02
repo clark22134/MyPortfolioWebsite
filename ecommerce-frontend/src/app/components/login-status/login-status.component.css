@@ -37,3 +37,35 @@
   border-color: rgba(0, 229, 255, 0.7);
   box-shadow: 0 0 10px rgba(0, 229, 255, 0.15);
 }
+
+.btn-profile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  border-radius: 50%;
+  color: #00e5ff;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-profile:hover {
+  background: rgba(0, 229, 255, 0.08);
+  border-color: rgba(0, 229, 255, 0.7);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.15);
+}
+
+.btn-profile:focus-visible {
+  outline: 2px solid #00e5ff;
+  outline-offset: 2px;
+}
+
+.profile-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+}

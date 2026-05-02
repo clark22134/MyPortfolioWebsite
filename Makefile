@@ -53,9 +53,14 @@ test:
 	cd ats-backend && mvn test
 	cd ecommerce-backend && mvn test
 	@echo "Running frontend tests..."
-	cd portfolio-frontend && npx ng test --no-watch
-	cd ats-frontend && npx ng test --no-watch
-	cd ecommerce-frontend && npx ng test --no-watch
+	@for app in portfolio-frontend ats-frontend ecommerce-frontend; do \
+		echo "--- $$app ---"; \
+		if [ ! -d "$$app/node_modules" ]; then \
+			echo "Installing $$app dependencies..."; \
+			(cd $$app && npm ci) || exit 1; \
+		fi; \
+		(cd $$app && npm test -- --watch=false) || exit 1; \
+	done
 
 # Clean build artifacts
 clean:

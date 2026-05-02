@@ -1,3 +1,4 @@
+import { createSpyObj, type SpyObj } from '../../../test-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
@@ -9,10 +10,10 @@ import { of, throwError } from 'rxjs';
 describe('ContactComponent', () => {
   let component: ContactComponent;
   let fixture: ComponentFixture<ContactComponent>;
-  let contactService: jasmine.SpyObj<ContactService>;
+  let contactService: SpyObj<ContactService>;
 
   beforeEach(async () => {
-    const contactServiceSpy = jasmine.createSpyObj('ContactService', ['sendMessage']);
+    const contactServiceSpy = createSpyObj('ContactService', ['sendMessage']);
 
     await TestBed.configureTestingModule({
       imports: [
@@ -26,7 +27,7 @@ describe('ContactComponent', () => {
       ]
     }).compileComponents();
 
-    contactService = TestBed.inject(ContactService) as jasmine.SpyObj<ContactService>;
+    contactService = TestBed.inject(ContactService) as SpyObj<ContactService>;
     fixture = TestBed.createComponent(ContactComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -44,21 +45,21 @@ describe('ContactComponent', () => {
   });
 
   it('should not be loading initially', () => {
-    expect(component.loading).toBeFalse();
+    expect(component.loading).toBe(false);
   });
 
   it('should not be submitted initially', () => {
-    expect(component.submitted).toBeFalse();
+    expect(component.submitted).toBe(false);
   });
 
   it('should not submit when form fields are empty', () => {
     component.onSubmit();
-    expect(component.submitted).toBeTrue();
+    expect(component.submitted).toBe(true);
     expect(contactService.sendMessage).not.toHaveBeenCalled();
   });
 
   it('should call sendMessage when form is valid', () => {
-    contactService.sendMessage.and.returnValue(of({ message: 'Message sent successfully!' }));
+    contactService.sendMessage.mockReturnValue(of({ message: 'Message sent successfully!' }));
 
     const formData = {
       name: 'John Doe',
@@ -74,7 +75,7 @@ describe('ContactComponent', () => {
   });
 
   it('should set success message on successful submission', () => {
-    contactService.sendMessage.and.returnValue(of({ message: 'Sent!' }));
+    contactService.sendMessage.mockReturnValue(of({ message: 'Sent!' }));
 
     component.formData = {
       name: 'John',
@@ -86,11 +87,11 @@ describe('ContactComponent', () => {
     component.onSubmit();
 
     expect(component.successMessage).toBe('Sent!');
-    expect(component.loading).toBeFalse();
+    expect(component.loading).toBe(false);
   });
 
   it('should set error message on failed submission', () => {
-    contactService.sendMessage.and.returnValue(
+    contactService.sendMessage.mockReturnValue(
       throwError(() => ({ error: { error: 'Server error' } }))
     );
 
@@ -104,11 +105,11 @@ describe('ContactComponent', () => {
     component.onSubmit();
 
     expect(component.errorMessage).toBe('Server error');
-    expect(component.loading).toBeFalse();
+    expect(component.loading).toBe(false);
   });
 
   it('should reset form after successful submission', () => {
-    contactService.sendMessage.and.returnValue(of({ message: 'Sent!' }));
+    contactService.sendMessage.mockReturnValue(of({ message: 'Sent!' }));
 
     component.formData = {
       name: 'John',
@@ -121,7 +122,7 @@ describe('ContactComponent', () => {
 
     expect(component.formData.name).toBe('');
     expect(component.formData.email).toBe('');
-    expect(component.submitted).toBeFalse();
+    expect(component.submitted).toBe(false);
   });
 
   it('should render page title', () => {

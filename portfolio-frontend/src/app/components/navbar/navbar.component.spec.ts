@@ -1,3 +1,4 @@
+import { createSpyObj, type SpyObj } from '../../../test-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
@@ -8,11 +9,11 @@ import { AuthService } from '../../services/auth.service';
 describe('NavbarComponent', () => {
   let component: NavbarComponent;
   let fixture: ComponentFixture<NavbarComponent>;
-  let authService: jasmine.SpyObj<AuthService>;
+  let authService: SpyObj<AuthService>;
   let router: Router;
 
   beforeEach(async () => {
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['isAuthenticated', 'logout']);
+    const authServiceSpy = createSpyObj('AuthService', ['isAuthenticated', 'logout']);
 
     await TestBed.configureTestingModule({
       imports: [
@@ -25,7 +26,7 @@ describe('NavbarComponent', () => {
       ]
     }).compileComponents();
 
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
+    authService = TestBed.inject(AuthService) as SpyObj<AuthService>;
     router = TestBed.inject(Router);
     fixture = TestBed.createComponent(NavbarComponent);
     component = fixture.componentInstance;
@@ -74,7 +75,7 @@ describe('NavbarComponent', () => {
   });
 
   it('should call authService.isAuthenticated', () => {
-    authService.isAuthenticated.and.returnValue(false);
+    authService.isAuthenticated.mockReturnValue(false);
 
     const result = component.isAuthenticated();
 
@@ -83,7 +84,7 @@ describe('NavbarComponent', () => {
   });
 
   it('should show Login button when not authenticated', () => {
-    authService.isAuthenticated.and.returnValue(false);
+    authService.isAuthenticated.mockReturnValue(false);
     fixture.detectChanges();
 
     const loginButton = fixture.nativeElement.querySelector('.login-btn');
@@ -92,7 +93,7 @@ describe('NavbarComponent', () => {
   });
 
   it('should hide Login button when authenticated', () => {
-    authService.isAuthenticated.and.returnValue(true);
+    authService.isAuthenticated.mockReturnValue(true);
     fixture.detectChanges();
 
     const loginButton = fixture.nativeElement.querySelector('.login-btn');
@@ -100,7 +101,7 @@ describe('NavbarComponent', () => {
   });
 
   it('should show Logout button when authenticated', () => {
-    authService.isAuthenticated.and.returnValue(true);
+    authService.isAuthenticated.mockReturnValue(true);
     fixture.detectChanges();
 
     const logoutButton = fixture.nativeElement.querySelector('.logout-btn');
@@ -109,7 +110,7 @@ describe('NavbarComponent', () => {
   });
 
   it('should hide Logout button when not authenticated', () => {
-    authService.isAuthenticated.and.returnValue(false);
+    authService.isAuthenticated.mockReturnValue(false);
     fixture.detectChanges();
 
     const logoutButton = fixture.nativeElement.querySelector('.logout-btn');
@@ -117,7 +118,7 @@ describe('NavbarComponent', () => {
   });
 
   it('should call authService.logout when logout button is clicked', () => {
-    authService.isAuthenticated.and.returnValue(true);
+    authService.isAuthenticated.mockReturnValue(true);
     fixture.detectChanges();
 
     component.logout();
@@ -126,8 +127,8 @@ describe('NavbarComponent', () => {
   });
 
   it('should navigate to home after logout', () => {
-    authService.isAuthenticated.and.returnValue(true);
-    spyOn(router, 'navigate');
+    authService.isAuthenticated.mockReturnValue(true);
+    vi.spyOn(router, 'navigate');
 
     component.logout();
 
@@ -135,10 +136,10 @@ describe('NavbarComponent', () => {
   });
 
   it('should call logout method when logout button is clicked', () => {
-    authService.isAuthenticated.and.returnValue(true);
+    authService.isAuthenticated.mockReturnValue(true);
     fixture.detectChanges();
 
-    spyOn(component, 'logout');
+    vi.spyOn(component, 'logout');
     const logoutButton = fixture.nativeElement.querySelector('.logout-btn');
     logoutButton.click();
 

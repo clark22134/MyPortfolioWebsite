@@ -1,3 +1,4 @@
+import { createSpyObj, type SpyObj } from '../../../test-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
@@ -9,7 +10,7 @@ import { Project } from '../../models/project.model';
 describe('ProjectsComponent', () => {
   let component: ProjectsComponent;
   let fixture: ComponentFixture<ProjectsComponent>;
-  let projectService: jasmine.SpyObj<ProjectService>;
+  let projectService: SpyObj<ProjectService>;
 
   const mockProjects: Project[] = [
     {
@@ -34,7 +35,7 @@ describe('ProjectsComponent', () => {
   ];
 
   beforeEach(async () => {
-    const projectServiceSpy = jasmine.createSpyObj('ProjectService', ['getAllProjects']);
+    const projectServiceSpy = createSpyObj('ProjectService', ['getAllProjects']);
 
     await TestBed.configureTestingModule({
       imports: [ProjectsComponent, HttpClientTestingModule, RouterTestingModule],
@@ -43,9 +44,9 @@ describe('ProjectsComponent', () => {
       ]
     }).compileComponents();
 
-    projectService = TestBed.inject(ProjectService) as jasmine.SpyObj<ProjectService>;
+    projectService = TestBed.inject(ProjectService) as SpyObj<ProjectService>;
     // Set up default return value to prevent undefined.subscribe() errors
-    projectService.getAllProjects.and.returnValue(of([]));
+    projectService.getAllProjects.mockReturnValue(of([]));
 
     fixture = TestBed.createComponent(ProjectsComponent);
     component = fixture.componentInstance;
@@ -56,7 +57,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should load projects on init', () => {
-    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    projectService.getAllProjects.mockReturnValue(of(mockProjects));
 
     component.ngOnInit();
 
@@ -65,7 +66,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should handle empty projects list', () => {
-    projectService.getAllProjects.and.returnValue(of([]));
+    projectService.getAllProjects.mockReturnValue(of([]));
 
     component.ngOnInit();
 
@@ -73,7 +74,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should handle error when loading projects', () => {
-    projectService.getAllProjects.and.returnValue(
+    projectService.getAllProjects.mockReturnValue(
       throwError(() => new Error('Failed to load projects'))
     );
 
@@ -91,7 +92,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should render project cards', () => {
-    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    projectService.getAllProjects.mockReturnValue(of(mockProjects));
     fixture.detectChanges();
 
     const projectCards = fixture.nativeElement.querySelectorAll('.project-card');
@@ -99,7 +100,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should display project title', () => {
-    projectService.getAllProjects.and.returnValue(of([mockProjects[0]]));
+    projectService.getAllProjects.mockReturnValue(of([mockProjects[0]]));
     fixture.detectChanges();
 
     const titleElement = fixture.nativeElement.querySelector('.project-card h2');
@@ -107,7 +108,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should display project description', () => {
-    projectService.getAllProjects.and.returnValue(of([mockProjects[0]]));
+    projectService.getAllProjects.mockReturnValue(of([mockProjects[0]]));
     fixture.detectChanges();
 
     const descElement = fixture.nativeElement.querySelector('.project-card .description');
@@ -115,7 +116,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should display technologies', () => {
-    projectService.getAllProjects.and.returnValue(of([mockProjects[0]]));
+    projectService.getAllProjects.mockReturnValue(of([mockProjects[0]]));
     fixture.detectChanges();
 
     const techBadges = fixture.nativeElement.querySelectorAll('.tech-badge');
@@ -124,7 +125,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should show GitHub link when githubUrl exists', () => {
-    projectService.getAllProjects.and.returnValue(of([mockProjects[0]]));
+    projectService.getAllProjects.mockReturnValue(of([mockProjects[0]]));
     fixture.detectChanges();
 
     const githubLink = fixture.nativeElement.querySelector('a[href="https://github.com/user/portfolio"]');
@@ -133,7 +134,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should show demo link when demoUrl exists', () => {
-    projectService.getAllProjects.and.returnValue(of([mockProjects[0]]));
+    projectService.getAllProjects.mockReturnValue(of([mockProjects[0]]));
     fixture.detectChanges();
 
     const demoLink = fixture.nativeElement.querySelector('a[href="https://demo.com"]');
@@ -142,7 +143,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should display featured badge for featured projects', () => {
-    projectService.getAllProjects.and.returnValue(of([mockProjects[0]]));
+    projectService.getAllProjects.mockReturnValue(of([mockProjects[0]]));
     fixture.detectChanges();
 
     const featuredBadge = fixture.nativeElement.querySelector('.featured-badge');
@@ -151,7 +152,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should not display featured badge for non-featured projects', () => {
-    projectService.getAllProjects.and.returnValue(of([mockProjects[1]]));
+    projectService.getAllProjects.mockReturnValue(of([mockProjects[1]]));
     fixture.detectChanges();
 
     const featuredBadge = fixture.nativeElement.querySelector('.featured-badge');
@@ -159,7 +160,7 @@ describe('ProjectsComponent', () => {
   });
 
   it('should display project dates when available', () => {
-    projectService.getAllProjects.and.returnValue(of([mockProjects[0]]));
+    projectService.getAllProjects.mockReturnValue(of([mockProjects[0]]));
     fixture.detectChanges();
 
     const datesElement = fixture.nativeElement.querySelector('.dates');
@@ -172,7 +173,7 @@ describe('ProjectsComponent', () => {
       ...mockProjects[0],
       endDate: undefined
     };
-    projectService.getAllProjects.and.returnValue(of([projectWithoutEndDate]));
+    projectService.getAllProjects.mockReturnValue(of([projectWithoutEndDate]));
     fixture.detectChanges();
 
     const datesElement = fixture.nativeElement.querySelector('.dates');

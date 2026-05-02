@@ -20,7 +20,9 @@ export class ProductService {
 
   getProducts(searchUrl: string): Observable<Product[]> {
     return this.httpClient.get<GetResponseProducts>(searchUrl).pipe(
-      map(response => response._embedded.products)
+      // Spring Data REST omits `_embedded` entirely when a page has zero
+      // results, so we have to defend against undefined here.
+      map(response => response._embedded?.products ?? [])
     );
   }
 
@@ -43,8 +45,8 @@ export class ProductService {
 
   searchProducts(theKeyword: string): Observable<Product[]> {
 
-    // need to build URL based on the keyword
-    const searchUrl = `${this.baseUrl}/search/findByNameContaining?name=${theKeyword}`;
+    // need to build URL based on the keyword (URL-encode for safety)
+    const searchUrl = `${this.baseUrl}/search/findByNameContaining?name=${encodeURIComponent(theKeyword)}`;
     return this.getProducts(searchUrl);
   }
 
@@ -52,8 +54,8 @@ export class ProductService {
                         thePageSize: number,
                         theKeyword: string): Observable<GetResponseProducts> {
 
-    // need to build URL based on keyword, page and size
-    const searchUrl = `${this.baseUrl}/search/findByNameContaining?name=${theKeyword}`
+    // need to build URL based on keyword, page and size (URL-encode for safety)
+    const searchUrl = `${this.baseUrl}/search/findByNameContaining?name=${encodeURIComponent(theKeyword)}`
                     + `&page=${thePage - 1}&size=${thePageSize}`;
 
     return this.httpClient.get<GetResponseProducts>(searchUrl);
@@ -67,7 +69,7 @@ export class ProductService {
 }
 
 export interface GetResponseProducts {
-  _embedded: {
+  _embedded?: {
     products: Product[];
   },
   page: {

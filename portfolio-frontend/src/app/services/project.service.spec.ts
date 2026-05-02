@@ -58,7 +58,7 @@ describe('ProjectService', () => {
 
     it('should handle error when retrieving all projects', () => {
       service.getAllProjects().subscribe({
-        next: () => fail('should have failed'),
+        next: () => expect.fail('should have failed'),
         error: (error) => {
           expect(error.status).toBe(500);
         }
@@ -114,7 +114,7 @@ describe('ProjectService', () => {
       const projectId = 999;
 
       service.getProjectById(projectId).subscribe({
-        next: () => fail('should have failed'),
+        next: () => expect.fail('should have failed'),
         error: (error) => {
           expect(error.status).toBe(404);
         }
@@ -156,7 +156,7 @@ describe('ProjectService', () => {
       };
 
       service.createProject(invalidProject).subscribe({
-        next: () => fail('should have failed'),
+        next: () => expect.fail('should have failed'),
         error: (error) => {
           expect(error.status).toBe(400);
         }
@@ -191,7 +191,7 @@ describe('ProjectService', () => {
       const updatedProject: Project = mockProjects[0];
 
       service.updateProject(projectId, updatedProject).subscribe({
-        next: () => fail('should have failed'),
+        next: () => expect.fail('should have failed'),
         error: (error) => {
           expect(error.status).toBe(404);
         }
@@ -219,7 +219,7 @@ describe('ProjectService', () => {
       const projectId = 999;
 
       service.deleteProject(projectId).subscribe({
-        next: () => fail('should have failed'),
+        next: () => expect.fail('should have failed'),
         error: (error) => {
           expect(error.status).toBe(404);
         }
