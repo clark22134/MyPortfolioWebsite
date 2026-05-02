@@ -14,8 +14,8 @@ on:
       node-test-args:
         required: false
         type: string
-        default: '--no-watch'
-        description: 'Extra args passed to ng test (Node projects only)'
+        default: ''
+        description: 'Extra args appended to npm test -- --watch=false (Node projects only)'
 
 jobs:
   test:
@@ -66,7 +66,7 @@ jobs:
 
       - name: Test (Node)
         if: inputs.type == 'node'
-        run: cd ${{ inputs.component }} && npx ng test ${{ inputs.node-test-args }}
+        run: cd ${{ inputs.component }} && npm test -- --watch=false ${{ inputs.node-test-args }}
 
       - name: Build (Node)
         if: inputs.type == 'node'

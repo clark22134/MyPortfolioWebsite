@@ -46,7 +46,6 @@ jobs:
     with:
       component: portfolio-frontend
       type: node
-      node-test-args: '--no-watch --code-coverage --browsers=ChromeHeadless'
 
   test-ats-backend:
     name: ATS Backend Tests

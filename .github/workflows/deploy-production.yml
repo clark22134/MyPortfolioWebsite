@@ -63,7 +63,6 @@ jobs:
     with:
       component: portfolio-frontend
       type: node
-      node-test-args: '--no-watch --code-coverage --browsers=ChromeHeadless'
 
   test-ats-backend:
     name: ATS Backend Tests
@@ -219,9 +218,9 @@ jobs:
       - name: Stage artifacts
         run: |
           mkdir -p artifacts
-          cp portfolio-backend/target/portfolio-backend-1.0.0.jar artifacts/portfolio-backend.jar
-          cp ecommerce-backend/target/spring-boot-ecommerce-0.0.1-SNAPSHOT.jar artifacts/ecommerce-backend.jar
-          cp ats-backend/target/ats-backend-0.0.1-SNAPSHOT.jar artifacts/ats-backend.jar
+          cp $(ls portfolio-backend/target/*.jar | grep -v -E 'sources|javadoc|original-' | head -1) artifacts/portfolio-backend.jar
+          cp $(ls ecommerce-backend/target/*.jar | grep -v -E 'sources|javadoc|original-' | head -1) artifacts/ecommerce-backend.jar
+          cp $(ls ats-backend/target/*.jar | grep -v -E 'sources|javadoc|original-' | head -1) artifacts/ats-backend.jar
           cp -r portfolio-frontend/dist/portfolio-frontend/browser artifacts/portfolio-frontend
           cp -r ecommerce-frontend/dist/angular-ecommerce/browser artifacts/ecommerce-frontend
           cp -r ats-frontend/dist/ats-frontend/browser artifacts/ats-frontend
