@@ -11,6 +11,13 @@ export class SearchComponent {
   constructor(private router: Router) {}
 
   doSearch(value: string) {
-    this.router.navigateByUrl(`/search/${value}`);
+    const keyword = (value ?? '').trim();
+    if (!keyword) {
+      // Empty input: stay on the catalog instead of navigating to /search/
+      this.router.navigateByUrl('/products');
+      return;
+    }
+    // encodeURIComponent so spaces and special characters survive the URL.
+    this.router.navigateByUrl(`/search/${encodeURIComponent(keyword)}`);
   }
 }

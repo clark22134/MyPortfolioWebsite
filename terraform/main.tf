@@ -286,13 +286,15 @@ module "ecommerce_lambda" {
 }
 
 # API Gateway for E-Commerce Backend
+# Use the SnapStart alias invoke ARN so cold starts use the pre-initialized snapshot.
 module "ecommerce_api_gateway" {
   source = "./modules/api-gateway"
   
   environment          = var.environment
   api_name             = "ecommerce-api"
-  lambda_invoke_arn    = module.ecommerce_lambda.function_invoke_arn
+  lambda_invoke_arn    = module.ecommerce_lambda.alias_invoke_arn
   lambda_function_name = module.ecommerce_lambda.function_name
+  lambda_alias         = module.ecommerce_lambda.alias_name
 }
 
 # S3 bucket for E-Commerce Frontend
@@ -393,13 +395,15 @@ module "ats_lambda" {
 }
 
 # API Gateway for ATS Backend
+# Use the SnapStart alias invoke ARN so cold starts use the pre-initialized snapshot.
 module "ats_api_gateway" {
   source = "./modules/api-gateway"
   
   environment          = var.environment
   api_name             = "ats-api"
-  lambda_invoke_arn    = module.ats_lambda.function_invoke_arn
+  lambda_invoke_arn    = module.ats_lambda.alias_invoke_arn
   lambda_function_name = module.ats_lambda.function_name
+  lambda_alias         = module.ats_lambda.alias_name
 }
 
 # S3 bucket for ATS Frontend

@@ -21,6 +21,29 @@ describe('CartService', () => {
     });
     service = TestBed.inject(CartService);
     httpMock = TestBed.inject(HttpTestingController);
+
+    // CartService is providedIn:'root', so the same singleton instance is reused
+    // across tests. Reset its mutable state and re-run the storage init logic so
+    // each test starts from a clean baseline that reflects the current mockStorage.
+    service.cartItems = [];
+    service.totalPrice.next(0);
+    service.totalQuantity.next(0);
+    (service as unknown as { currentUserEmail: string | null }).currentUserEmail = null;
+    const storedAuth = service.storage.getItem('authUser');
+    if (storedAuth) {
+      try {
+        (service as unknown as { currentUserEmail: string | null }).currentUserEmail =
+          JSON.parse(storedAuth).email ?? null;
+      } catch {
+        // ignore
+      }
+    }
+    const cartKey = (service as unknown as { cartStorageKey: string }).cartStorageKey;
+    const cartData = service.storage.getItem(cartKey);
+    if (cartData) {
+      service.cartItems = JSON.parse(cartData);
+      (service as unknown as { computeCartTotals: () => void }).computeCartTotals();
+    }
   }
 
   afterEach(() => {

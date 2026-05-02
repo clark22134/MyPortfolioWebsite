@@ -250,8 +250,54 @@ aside.menu-sidebar.d-none.d-lg-block.clr{
 .header-center{
     flex:1;
     display:flex;
+    align-items:center;
     justify-content:flex-end;
+    gap:1.25rem;
     margin-right:1.25rem
+}
+
+.header-nav-link{
+    color:#00e5ff;
+    font-size:0.75rem;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    text-decoration:none;
+    padding:0.4rem 0.25rem;
+    border-bottom:1px solid transparent;
+    transition:color 0.3s, border-color 0.3s, text-shadow 0.3s
+}
+
+.header-nav-link:hover,
+.header-nav-link:focus-visible{
+    color:#7df9ff;
+    border-bottom-color:rgba(0,229,255,0.7);
+    text-shadow:0 0 6px rgba(0,229,255,0.35);
+    outline:none
+}
+
+.mobile-drawer-links{
+    padding:0.5rem 1.25rem 1rem;
+    display:flex;
+    flex-direction:column;
+    gap:0.25rem
+}
+
+.mobile-drawer-link{
+    color:#00e5ff;
+    font-size:0.85rem;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    text-decoration:none;
+    padding:0.6rem 0;
+    border-bottom:1px solid rgba(0,229,255,0.15)
+}
+
+.mobile-drawer-link:hover,
+.mobile-drawer-link:focus-visible{
+    color:#7df9ff;
+    outline:none
 }
 
 .header-right{

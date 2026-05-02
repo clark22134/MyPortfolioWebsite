@@ -227,10 +227,12 @@ resource "aws_lambda_alias" "main" {
 }
 
 # EventBridge rule to keep Lambda warm (optional)
+# 2-minute cadence stays well under Lambda's idle reclaim window so the
+# JVM, Hikari pool, and Aurora buffer cache stay warm between requests.
 resource "aws_cloudwatch_event_rule" "lambda_warmer" {
   name                = "${var.environment}-${var.function_name}-warmer"
   description         = "Keep Lambda warm"
-  schedule_expression = "rate(4 minutes)"
+  schedule_expression = "rate(2 minutes)"
 
   tags = {
     Name        = "${var.environment}-${var.function_name}-warmer"
@@ -241,7 +243,8 @@ resource "aws_cloudwatch_event_rule" "lambda_warmer" {
 resource "aws_cloudwatch_event_target" "lambda_warmer" {
   rule      = aws_cloudwatch_event_rule.lambda_warmer.name
   target_id = "lambda"
-  arn       = aws_lambda_function.main.arn
+  # Target the SnapStart alias when enabled, otherwise the unqualified function
+  arn       = var.enable_snapstart ? aws_lambda_alias.main[0].arn : aws_lambda_function.main.arn
 
   input = jsonencode({
     warmer = true
@@ -252,6 +255,7 @@ resource "aws_lambda_permission" "allow_eventbridge" {
   statement_id  = "AllowExecutionFromEventBridge"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.main.function_name
+  qualifier     = var.enable_snapstart ? aws_lambda_alias.main[0].name : null
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.lambda_warmer.arn
 }
@@ -267,8 +271,18 @@ output "function_name" {
 }
 
 output "function_invoke_arn" {
-  description = "Lambda function invoke ARN"
+  description = "Lambda function invoke ARN (unqualified). Prefer alias_invoke_arn when SnapStart is enabled."
   value       = aws_lambda_function.main.invoke_arn
+}
+
+output "alias_invoke_arn" {
+  description = "Lambda alias invoke ARN. Falls back to the unqualified invoke ARN when SnapStart is disabled."
+  value       = var.enable_snapstart ? aws_lambda_alias.main[0].invoke_arn : aws_lambda_function.main.invoke_arn
+}
+
+output "alias_name" {
+  description = "Lambda alias name (empty when SnapStart is disabled)"
+  value       = var.enable_snapstart ? aws_lambda_alias.main[0].name : ""
 }
 
 output "function_role_arn" {

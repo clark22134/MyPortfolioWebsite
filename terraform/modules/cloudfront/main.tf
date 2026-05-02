@@ -111,6 +111,35 @@ resource "aws_cloudfront_distribution" "static_site" {
     max_ttl     = 31536000 # 1 year
   }
 
+  # Cache the public product catalog at the edge.
+  # Ordered cache behaviors are matched in order, so this MUST stay before /api/*.
+  # The origin (Spring Boot) controls TTL via Cache-Control headers.
+  dynamic "ordered_cache_behavior" {
+    for_each = var.api_gateway_domain != "" ? [1] : []
+    content {
+      path_pattern           = "/api/products*"
+      target_origin_id       = "API-${var.domain_name}"
+      viewer_protocol_policy = "https-only"
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
+      compress               = true
+
+      forwarded_values {
+        query_string = true
+        # Do NOT forward Authorization or Cookie here, otherwise CloudFront
+        # treats every signed-in user as a separate cache key.
+        headers      = ["Accept"]
+        cookies {
+          forward = "none"
+        }
+      }
+
+      min_ttl     = 0
+      default_ttl = 60   # 1 min if origin sends no Cache-Control
+      max_ttl     = 300  # cap at 5 min even if origin asks for more
+    }
+  }
+
   # API cache behavior (if API Gateway is configured)
   dynamic "ordered_cache_behavior" {
     for_each = var.api_gateway_domain != "" ? [1] : []

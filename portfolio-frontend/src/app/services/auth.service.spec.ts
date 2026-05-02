@@ -50,13 +50,15 @@ describe('AuthService', () => {
     });
 
     it('should start with isAuthenticated as false after failed /me check', () => {
-      expect(service.isAuthenticated()).toBeFalse();
+      expect(service.isAuthenticated()).toBe(false);
     });
 
-    it('should have null currentUser$ after failed /me check', (done) => {
-      service.currentUser$.subscribe(user => {
-        expect(user).toBeNull();
-        done();
+    it('should have null currentUser$ after failed /me check', () => {
+      return new Promise<void>((resolve) => {
+        service.currentUser$.subscribe(user => {
+          expect(user).toBeNull();
+          resolve();
+        });
       });
     });
   });
@@ -75,7 +77,7 @@ describe('AuthService', () => {
       const req = httpMock.expectOne(`${apiUrl}/login`);
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(loginRequest);
-      expect(req.request.withCredentials).toBeTrue();
+      expect(req.request.withCredentials).toBe(true);
       req.flush(mockUserInfo);
 
       tick();
@@ -92,7 +94,7 @@ describe('AuthService', () => {
       req.flush(mockUserInfo);
 
       tick();
-      expect(service.isAuthenticated()).toBeTrue();
+      expect(service.isAuthenticated()).toBe(true);
 
       // Cleanup
       service.logout().subscribe();
@@ -129,7 +131,7 @@ describe('AuthService', () => {
       req.flush({ message: 'Invalid credentials' }, { status: 401, statusText: 'Unauthorized' });
 
       tick();
-      expect(service.isAuthenticated()).toBeFalse();
+      expect(service.isAuthenticated()).toBe(false);
     }));
   });
 
@@ -147,7 +149,7 @@ describe('AuthService', () => {
       const req = httpMock.expectOne(`${apiUrl}/register`);
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(registerRequest);
-      expect(req.request.withCredentials).toBeTrue();
+      expect(req.request.withCredentials).toBe(true);
       req.flush({ message: 'Registration successful' });
       tick();
     }));
@@ -167,17 +169,17 @@ describe('AuthService', () => {
       loginReq.flush(mockUserInfo);
       tick();
 
-      expect(service.isAuthenticated()).toBeTrue();
+      expect(service.isAuthenticated()).toBe(true);
 
       service.logout().subscribe();
 
       const logoutReq = httpMock.expectOne(`${apiUrl}/logout`);
       expect(logoutReq.request.method).toBe('POST');
-      expect(logoutReq.request.withCredentials).toBeTrue();
+      expect(logoutReq.request.withCredentials).toBe(true);
       logoutReq.flush({});
 
       tick();
-      expect(service.isAuthenticated()).toBeFalse();
+      expect(service.isAuthenticated()).toBe(false);
     }));
 
     it('should clear auth state even if logout request fails', fakeAsync(() => {
@@ -187,7 +189,7 @@ describe('AuthService', () => {
       loginReq.flush(mockUserInfo);
       tick();
 
-      expect(service.isAuthenticated()).toBeTrue();
+      expect(service.isAuthenticated()).toBe(true);
 
       service.logout().subscribe();
 
@@ -195,7 +197,7 @@ describe('AuthService', () => {
       logoutReq.flush({}, { status: 500, statusText: 'Server Error' });
 
       tick();
-      expect(service.isAuthenticated()).toBeFalse();
+      expect(service.isAuthenticated()).toBe(false);
     }));
   });
 
@@ -205,7 +207,7 @@ describe('AuthService', () => {
 
       const req = httpMock.expectOne(`${apiUrl}/logout-all`);
       expect(req.request.method).toBe('POST');
-      expect(req.request.withCredentials).toBeTrue();
+      expect(req.request.withCredentials).toBe(true);
       req.flush({});
 
       tick();
@@ -218,7 +220,7 @@ describe('AuthService', () => {
 
       const req = httpMock.expectOne(`${apiUrl}/refresh`);
       expect(req.request.method).toBe('POST');
-      expect(req.request.withCredentials).toBeTrue();
+      expect(req.request.withCredentials).toBe(true);
       req.flush({});
 
       tick();
@@ -235,7 +237,7 @@ describe('AuthService', () => {
       req.flush({}, { status: 401, statusText: 'Unauthorized' });
 
       tick();
-      expect(service.isAuthenticated()).toBeFalse();
+      expect(service.isAuthenticated()).toBe(false);
     }));
   });
 
@@ -254,7 +256,7 @@ describe('AuthService', () => {
 
       const req = httpMock.expectOne(`${apiUrl}/me`);
       expect(req.request.method).toBe('GET');
-      expect(req.request.withCredentials).toBeTrue();
+      expect(req.request.withCredentials).toBe(true);
       req.flush(mockUserInfo);
 
       tick();
@@ -273,13 +275,13 @@ describe('AuthService', () => {
       req.flush({}, { status: 401, statusText: 'Unauthorized' });
 
       tick();
-      expect(service.isAuthenticated()).toBeFalse();
+      expect(service.isAuthenticated()).toBe(false);
     }));
   });
 
   describe('isAuthenticated', () => {
     it('should return false when not authenticated', () => {
-      expect(service.isAuthenticated()).toBeFalse();
+      expect(service.isAuthenticated()).toBe(false);
     });
 
     it('should return true when authenticated', fakeAsync(() => {
@@ -295,7 +297,7 @@ describe('AuthService', () => {
       req.flush(mockUserInfo);
 
       tick();
-      expect(service.isAuthenticated()).toBeTrue();
+      expect(service.isAuthenticated()).toBe(true);
 
       // Cleanup
       service.logout().subscribe();

@@ -1,3 +1,4 @@
+import { createSpyObj, type SpyObj } from '../../../test-helpers';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
@@ -11,7 +12,7 @@ import { Project } from '../../models/project.model';
 describe('HomeComponent', () => {
   let component: HomeComponent;
   let fixture: ComponentFixture<HomeComponent>;
-  let projectService: jasmine.SpyObj<ProjectService>;
+  let projectService: SpyObj<ProjectService>;
 
   const mockProjects: Project[] = [
     {
@@ -24,7 +25,7 @@ describe('HomeComponent', () => {
   ];
 
   beforeEach(async () => {
-    const projectServiceSpy = jasmine.createSpyObj('ProjectService', ['getFeaturedProjects']);
+    const projectServiceSpy = createSpyObj('ProjectService', ['getFeaturedProjects']);
 
     await TestBed.configureTestingModule({
       imports: [
@@ -38,8 +39,8 @@ describe('HomeComponent', () => {
       ]
     }).compileComponents();
 
-    projectService = TestBed.inject(ProjectService) as jasmine.SpyObj<ProjectService>;
-    projectService.getFeaturedProjects.and.returnValue(of([]));
+    projectService = TestBed.inject(ProjectService) as SpyObj<ProjectService>;
+    projectService.getFeaturedProjects.mockReturnValue(of([]));
 
     // Mark terminal as complete so component initializes properly
     const terminalService = TestBed.inject(TerminalLoaderService);
@@ -57,7 +58,7 @@ describe('HomeComponent', () => {
   });
 
   it('should load featured projects on init', () => {
-    projectService.getFeaturedProjects.and.returnValue(of(mockProjects));
+    projectService.getFeaturedProjects.mockReturnValue(of(mockProjects));
 
     component.ngOnInit();
 
@@ -66,7 +67,7 @@ describe('HomeComponent', () => {
   });
 
   it('should handle empty featured projects', () => {
-    projectService.getFeaturedProjects.and.returnValue(of([]));
+    projectService.getFeaturedProjects.mockReturnValue(of([]));
 
     component.ngOnInit();
 

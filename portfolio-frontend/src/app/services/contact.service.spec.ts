@@ -55,7 +55,7 @@ describe('ContactService', () => {
     };
 
     service.sendMessage(request).subscribe({
-      next: () => fail('should have failed'),
+      next: () => expect.fail('should have failed'),
       error: (error) => {
         expect(error.status).toBe(500);
       }

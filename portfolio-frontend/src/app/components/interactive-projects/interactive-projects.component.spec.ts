@@ -1,3 +1,4 @@
+import { createSpyObj, type SpyObj } from '../../../test-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
@@ -11,13 +12,13 @@ import { LoginResponse } from '../../models/user.model';
 describe('InteractiveProjectsComponent', () => {
   let component: InteractiveProjectsComponent;
   let fixture: ComponentFixture<InteractiveProjectsComponent>;
-  let authService: jasmine.SpyObj<AuthService>;
+  let authService: SpyObj<AuthService>;
   let router: Router;
   let currentUserSubject: BehaviorSubject<LoginResponse | null>;
 
   beforeEach(async () => {
     currentUserSubject = new BehaviorSubject<LoginResponse | null>(null);
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['logout', 'isAuthenticated'], {
+    const authServiceSpy = createSpyObj('AuthService', ['logout', 'isAuthenticated'], {
       currentUser$: currentUserSubject.asObservable()
     });
 
@@ -33,11 +34,11 @@ describe('InteractiveProjectsComponent', () => {
       ]
     }).compileComponents();
 
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
+    authService = TestBed.inject(AuthService) as SpyObj<AuthService>;
     router = TestBed.inject(Router);
-    spyOn(router, 'navigate');
+    vi.spyOn(router, 'navigate');
     // Set up default return value for isAuthenticated
-    authService.isAuthenticated.and.returnValue(true);
+    authService.isAuthenticated.mockReturnValue(true);
 
     fixture = TestBed.createComponent(InteractiveProjectsComponent);
     component = fixture.componentInstance;
@@ -120,8 +121,8 @@ describe('InteractiveProjectsComponent', () => {
     const mockElement = document.createElement('div');
     const event = new DragEvent('dragover');
     Object.defineProperty(event, 'currentTarget', { value: mockElement, configurable: true });
-    spyOn(event, 'preventDefault');
-    spyOn(event, 'stopPropagation');
+    vi.spyOn(event, 'preventDefault');
+    vi.spyOn(event, 'stopPropagation');
 
     component.onDragOver(event);
 
@@ -135,8 +136,8 @@ describe('InteractiveProjectsComponent', () => {
     mockElement.classList.add('drag-over');
     const event = new DragEvent('dragleave');
     Object.defineProperty(event, 'currentTarget', { value: mockElement, configurable: true });
-    spyOn(event, 'preventDefault');
-    spyOn(event, 'stopPropagation');
+    vi.spyOn(event, 'preventDefault');
+    vi.spyOn(event, 'stopPropagation');
 
     component.onDragLeave(event);
 
@@ -156,8 +157,8 @@ describe('InteractiveProjectsComponent', () => {
       value: { files: [file] },
       configurable: true
     });
-    spyOn(event, 'preventDefault');
-    spyOn(event, 'stopPropagation');
+    vi.spyOn(event, 'preventDefault');
+    vi.spyOn(event, 'stopPropagation');
 
     component.onDrop(event, 'ml-pipeline');
 

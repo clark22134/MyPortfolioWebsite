@@ -88,7 +88,12 @@
   }
 
   <div class="employer-groups">
-    @for (group of pagedGroups; track group.employer) {
+    @if (loading) {
+      <div class="loading-state">
+        <span class="spinner"></span> Loading jobs…
+      </div>
+    } @else {
+      @for (group of pagedGroups; track group.employer) {
       <div class="employer-section">
         <button class="employer-header" (click)="group.collapsed = !group.collapsed"
                 [attr.aria-expanded]="!group.collapsed">
@@ -195,6 +200,7 @@
       <div class="empty-state">
         <p>No jobs yet. Create your first job posting to get started.</p>
       </div>
+    }
     }
   </div>
   @if (jobsTotalPages > 1) {
