@@ -1,6 +1,6 @@
 terraform {
   required_version = ">= 1.0"
-  
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -35,11 +35,11 @@ provider "aws" {
 # VPC and Networking
 module "networking" {
   source = "./modules/networking"
-  
-  environment      = var.environment
-  vpc_cidr         = var.vpc_cidr
-  public_subnets   = var.public_subnets
-  private_subnets  = var.private_subnets
+
+  environment     = var.environment
+  vpc_cidr        = var.vpc_cidr
+  public_subnets  = var.public_subnets
+  private_subnets = var.private_subnets
 }
 
 # ACM Certificate for SSL/TLS (must be in us-east-1 for CloudFront)
@@ -48,7 +48,7 @@ module "acm" {
   providers = {
     aws.us_east_1 = aws.us_east_1
   }
-  
+
   domain_name = var.domain_name
   environment = var.environment
 }
@@ -59,7 +59,7 @@ module "cloudfront_waf" {
   providers = {
     aws.us_east_1 = aws.us_east_1
   }
-  
+
   environment = var.environment
 }
 
@@ -88,7 +88,7 @@ resource "aws_iam_role_policy_attachment" "api_gateway_cloudwatch" {
 
 resource "aws_api_gateway_account" "main" {
   cloudwatch_role_arn = aws_iam_role.api_gateway_cloudwatch.arn
-  
+
   depends_on = [aws_iam_role_policy_attachment.api_gateway_cloudwatch]
 }
 
@@ -104,18 +104,18 @@ resource "aws_api_gateway_account" "main" {
 module "shared_aurora" {
   source = "./modules/aurora"
 
-  environment              = var.environment
-  cluster_identifier       = "shared"
-  database_name            = "portfolio"
-  vpc_id                   = module.networking.vpc_id
-  subnet_ids               = module.networking.private_subnet_ids
-  allowed_security_groups  = [
+  environment        = var.environment
+  cluster_identifier = "shared"
+  database_name      = "portfolio"
+  vpc_id             = module.networking.vpc_id
+  subnet_ids         = module.networking.private_subnet_ids
+  allowed_security_groups = [
     aws_security_group.portfolio_lambda.id,
     aws_security_group.ecommerce_lambda.id,
     aws_security_group.ats_lambda.id,
   ]
-  min_capacity             = 0.5
-  max_capacity             = 4
+  min_capacity = 0.5
+  max_capacity = 4
 }
 
 # =========================================================================
@@ -145,21 +145,26 @@ resource "aws_security_group" "portfolio_lambda" {
 # Lambda function for Portfolio Backend
 module "portfolio_lambda" {
   source = "./modules/lambda"
-  
-  environment        = var.environment
-  function_name      = "portfolio-backend"
-  runtime            = "java21"
-  handler            = "com.portfolio.backend.StreamLambdaHandler::handleRequest"
-  memory_size        = 1024
-  timeout            = 30
-  enable_snapstart   = true
-  
+
+  environment      = var.environment
+  function_name    = "portfolio-backend"
+  runtime          = "java21"
+  handler          = "com.portfolio.backend.StreamLambdaHandler::handleRequest"
+  memory_size      = 1024
+  timeout          = 30
+  enable_snapstart = true
+
   vpc_id                 = module.networking.vpc_id
   vpc_subnet_ids         = module.networking.private_subnet_ids
   vpc_security_group_ids = [aws_security_group.portfolio_lambda.id]
   database_secret_arn    = module.shared_aurora.secret_arn
   enable_database_access = true
-  
+
+  # Grant the execution role read access to the OpenAI key secret (only when
+  # the secret has been provisioned for this environment). Scoped to a
+  # single ARN — the Lambda cannot read any other secret in the account.
+  extra_secret_arns = var.openai_api_key != "" ? [aws_secretsmanager_secret.openai_api_key[0].arn] : []
+
   environment_variables = {
     SPRING_PROFILES_ACTIVE = "prod"
     SPRING_DATASOURCE_URL  = "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/portfolio"
@@ -173,14 +178,57 @@ module "portfolio_lambda" {
     CONTACT_EMAIL          = "clark@clarkfoster.com"
     JWT_SECRET             = var.portfolio_jwt_secret
     ADMIN_PASSWORD         = var.admin_password
+    # OpenAI key — sourced from Secrets Manager so it can be rotated
+    # centrally without redeploying. The Lambda env var is encrypted at rest
+    # by the AWS-managed KMS key. If you need stricter isolation (env vars
+    # are visible to anyone with lambda:GetFunctionConfiguration) switch the
+    # Spring app to fetch from Secrets Manager at startup using the
+    # OPENAI_SECRET_ARN below and the AWS SDK.
+    OPENAI_API_KEY    = var.openai_api_key != "" ? data.aws_secretsmanager_secret_version.openai_api_key[0].secret_string : ""
+    OPENAI_SECRET_ARN = var.openai_api_key != "" ? aws_secretsmanager_secret.openai_api_key[0].arn : ""
+    CHATBOT_ENABLED   = var.openai_api_key != "" ? "true" : "false"
   }
+}
+
+# ---------------------------------------------------------------------------
+# OpenAI API key — AWS Secrets Manager
+# ---------------------------------------------------------------------------
+# Stored centrally so it can be rotated, audited (CloudTrail logs every
+# GetSecretValue call), and IAM-gated. Created only when an actual key has
+# been supplied via TF_VAR_openai_api_key, so dev/staging environments that
+# don't need the chatbot incur no extra cost or attack surface.
+resource "aws_secretsmanager_secret" "openai_api_key" {
+  count       = var.openai_api_key != "" ? 1 : 0
+  name        = "${var.environment}/portfolio/openai-api-key"
+  description = "OpenAI API key consumed by the portfolio RAG chatbot Lambda."
+
+  recovery_window_in_days = 7
+
+  tags = {
+    Name        = "${var.environment}-portfolio-openai-api-key"
+    Environment = var.environment
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "openai_api_key" {
+  count         = var.openai_api_key != "" ? 1 : 0
+  secret_id     = aws_secretsmanager_secret.openai_api_key[0].id
+  secret_string = var.openai_api_key
+}
+
+# Re-read the latest version so the Lambda env var always reflects the
+# current value, even if rotated outside this Terraform run.
+data "aws_secretsmanager_secret_version" "openai_api_key" {
+  count      = var.openai_api_key != "" ? 1 : 0
+  secret_id  = aws_secretsmanager_secret.openai_api_key[0].id
+  depends_on = [aws_secretsmanager_secret_version.openai_api_key]
 }
 
 # API Gateway for Portfolio Backend
 # Use the SnapStart alias invoke ARN so cold starts use the pre-initialized snapshot.
 module "portfolio_api_gateway" {
   source = "./modules/api-gateway"
-  
+
   environment          = var.environment
   api_name             = "portfolio-api"
   lambda_invoke_arn    = module.portfolio_lambda.alias_invoke_arn
@@ -191,7 +239,7 @@ module "portfolio_api_gateway" {
 # S3 bucket for Portfolio Frontend
 module "portfolio_s3" {
   source = "./modules/s3-static"
-  
+
   environment = var.environment
   bucket_name = "${var.environment}-portfolio-frontend-010438493245"
 }
@@ -199,7 +247,7 @@ module "portfolio_s3" {
 # CloudFront for Portfolio Frontend
 module "portfolio_cloudfront" {
   source = "./modules/cloudfront"
-  
+
   environment                    = var.environment
   domain_name                    = "clarkfoster.com"
   additional_aliases             = ["www.clarkfoster.com"]
@@ -262,28 +310,28 @@ resource "aws_security_group" "ecommerce_lambda" {
 # Lambda function for E-Commerce Backend
 module "ecommerce_lambda" {
   source = "./modules/lambda"
-  
-  environment        = var.environment
-  function_name      = "ecommerce-backend"
-  runtime            = "java21"
-  handler            = "com.clarksprojects.ecommerce.StreamLambdaHandler::handleRequest"
-  memory_size        = 2048
-  timeout            = 30
-  enable_snapstart   = true
-  
+
+  environment      = var.environment
+  function_name    = "ecommerce-backend"
+  runtime          = "java21"
+  handler          = "com.clarksprojects.ecommerce.StreamLambdaHandler::handleRequest"
+  memory_size      = 2048
+  timeout          = 30
+  enable_snapstart = true
+
   vpc_id                 = module.networking.vpc_id
   vpc_subnet_ids         = module.networking.private_subnet_ids
   vpc_security_group_ids = [aws_security_group.ecommerce_lambda.id]
   database_secret_arn    = module.shared_aurora.secret_arn
   enable_database_access = true
-  
+
   environment_variables = {
-    SPRING_PROFILES_ACTIVE  = "prod"
-    SPRING_DATASOURCE_URL   = "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ecommerce"
-    DATABASE_SECRET_ARN     = module.shared_aurora.secret_arn
-    DB_USERNAME             = module.shared_aurora.master_username
-    DB_PASSWORD             = module.shared_aurora.master_password
-    ECOMMERCE_JWT_SECRET    = var.ecommerce_jwt_secret
+    SPRING_PROFILES_ACTIVE = "prod"
+    SPRING_DATASOURCE_URL  = "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ecommerce"
+    DATABASE_SECRET_ARN    = module.shared_aurora.secret_arn
+    DB_USERNAME            = module.shared_aurora.master_username
+    DB_PASSWORD            = module.shared_aurora.master_password
+    ECOMMERCE_JWT_SECRET   = var.ecommerce_jwt_secret
   }
 }
 
@@ -291,7 +339,7 @@ module "ecommerce_lambda" {
 # Use the SnapStart alias invoke ARN so cold starts use the pre-initialized snapshot.
 module "ecommerce_api_gateway" {
   source = "./modules/api-gateway"
-  
+
   environment          = var.environment
   api_name             = "ecommerce-api"
   lambda_invoke_arn    = module.ecommerce_lambda.alias_invoke_arn
@@ -302,7 +350,7 @@ module "ecommerce_api_gateway" {
 # S3 bucket for E-Commerce Frontend
 module "ecommerce_s3" {
   source = "./modules/s3-static"
-  
+
   environment = var.environment
   bucket_name = "${var.environment}-ecommerce-frontend-010438493245"
 }
@@ -310,7 +358,7 @@ module "ecommerce_s3" {
 # CloudFront for E-Commerce Frontend
 module "ecommerce_cloudfront" {
   source = "./modules/cloudfront"
-  
+
   environment                    = var.environment
   domain_name                    = "shop.clarkfoster.com"
   s3_bucket_regional_domain_name = module.ecommerce_s3.bucket_regional_domain_name
@@ -372,21 +420,21 @@ resource "aws_security_group" "ats_lambda" {
 # Lambda function for ATS Backend
 module "ats_lambda" {
   source = "./modules/lambda"
-  
-  environment        = var.environment
-  function_name      = "ats-backend"
-  runtime            = "java21"
-  handler            = "com.clarksprojects.ats.StreamLambdaHandler::handleRequest"
-  memory_size        = 1024
-  timeout            = 30
-  enable_snapstart   = true
-  
+
+  environment      = var.environment
+  function_name    = "ats-backend"
+  runtime          = "java21"
+  handler          = "com.clarksprojects.ats.StreamLambdaHandler::handleRequest"
+  memory_size      = 1024
+  timeout          = 30
+  enable_snapstart = true
+
   vpc_id                 = module.networking.vpc_id
   vpc_subnet_ids         = module.networking.private_subnet_ids
   vpc_security_group_ids = [aws_security_group.ats_lambda.id]
   database_secret_arn    = module.shared_aurora.secret_arn
   enable_database_access = true
-  
+
   environment_variables = {
     SPRING_PROFILES_ACTIVE = "prod"
     SPRING_DATASOURCE_URL  = "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ats"
@@ -400,7 +448,7 @@ module "ats_lambda" {
 # Use the SnapStart alias invoke ARN so cold starts use the pre-initialized snapshot.
 module "ats_api_gateway" {
   source = "./modules/api-gateway"
-  
+
   environment          = var.environment
   api_name             = "ats-api"
   lambda_invoke_arn    = module.ats_lambda.alias_invoke_arn
@@ -411,7 +459,7 @@ module "ats_api_gateway" {
 # S3 bucket for ATS Frontend
 module "ats_s3" {
   source = "./modules/s3-static"
-  
+
   environment = var.environment
   bucket_name = "${var.environment}-ats-frontend-010438493245"
 }
@@ -419,7 +467,7 @@ module "ats_s3" {
 # CloudFront for ATS Frontend
 module "ats_cloudfront" {
   source = "./modules/cloudfront"
-  
+
   environment                    = var.environment
   domain_name                    = "ats.clarkfoster.com"
   s3_bucket_regional_domain_name = module.ats_s3.bucket_regional_domain_name

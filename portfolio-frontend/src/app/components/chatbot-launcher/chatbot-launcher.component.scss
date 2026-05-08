@@ -1,0 +1,379 @@
+// Portfolio Assistant — floating launcher + panel
+// Theme: matches the existing cyber/Kali styling (#00cc33 accent on #0a0a0a).
+// Panel sits above content via fixed positioning so it never causes layout
+// shift on the underlying page.
+
+$accent: #00cc33;
+$accent-bright: #00ff41;
+$bg: #0a0a0a;
+$surface: #141414;
+$surface-2: #1c1c1c;
+$text: #e5e5e5;
+$muted: #a0a0a0;
+$danger: #ff4d4f;
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// ---------- Launcher ----------
+.chatbot-launcher {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 9000;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.05rem;
+  background: $surface;
+  color: $accent;
+  border: 2px solid rgba($accent, 0.55);
+  border-radius: 999px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow:
+    0 0 18px rgba($accent, 0.35),
+    0 6px 20px rgba(0, 0, 0, 0.45);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    background: rgba($accent, 0.08);
+    box-shadow:
+      0 0 24px rgba($accent, 0.55),
+      0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+
+  &.is-open {
+    .launcher-label { display: none; }
+    padding: 0.65rem;
+  }
+
+  .launcher-label { line-height: 1; }
+}
+
+// ---------- Panel ----------
+.chatbot-panel {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 5rem;
+  z-index: 9001;
+  width: min(420px, calc(100vw - 2rem));
+  height: min(620px, calc(100vh - 7rem));
+  display: flex;
+  flex-direction: column;
+  background: $bg;
+  color: $text;
+  border: 2px solid rgba($accent, 0.5);
+  border-radius: 14px;
+  box-shadow:
+    0 0 30px rgba($accent, 0.25),
+    0 18px 48px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  animation: panelIn 0.2s ease-out;
+}
+
+@keyframes panelIn {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+// ---------- Header ----------
+.chatbot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  background: $surface;
+  border-bottom: 1px solid rgba($accent, 0.25);
+
+  .title-block {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+  }
+
+  h2 {
+    font-family: 'Courier New', monospace;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: $accent;
+    margin: 0;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .status-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: $accent-bright;
+    box-shadow: 0 0 8px $accent-bright;
+    &.is-down {
+      background: $danger;
+      box-shadow: 0 0 8px $danger;
+    }
+  }
+
+  .header-actions {
+    display: inline-flex;
+    gap: 0.35rem;
+  }
+
+  .icon-btn {
+    background: transparent;
+    border: 1px solid rgba($accent, 0.3);
+    color: $accent;
+    padding: 0.35rem;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    &:hover { background: rgba($accent, 0.12); border-color: rgba($accent, 0.6); }
+  }
+}
+
+// ---------- Banner ----------
+.banner {
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  a { color: $accent; text-decoration: underline; }
+}
+.banner-warn {
+  background: rgba($danger, 0.12);
+  color: #ff8082;
+}
+
+// ---------- Message log ----------
+.message-log {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba($accent, 0.4) transparent;
+
+  &::-webkit-scrollbar { width: 8px; }
+  &::-webkit-scrollbar-thumb {
+    background: rgba($accent, 0.35);
+    border-radius: 4px;
+  }
+}
+
+.msg {
+  display: flex;
+  &.is-user { justify-content: flex-end; }
+  &.is-assistant { justify-content: flex-start; }
+
+  .bubble {
+    max-width: 85%;
+    padding: 0.6rem 0.8rem;
+    border-radius: 12px;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  &.is-user .bubble {
+    background: rgba($accent, 0.18);
+    color: $text;
+    border: 1px solid rgba($accent, 0.5);
+    border-bottom-right-radius: 4px;
+  }
+
+  &.is-assistant .bubble {
+    background: $surface-2;
+    color: $text;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom-left-radius: 4px;
+  }
+
+  &.is-error .bubble {
+    border-color: rgba($danger, 0.6);
+    background: rgba($danger, 0.08);
+    color: #ff9b9c;
+  }
+}
+
+// markdown content inside assistant bubble
+.markdown {
+  :first-child { margin-top: 0; }
+  :last-child { margin-bottom: 0; }
+
+  p { margin: 0 0 0.5rem; }
+  ul, ol { margin: 0 0 0.5rem 1.1rem; padding: 0; }
+  li { margin-bottom: 0.2rem; }
+  strong { color: $accent; }
+  code {
+    background: rgba($accent, 0.12);
+    color: $accent;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+  }
+  pre {
+    background: $bg;
+    border: 1px solid rgba($accent, 0.3);
+    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    overflow-x: auto;
+    font-size: 0.82em;
+  }
+  a { color: $accent; text-decoration: underline; }
+  h1, h2, h3, h4 { margin: 0.3rem 0 0.4rem; color: $text; font-size: 1em; }
+}
+
+.citations {
+  margin: 0.6rem 0 0;
+  padding: 0.55rem 0.6rem 0.55rem 1.6rem;
+  background: rgba($accent, 0.05);
+  border: 1px dashed rgba($accent, 0.3);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: $muted;
+  list-style: none;
+  counter-reset: cite;
+
+  li { padding: 0.1rem 0; position: relative; }
+  .cite-num { color: $accent; font-family: 'Courier New', monospace; margin-right: 0.25rem; }
+}
+
+// typing indicator
+.typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  span {
+    width: 6px;
+    height: 6px;
+    background: $accent;
+    border-radius: 50%;
+    animation: blink 1.2s infinite ease-in-out;
+  }
+  span:nth-child(2) { animation-delay: 0.15s; }
+  span:nth-child(3) { animation-delay: 0.3s; }
+}
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+
+// ---------- Composer ----------
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0.65rem 0.7rem;
+  background: $surface;
+  border-top: 1px solid rgba($accent, 0.25);
+
+  textarea {
+    flex: 1 1 auto;
+    resize: none;
+    max-height: 120px;
+    min-height: 36px;
+    background: $surface-2;
+    color: $text;
+    border: 1px solid rgba($accent, 0.3);
+    border-radius: 8px;
+    padding: 0.5rem 0.65rem;
+    font: inherit;
+    font-size: 0.92rem;
+    line-height: 1.35;
+
+    &:focus {
+      border-color: $accent;
+      outline: none;
+    }
+
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+
+  .send-btn {
+    background: $accent;
+    color: $bg;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, transform 0.15s ease;
+    &:hover:not(:disabled) {
+      background: $accent-bright;
+      transform: translateY(-1px);
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-top-color: $bg;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+}
+
+// ---------- Mobile ----------
+@media (max-width: 600px) {
+  .chatbot-panel {
+    right: 0.5rem;
+    left: 0.5rem;
+    bottom: 4.5rem;
+    width: auto;
+    height: calc(100vh - 6rem);
+    border-radius: 12px;
+  }
+  .chatbot-launcher {
+    right: 0.75rem;
+    bottom: 0.75rem;
+  }
+}
+
+// High-contrast preference
+@media (prefers-contrast: more) {
+  .chatbot-launcher,
+  .chatbot-panel {
+    border-width: 3px;
+  }
+}
+
+// Reduced motion
+@media (prefers-reduced-motion: reduce) {
+  .chatbot-panel,
+  .chatbot-launcher,
+  .typing span,
+  .spinner {
+    animation: none !important;
+    transition: none !important;
+  }
+}

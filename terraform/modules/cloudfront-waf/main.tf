@@ -7,8 +7,8 @@ variable "environment" {
 terraform {
   required_providers {
     aws = {
-      source  = "hashicorp/aws"
-      version = "~> 6.31"
+      source                = "hashicorp/aws"
+      version               = "~> 6.31"
       configuration_aliases = [aws.us_east_1]
     }
   }

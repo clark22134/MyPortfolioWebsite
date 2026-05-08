@@ -70,3 +70,13 @@ variable "admin_password" {
   type        = string
   sensitive   = true
 }
+
+# OpenAI API key used by the portfolio RAG chatbot. Stored in AWS Secrets
+# Manager (see main.tf) — never committed to source control. Provide via
+# TF_VAR_openai_api_key in CI or `terraform.tfvars` (gitignored).
+variable "openai_api_key" {
+  description = "OpenAI API key for the portfolio RAG chatbot. Leave empty to disable the chatbot in this environment."
+  type        = string
+  sensitive   = true
+  default     = ""
+}

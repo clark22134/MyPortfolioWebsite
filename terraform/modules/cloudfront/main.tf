@@ -107,7 +107,7 @@ resource "aws_cloudfront_distribution" "static_site" {
     }
 
     min_ttl     = 0
-    default_ttl = 86400   # 1 day
+    default_ttl = 86400    # 1 day
     max_ttl     = 31536000 # 1 year
   }
 
@@ -128,15 +128,15 @@ resource "aws_cloudfront_distribution" "static_site" {
         query_string = true
         # Do NOT forward Authorization or Cookie here, otherwise CloudFront
         # treats every signed-in user as a separate cache key.
-        headers      = ["Accept"]
+        headers = ["Accept"]
         cookies {
           forward = "none"
         }
       }
 
       min_ttl     = 0
-      default_ttl = 60   # 1 min if origin sends no Cache-Control
-      max_ttl     = 300  # cap at 5 min even if origin asks for more
+      default_ttl = 60  # 1 min if origin sends no Cache-Control
+      max_ttl     = 300 # cap at 5 min even if origin asks for more
     }
   }
 
