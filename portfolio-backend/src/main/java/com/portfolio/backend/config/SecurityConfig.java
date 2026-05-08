@@ -37,6 +37,7 @@ public class SecurityConfig {
             "/api/health",
             "/api/projects/**",
             "/api/contact/**",
+            "/api/chatbot/**",
             "/h2-console/**",
             "/actuator/health/**"
     };
@@ -44,6 +45,7 @@ public class SecurityConfig {
     private static final String[] CSRF_IGNORED_ENDPOINTS = {
             "/api/auth/login",
             "/api/auth/register",
+            "/api/chatbot/**",
             "/h2-console/**"
     };
 

@@ -116,20 +116,20 @@ resource "aws_security_group" "aurora" {
 
 # Aurora Serverless v2 cluster
 resource "aws_rds_cluster" "aurora" {
-  cluster_identifier      = "${var.environment}-${var.cluster_identifier}"
-  engine                  = "aurora-postgresql"
-  engine_mode             = "provisioned"
-  engine_version          = "15.17"
-  database_name           = var.database_name
-  master_username         = var.master_username
-  master_password         = random_password.master.result
-  db_subnet_group_name    = aws_db_subnet_group.aurora.name
-  vpc_security_group_ids  = [aws_security_group.aurora.id]
-  skip_final_snapshot     = false
+  cluster_identifier        = "${var.environment}-${var.cluster_identifier}"
+  engine                    = "aurora-postgresql"
+  engine_mode               = "provisioned"
+  engine_version            = "15.17"
+  database_name             = var.database_name
+  master_username           = var.master_username
+  master_password           = random_password.master.result
+  db_subnet_group_name      = aws_db_subnet_group.aurora.name
+  vpc_security_group_ids    = [aws_security_group.aurora.id]
+  skip_final_snapshot       = false
   final_snapshot_identifier = "${var.environment}-${var.cluster_identifier}-final-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
-  backup_retention_period = 7
-  preferred_backup_window = "03:00-04:00"
-  
+  backup_retention_period   = 7
+  preferred_backup_window   = "03:00-04:00"
+
   serverlessv2_scaling_configuration {
     min_capacity = var.min_capacity
     max_capacity = var.max_capacity

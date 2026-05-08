@@ -22,7 +22,24 @@
         <java.version>21</java.version>
         <jwt.version>0.13.0</jwt.version>
         <lombok.version>1.18.38</lombok.version>
+        <!--
+            Spring AI 1.0.x is the GA line compatible with Spring Boot 3.5.x.
+            Pinned via BOM so transitive AI deps stay aligned.
+        -->
+        <spring-ai.version>1.0.1</spring-ai.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     
     <dependencies>
         <!-- Spring Boot Web -->
@@ -128,9 +145,52 @@
             <artifactId>secretsmanager</artifactId>
             <version>2.20.26</version>
         </dependency>
+
+        <!--
+            Spring AI: OpenAI chat + embeddings model starter.
+            Provides ChatClient, EmbeddingModel, and auto-configured beans.
+            We intentionally do NOT add a vector-store starter so we can use
+            the in-process SimpleVectorStore (file-backed JSON) instead. This
+            avoids running an extra service (Chroma/PGVector) for the small
+            (~hundreds of chunks) portfolio knowledge base, keeps the AWS
+            Lambda packaging trivial, and remains swappable behind the
+            VectorStore interface.
+        -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
+
+        <!-- VectorStore interface + SimpleVectorStore (file-backed in-process). -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-vector-store</artifactId>
+        </dependency>
     </dependencies>
     
     <build>
+        <!--
+            Bundle the repo-level /docs directory into the JAR under
+            BOOT-INF/classes/docs/ so the chatbot's KnowledgeIngestionService
+            can load it from the classpath in production (AWS Lambda has no
+            access to the source tree at runtime). In local dev the same files
+            are also reachable via the filesystem path (chatbot.docs.path),
+            but the ingestion service de-duplicates by source name so this
+            is harmless.
+        -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../docs</directory>
+                <targetPath>docs</targetPath>
+                <includes>
+                    <include>*.md</include>
+                </includes>
+            </resource>
+        </resources>
+
         <plugins>
             <!-- Maven Shade Plugin for Lambda-compatible flat JAR -->
             <plugin>

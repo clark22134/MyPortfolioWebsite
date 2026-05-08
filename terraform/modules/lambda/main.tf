@@ -67,6 +67,12 @@ variable "enable_database_access" {
   default     = false
 }
 
+variable "extra_secret_arns" {
+  description = "Additional Secrets Manager ARNs the Lambda may read (e.g. OpenAI API key). The execution role is granted secretsmanager:GetSecretValue + DescribeSecret scoped to exactly these ARNs."
+  type        = list(string)
+  default     = []
+}
+
 variable "enable_snapstart" {
   description = "Enable Lambda SnapStart for faster cold starts"
   type        = bool
@@ -149,6 +155,29 @@ resource "aws_iam_role_policy" "lambda_secrets" {
   })
 }
 
+# Additional Secrets Manager access for arbitrary secrets (e.g. third-party
+# API keys like OpenAI). Scoped strictly to the supplied ARN list so the
+# function cannot read any other secret in the account.
+resource "aws_iam_role_policy" "lambda_extra_secrets" {
+  count = length(var.extra_secret_arns) > 0 ? 1 : 0
+  name  = "${var.environment}-${var.function_name}-extra-secrets-policy"
+  role  = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = var.extra_secret_arns
+      }
+    ]
+  })
+}
+
 # Lambda function
 resource "aws_lambda_function" "main" {
   function_name = "${var.environment}-${var.function_name}"
@@ -165,7 +194,7 @@ resource "aws_lambda_function" "main" {
   dynamic "vpc_config" {
     for_each = length(var.vpc_subnet_ids) > 0 ? [1] : []
     content {
-      subnet_ids         = var.vpc_subnet_ids
+      subnet_ids = var.vpc_subnet_ids
       security_group_ids = concat(
         var.vpc_security_group_ids,
         length(aws_security_group.lambda) > 0 ? [aws_security_group.lambda[0].id] : []
@@ -251,7 +280,7 @@ resource "aws_cloudwatch_event_target" "lambda_warmer" {
   rule      = aws_cloudwatch_event_rule.lambda_warmer.name
   target_id = "lambda"
   # Target the SnapStart alias when enabled, otherwise the unqualified function
-  arn       = var.enable_snapstart ? aws_lambda_alias.main[0].arn : aws_lambda_function.main.arn
+  arn = var.enable_snapstart ? aws_lambda_alias.main[0].arn : aws_lambda_function.main.arn
 
   input = jsonencode({
     warmer = true
