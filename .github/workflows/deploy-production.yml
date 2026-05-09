@@ -405,11 +405,12 @@ jobs:
 
             for attempt in $(seq 1 "$max_attempts"); do
               body=$(mktemp)
-              status=$(curl -sS -L --compressed --max-time 30 -o "$body" -w "%{http_code}" "$url" || true)
+              headers=$(mktemp)
+              status=$(curl -sS -L --compressed --max-time 30 -D "$headers" -o "$body" -w "%{http_code}" "$url" || true)
 
               if [ "$status" -ge 200 ] && [ "$status" -lt 400 ] && { [ -z "$expected" ] || grep -Fq "$expected" "$body"; }; then
                 echo "${name} OK"
-                rm -f "$body"
+                rm -f "$body" "$headers"
                 return 0
               fi
 
@@ -417,8 +418,14 @@ jobs:
               if [ -n "$expected" ]; then
                 echo "Expected response to contain: ${expected}"
               fi
-              sed -n '1,20p' "$body"
-              rm -f "$body"
+              echo "--- response headers ---"
+              cat "$headers"
+              echo "--- response body (first 500 bytes, text) ---"
+              head -c 500 "$body"; echo
+              echo "--- response body (first 200 bytes, hex) ---"
+              head -c 200 "$body" | xxd | head -20
+              echo "--- body size: $(wc -c < "$body") bytes ---"
+              rm -f "$body" "$headers"
               if [ "$attempt" -lt "$max_attempts" ]; then
                 sleep 15
               fi
