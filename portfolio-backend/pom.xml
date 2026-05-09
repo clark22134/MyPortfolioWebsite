@@ -177,6 +177,28 @@
             </exclusions>
         </dependency>
 
+        <!--
+            spring-ai-openai (1.0.1) declares spring-webflux as a direct
+            (non-optional) dependency for its streaming code path that uses
+            WebClient. We don't stream chat completions in production, and our
+            embeddings/chat calls go through RestClient, so excluding the
+            webflux jar entirely is safe and is required to prevent Spring
+            Boot's WebMvcAutoConfiguration from being silently shadowed by
+            reactive content negotiation (which makes every REST endpoint
+            serialise an empty body).
+        -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai</artifactId>
+            <version>1.0.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework</groupId>
+                    <artifactId>spring-webflux</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- VectorStore interface + SimpleVectorStore (file-backed in-process). -->
         <dependency>
             <groupId>org.springframework.ai</groupId>

@@ -160,10 +160,10 @@ module "portfolio_lambda" {
   database_secret_arn    = module.shared_aurora.secret_arn
   enable_database_access = true
 
-  # Grant the execution role read access to the OpenAI key secret (only when
-  # the secret has been provisioned for this environment). Scoped to a
-  # single ARN — the Lambda cannot read any other secret in the account.
-  extra_secret_arns = var.openai_api_key != "" ? [aws_secretsmanager_secret.openai_api_key[0].arn] : []
+  # Chatbot now lives in module.portfolio_chatbot_lambda (non-VPC). The
+  # portfolio Lambda no longer needs OpenAI access — leaving extra_secret_arns
+  # empty removes the IAM grant.
+  extra_secret_arns = []
 
   environment_variables = {
     SPRING_PROFILES_ACTIVE = "prod"
@@ -178,15 +178,15 @@ module "portfolio_lambda" {
     CONTACT_EMAIL          = "clark@clarkfoster.com"
     JWT_SECRET             = var.portfolio_jwt_secret
     ADMIN_PASSWORD         = var.admin_password
-    # OpenAI key — sourced from Secrets Manager so it can be rotated
-    # centrally without redeploying. The Lambda env var is encrypted at rest
-    # by the AWS-managed KMS key. If you need stricter isolation (env vars
-    # are visible to anyone with lambda:GetFunctionConfiguration) switch the
-    # Spring app to fetch from Secrets Manager at startup using the
-    # OPENAI_SECRET_ARN below and the AWS SDK.
-    OPENAI_API_KEY    = var.openai_api_key != "" ? data.aws_secretsmanager_secret_version.openai_api_key[0].secret_string : ""
-    OPENAI_SECRET_ARN = var.openai_api_key != "" ? aws_secretsmanager_secret.openai_api_key[0].arn : ""
-    CHATBOT_ENABLED   = var.openai_api_key != "" ? "true" : "false"
+    # Chatbot is permanently disabled in this Lambda — its code path now
+    # lives in portfolio-chatbot-backend / module.portfolio_chatbot_lambda
+    # which runs OUTSIDE the VPC so it can reach api.openai.com. Keeping
+    # the env var pinned to "false" prevents the legacy chatbot beans in
+    # portfolio-backend (still on classpath until cleanup PR) from trying
+    # to embed knowledge at startup, which would block on a VPC with no
+    # NAT and burn the entire SnapStart init budget.
+    CHATBOT_ENABLED = "false"
+    OPENAI_API_KEY  = ""
   }
 }
 
@@ -239,6 +239,43 @@ data "aws_secretsmanager_secret_version" "openai_api_key" {
   depends_on = [aws_secretsmanager_secret_version.openai_api_key]
 }
 
+# ---------------------------------------------------------------------------
+# Portfolio CHATBOT Lambda (separate function, no VPC)
+# ---------------------------------------------------------------------------
+# The chatbot needs internet egress to api.openai.com. Putting it inside the
+# VPC (like portfolio-backend) would require a NAT Gateway (~$32/mo) just to
+# reach OpenAI. Instead we run it as a SECOND Lambda outside the VPC. It has
+# no DB access — its knowledge base is bundled markdown — so VPC isolation
+# is not required for security. API Gateway routes /api/chatbot/{proxy+} to
+# this function; everything else still flows to portfolio_lambda above.
+module "portfolio_chatbot_lambda" {
+  source = "./modules/lambda"
+
+  environment      = var.environment
+  function_name    = "portfolio-chatbot"
+  runtime          = "java21"
+  handler          = "com.portfolio.chatbot.StreamLambdaHandler::handleRequest"
+  memory_size      = 1024
+  timeout          = 30
+  enable_snapstart = true
+
+  # Deliberately NOT in the VPC — needs egress to api.openai.com and has no
+  # database to talk to.
+  vpc_id                 = ""
+  vpc_subnet_ids         = []
+  vpc_security_group_ids = []
+  enable_database_access = false
+
+  extra_secret_arns = var.openai_api_key != "" ? [aws_secretsmanager_secret.openai_api_key[0].arn] : []
+
+  environment_variables = {
+    SPRING_PROFILES_ACTIVE = "prod"
+    OPENAI_API_KEY         = var.openai_api_key != "" ? data.aws_secretsmanager_secret_version.openai_api_key[0].secret_string : ""
+    OPENAI_SECRET_ARN      = var.openai_api_key != "" ? aws_secretsmanager_secret.openai_api_key[0].arn : ""
+    CHATBOT_ENABLED        = var.openai_api_key != "" ? "true" : "false"
+  }
+}
+
 # API Gateway for Portfolio Backend
 # Use the SnapStart alias invoke ARN so cold starts use the pre-initialized snapshot.
 module "portfolio_api_gateway" {
@@ -249,6 +286,13 @@ module "portfolio_api_gateway" {
   lambda_invoke_arn    = module.portfolio_lambda.alias_invoke_arn
   lambda_function_name = module.portfolio_lambda.function_name
   lambda_alias         = module.portfolio_lambda.alias_name
+
+  # Route /api/chatbot/{proxy+} to the dedicated, non-VPC chatbot Lambda.
+  # All other paths still hit module.portfolio_lambda via the catch-all
+  # {proxy+} integration.
+  chatbot_lambda_invoke_arn    = module.portfolio_chatbot_lambda.alias_invoke_arn
+  chatbot_lambda_function_name = module.portfolio_chatbot_lambda.function_name
+  chatbot_lambda_alias         = module.portfolio_chatbot_lambda.alias_name
 }
 
 # S3 bucket for Portfolio Frontend

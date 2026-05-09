@@ -40,6 +40,7 @@ jobs:
       - name: Compile backends for analysis
         run: |
           cd portfolio-backend && mvn compile -DskipTests -q
+          cd ../portfolio-chatbot-backend && mvn compile -DskipTests -q
           cd ../ats-backend && mvn compile -DskipTests -q
           cd ../ecommerce-backend && mvn compile -DskipTests -q
 
@@ -207,6 +208,7 @@ jobs:
       - name: Build backend JARs
         run: |
           mvn -f portfolio-backend/pom.xml clean package -DskipTests -q &
+          mvn -f portfolio-chatbot-backend/pom.xml clean package -DskipTests -q &
           mvn -f ecommerce-backend/pom.xml clean package -DskipTests -q &
           mvn -f ats-backend/pom.xml clean package -DskipTests -q &
           wait
@@ -223,6 +225,7 @@ jobs:
         run: |
           mkdir -p artifacts
           cp $(ls portfolio-backend/target/*.jar | grep -v -E 'sources|javadoc|original-' | head -1) artifacts/portfolio-backend.jar
+          cp $(ls portfolio-chatbot-backend/target/*.jar | grep -v -E 'sources|javadoc|original-' | head -1) artifacts/portfolio-chatbot.jar
           cp $(ls ecommerce-backend/target/*.jar | grep -v -E 'sources|javadoc|original-' | head -1) artifacts/ecommerce-backend.jar
           cp $(ls ats-backend/target/*.jar | grep -v -E 'sources|javadoc|original-' | head -1) artifacts/ats-backend.jar
           cp -r portfolio-frontend/dist/portfolio-frontend/browser artifacts/portfolio-frontend
@@ -266,26 +269,37 @@ jobs:
 
           # Upload JARs to S3 in parallel
           aws s3 cp artifacts/portfolio-backend.jar "s3://${LAMBDA_BUCKET}/portfolio-backend.jar" --only-show-errors &
+          aws s3 cp artifacts/portfolio-chatbot.jar "s3://${LAMBDA_BUCKET}/portfolio-chatbot.jar" --only-show-errors &
           aws s3 cp artifacts/ecommerce-backend.jar "s3://${LAMBDA_BUCKET}/ecommerce-backend.jar" --only-show-errors &
           aws s3 cp artifacts/ats-backend.jar "s3://${LAMBDA_BUCKET}/ats-backend.jar" --only-show-errors &
           wait
 
+          # Map of <lambda-function-suffix>:<s3-key>. The chatbot Lambda is
+          # named prod-portfolio-chatbot (no "-backend" suffix) so we keep the
+          # association explicit instead of inferring the key from the name.
+          declare -A FUNC_TO_KEY=(
+            [portfolio-backend]=portfolio-backend.jar
+            [portfolio-chatbot]=portfolio-chatbot.jar
+            [ecommerce-backend]=ecommerce-backend.jar
+            [ats-backend]=ats-backend.jar
+          )
+
           # Update Lambda function code from S3
-          for func in portfolio-backend ecommerce-backend ats-backend; do
+          for func in "${!FUNC_TO_KEY[@]}"; do
             aws lambda update-function-code \
               --function-name "prod-${func}" \
               --s3-bucket "$LAMBDA_BUCKET" \
-              --s3-key "${func}.jar" \
+              --s3-key "${FUNC_TO_KEY[$func]}" \
               --output text --query 'FunctionArn' > /dev/null
           done
 
           # Wait for all updates to complete
-          for func in prod-portfolio-backend prod-ecommerce-backend prod-ats-backend; do
+          for func in prod-portfolio-backend prod-portfolio-chatbot prod-ecommerce-backend prod-ats-backend; do
             aws lambda wait function-updated --function-name "$func"
           done
 
           # Publish new SnapStart versions and update aliases
-          for func in prod-portfolio-backend prod-ecommerce-backend prod-ats-backend; do
+          for func in prod-portfolio-backend prod-portfolio-chatbot prod-ecommerce-backend prod-ats-backend; do
             VERSION=$(aws lambda publish-version --function-name "$func" --query 'Version' --output text)
             echo "Waiting for ${func} v${VERSION} to become active..."
             aws lambda wait published-version-active --function-name "$func" --qualifier "$VERSION"
@@ -301,26 +315,38 @@ jobs:
         # guarantees a fresh, recently-propagated statement is in place.
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          for app in portfolio ecommerce ats; do
-            FUNC="prod-${app}-backend"
+
+          # Map of <function-name-without-prefix>:<api-gateway-name>:<statement-id>.
+          # The chatbot Lambda is invoked by the *portfolio* API Gateway via the
+          # /api/chatbot/{proxy+} route, so it shares prod-portfolio-api but uses
+          # a distinct statement-id (matching the terraform module).
+          declare -a TUPLES=(
+            "portfolio-backend:prod-portfolio-api:AllowAPIGatewayInvoke"
+            "portfolio-chatbot:prod-portfolio-api:AllowAPIGatewayInvokeChatbot"
+            "ecommerce-backend:prod-ecommerce-api:AllowAPIGatewayInvoke"
+            "ats-backend:prod-ats-api:AllowAPIGatewayInvoke"
+          )
+          for tuple in "${TUPLES[@]}"; do
+            IFS=':' read -r func api_name stmt_id <<< "$tuple"
+            FUNC="prod-${func}"
             REST_ID=$(aws apigateway get-rest-apis \
-              --query "items[?name=='prod-${app}-api'].id" \
+              --query "items[?name=='${api_name}'].id" \
               --output text 2>/dev/null || echo "")
             if [ -z "$REST_ID" ] || [ "$REST_ID" = "None" ]; then
-              echo "No API Gateway found for ${app}, skipping"
+              echo "No API Gateway found for ${api_name}, skipping ${FUNC}"
               continue
             fi
             SOURCE_ARN="arn:aws:execute-api:${AWS_REGION}:${ACCOUNT_ID}:${REST_ID}/*/*"
             aws lambda remove-permission \
               --function-name "$FUNC" --qualifier current \
-              --statement-id AllowAPIGatewayInvoke 2>/dev/null || true
+              --statement-id "$stmt_id" 2>/dev/null || true
             aws lambda add-permission \
               --function-name "$FUNC" --qualifier current \
-              --statement-id AllowAPIGatewayInvoke \
+              --statement-id "$stmt_id" \
               --action lambda:InvokeFunction \
               --principal apigateway.amazonaws.com \
               --source-arn "$SOURCE_ARN"
-            echo "Refreshed API Gateway permission for ${FUNC}:current"
+            echo "Refreshed permission ${stmt_id} for ${FUNC}:current (api=${api_name})"
           done
 
       - name: Deploy frontends to S3
@@ -410,6 +436,7 @@ jobs:
 
           echo "Testing API endpoints..."
           check_url "Portfolio API" "https://clarkfoster.com/api/health" '"status"' || failed=1
+          check_url "Portfolio Chatbot" "https://clarkfoster.com/api/chatbot/health" '"status"' || failed=1
           check_url "E-Commerce API" "https://shop.clarkfoster.com/api/health" '"status"' || failed=1
           check_url "ATS API" "https://ats.clarkfoster.com/api/health" '"status"' || failed=1
 
@@ -420,7 +447,7 @@ jobs:
         run: |
           START_TIME=$(( ($(date +%s) - 900) * 1000 ))
 
-          for func in prod-portfolio-backend prod-ecommerce-backend prod-ats-backend; do
+          for func in prod-portfolio-backend prod-portfolio-chatbot prod-ecommerce-backend prod-ats-backend; do
             echo "===== ${func} ====="
             echo "--- Alias 'current' config ---"
             aws lambda get-alias --function-name "$func" --name current 2>/dev/null || echo "(no alias)"

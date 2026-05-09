@@ -36,6 +36,29 @@ variable "lambda_alias" {
   default     = ""
 }
 
+# ---------------------------------------------------------------------------
+# Optional secondary route: /api/chatbot/{proxy+} -> a different Lambda.
+# Used by the portfolio API to send chatbot traffic to a non-VPC Lambda that
+# can reach api.openai.com directly. Leave empty to disable.
+# ---------------------------------------------------------------------------
+variable "chatbot_lambda_invoke_arn" {
+  description = "Invoke ARN (or alias invoke ARN) of a second Lambda to handle /api/chatbot/{proxy+}."
+  type        = string
+  default     = ""
+}
+
+variable "chatbot_lambda_function_name" {
+  description = "Function name of the chatbot Lambda (required if chatbot_lambda_invoke_arn is set)."
+  type        = string
+  default     = ""
+}
+
+variable "chatbot_lambda_alias" {
+  description = "Optional alias on the chatbot Lambda (e.g. SnapStart 'current')."
+  type        = string
+  default     = ""
+}
+
 # API Gateway REST API
 resource "aws_api_gateway_rest_api" "main" {
   name        = "${var.environment}-${var.api_name}"
@@ -96,11 +119,72 @@ resource "aws_api_gateway_integration" "root_lambda" {
   uri                     = var.lambda_invoke_arn
 }
 
+# ---------------------------------------------------------------------------
+# Optional /api/chatbot/{proxy+} branch
+# ---------------------------------------------------------------------------
+# More-specific paths win in API Gateway routing, so this branch always
+# wins over the catch-all `/{proxy+}` integration above for chatbot
+# traffic. Created only when chatbot_lambda_invoke_arn is non-empty so
+# environments without a chatbot Lambda incur no extra resources.
+locals {
+  chatbot_enabled = var.chatbot_lambda_invoke_arn != ""
+}
+
+resource "aws_api_gateway_resource" "api" {
+  count       = local.chatbot_enabled ? 1 : 0
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  path_part   = "api"
+}
+
+resource "aws_api_gateway_resource" "chatbot" {
+  count       = local.chatbot_enabled ? 1 : 0
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.api[0].id
+  path_part   = "chatbot"
+}
+
+resource "aws_api_gateway_resource" "chatbot_proxy" {
+  count       = local.chatbot_enabled ? 1 : 0
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.chatbot[0].id
+  path_part   = "{proxy+}"
+}
+
+resource "aws_api_gateway_method" "chatbot_proxy" {
+  count         = local.chatbot_enabled ? 1 : 0
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.chatbot_proxy[0].id
+  http_method   = "ANY"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "chatbot_proxy" {
+  count                   = local.chatbot_enabled ? 1 : 0
+  rest_api_id             = aws_api_gateway_rest_api.main.id
+  resource_id             = aws_api_gateway_resource.chatbot_proxy[0].id
+  http_method             = aws_api_gateway_method.chatbot_proxy[0].http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = var.chatbot_lambda_invoke_arn
+}
+
+resource "aws_lambda_permission" "chatbot" {
+  count         = local.chatbot_enabled ? 1 : 0
+  statement_id  = "AllowAPIGatewayInvokeChatbot"
+  action        = "lambda:InvokeFunction"
+  function_name = var.chatbot_lambda_function_name
+  qualifier     = var.chatbot_lambda_alias != "" ? var.chatbot_lambda_alias : null
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+}
+
 # Deployment
 resource "aws_api_gateway_deployment" "main" {
   depends_on = [
     aws_api_gateway_integration.lambda,
-    aws_api_gateway_integration.root_lambda
+    aws_api_gateway_integration.root_lambda,
+    aws_api_gateway_integration.chatbot_proxy,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -119,6 +203,11 @@ resource "aws_api_gateway_deployment" "main" {
       aws_api_gateway_method.root.id,
       aws_api_gateway_integration.root_lambda.id,
       aws_api_gateway_integration.root_lambda.uri,
+      # Include the chatbot branch so toggling it on/off or pointing it at
+      # a new alias triggers a redeployment. jsonencode handles the empty
+      # list case (chatbot disabled) cleanly.
+      [for r in aws_api_gateway_resource.chatbot_proxy : r.id],
+      [for i in aws_api_gateway_integration.chatbot_proxy : i.uri],
     ]))
   }
 
