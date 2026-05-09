@@ -184,25 +184,20 @@
         </dependency>
 
         <!--
-            spring-ai-openai declares spring-webflux as a direct
-            (non-optional) dependency for its streaming code path that uses
-            WebClient. We don't stream chat completions in production, and our
-            embeddings/chat calls go through RestClient, so excluding the
-            webflux jar entirely is safe and is required to prevent Spring
-            Boot's WebMvcAutoConfiguration from being silently shadowed by
-            reactive content negotiation (which makes every REST endpoint
-            serialise an empty body).
+            Pull spring-ai-openai with its full transitive closure (including
+            spring-webflux). Reactive auto-configuration is suppressed by
+            `spring.main.web-application-type=servlet` in application.properties,
+            and spring-boot-starter-webflux is still excluded above so Boot
+            won't try to start a reactive server. The raw spring-webflux jar
+            *is* required on the classpath because Spring AI 1.0.5+'s
+            OpenAiEmbeddingAutoConfiguration bean factory method references
+            WebClient.Builder; without it, condition introspection fails and
+            SnapStart init blows up with NoClassDefFoundError.
         -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-openai</artifactId>
             <version>${spring-ai.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-webflux</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <!-- VectorStore interface + SimpleVectorStore (file-backed in-process). -->

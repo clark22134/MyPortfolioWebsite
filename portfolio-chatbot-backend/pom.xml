@@ -90,12 +90,6 @@
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-openai</artifactId>
             <version>${spring-ai.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.springframework</groupId>
-                    <artifactId>spring-webflux</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <!-- VectorStore interface + SimpleVectorStore (file-backed, in-process). -->
