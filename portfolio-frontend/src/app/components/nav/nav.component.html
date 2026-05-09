@@ -17,7 +17,8 @@
        [class.open]="isMenuOpen"
        role="dialog"
        aria-label="Navigation menu"
-       [attr.aria-hidden]="!isMenuOpen">
+       [attr.aria-hidden]="!isMenuOpen ? 'true' : null"
+       [attr.inert]="!isMenuOpen ? '' : null">
     <div class="nav-overlay" (click)="closeMenu()" aria-hidden="true"></div>
     <div class="nav-content" #navContent>
       <button
