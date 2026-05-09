@@ -50,6 +50,8 @@ import java.util.regex.Pattern;
  */
 @Service
 @ConditionalOnBean(VectorStore.class)
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression(
+        "'${chatbot.enabled:true}' == 'true' and !'${spring.ai.openai.api-key:}'.isEmpty()")
 public class KnowledgeIngestionService {
 
     private static final Logger log = LoggerFactory.getLogger(KnowledgeIngestionService.class);
