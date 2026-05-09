@@ -1,9 +1,11 @@
 package com.portfolio.backend;
 
 import com.amazonaws.serverless.exceptions.ContainerInitializationException;
+import com.amazonaws.serverless.proxy.InitializationWrapper;
 import com.amazonaws.serverless.proxy.model.AwsProxyRequest;
 import com.amazonaws.serverless.proxy.model.AwsProxyResponse;
 import com.amazonaws.serverless.proxy.spring.SpringBootLambdaContainerHandler;
+import com.amazonaws.serverless.proxy.spring.SpringBootProxyHandlerBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.portfolio.backend.repository.ProjectRepository;
@@ -29,7 +31,18 @@ public class StreamLambdaHandler implements RequestStreamHandler {
 
     static {
         try {
-            handler = SpringBootLambdaContainerHandler.getAwsProxyHandler(PortfolioBackendApplication.class);
+            // Use the builder with .servletApplication() to force the servlet embedded-server
+            // factory regardless of whether spring-webflux is on the classpath.
+            // getAwsProxyHandler() defaults to WebApplicationType.REACTIVE, which causes
+            // ServerlessReactiveServletEmbeddedServerFactory to be used when HandlerAdapter
+            // is found on the classpath (via spring-ai-openai), skipping DispatcherServlet
+            // registration and producing empty HTTP responses.
+            handler = new SpringBootProxyHandlerBuilder<AwsProxyRequest>()
+                    .defaultProxy()
+                    .servletApplication()
+                    .initializationWrapper(new InitializationWrapper())
+                    .springBootApplication(PortfolioBackendApplication.class)
+                    .buildAndInitialize();
         } catch (ContainerInitializationException e) {
             // If we fail here, Lambda will re-throw the exception on every request
             e.printStackTrace();

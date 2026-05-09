@@ -53,7 +53,7 @@ describe('ProductService', () => {
       expect(products.length).toBe(1);
       expect(products[0].name).toBe('Gadget');
     });
-    const req = httpMock.expectOne('/api/products/search/findByNameContaining?name=Gadget');
+    const req = httpMock.expectOne('/api/products/search/findByNameContainingIgnoreCase?name=Gadget');
     req.flush(mockResponse);
   });
 
@@ -89,7 +89,7 @@ describe('ProductService', () => {
     service.searchProductsPaginate(1, 5, 'Test').subscribe((response: any) => {
       expect(response._embedded.products.length).toBe(1);
     });
-    const req = httpMock.expectOne('/api/products/search/findByNameContaining?name=Test&page=0&size=5');
+    const req = httpMock.expectOne('/api/products/search/findByNameContainingIgnoreCase?name=Test&page=0&size=5');
     req.flush(mockResponse);
   });
 
@@ -105,7 +105,7 @@ describe('ProductService', () => {
       error: () => { errored = true; }
     });
 
-    const req = httpMock.expectOne('/api/products/search/findByNameContaining?name=zzznomatch');
+    const req = httpMock.expectOne('/api/products/search/findByNameContainingIgnoreCase?name=zzznomatch');
     req.flush({ page: { size: 20, totalElements: 0, totalPages: 0, number: 0 } });
 
     expect(errored).toBe(false);
@@ -118,7 +118,7 @@ describe('ProductService', () => {
     service.searchProductsPaginate(1, 10, 'red shirt & socks').subscribe();
 
     const req = httpMock.expectOne(
-      '/api/products/search/findByNameContaining?name=red%20shirt%20%26%20socks&page=0&size=10'
+      '/api/products/search/findByNameContainingIgnoreCase?name=red%20shirt%20%26%20socks&page=0&size=10'
     );
     expect(req.request.method).toBe('GET');
     req.flush({ page: { size: 10, totalElements: 0, totalPages: 0, number: 0 } });
