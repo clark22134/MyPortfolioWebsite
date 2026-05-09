@@ -109,6 +109,10 @@ jobs:
       TF_VAR_ecommerce_jwt_secret: ${{ secrets.ECOMMERCE_JWT_SECRET }}
       TF_VAR_portfolio_jwt_secret: ${{ secrets.PORTFOLIO_JWT_SECRET }}
       TF_VAR_admin_password: ${{ secrets.ADMIN_PASSWORD }}
+      # If OPENAI_API_KEY is unset in repo secrets this evaluates to an empty
+      # string and the chatbot stays disabled — but the secret resource will
+      # NOT be destroyed thanks to prevent_destroy in main.tf.
+      TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - uses: actions/checkout@v6
 

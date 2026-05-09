@@ -202,11 +202,26 @@ resource "aws_secretsmanager_secret" "openai_api_key" {
   name        = "${var.environment}/portfolio/openai-api-key"
   description = "OpenAI API key consumed by the portfolio RAG chatbot Lambda."
 
-  recovery_window_in_days = 7
+  # 0 = immediate hard delete on destroy. We previously used 7 days, but that
+  # caused `CreateSecret … already scheduled for deletion` errors whenever the
+  # secret was destroyed (because TF_VAR_openai_api_key was empty in CI) and
+  # then recreated within the recovery window. Combined with prevent_destroy
+  # below, this means the secret can only be removed by an explicit operator
+  # action — and when that happens it's gone cleanly with no name reservation.
+  recovery_window_in_days = 0
 
   tags = {
     Name        = "${var.environment}-portfolio-openai-api-key"
     Environment = var.environment
+  }
+
+  # Guardrail: this secret backs the production chatbot. Refuse to destroy it
+  # automatically — including when var.openai_api_key flips to empty in CI,
+  # which would otherwise toggle `count` from 1 to 0 and tear the resource
+  # down. To intentionally remove it, comment this block out, apply, then
+  # remove the resource.
+  lifecycle {
+    prevent_destroy = true
   }
 }
 
