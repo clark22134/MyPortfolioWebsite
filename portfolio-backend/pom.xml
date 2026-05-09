@@ -159,6 +159,22 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-openai</artifactId>
+            <!--
+                Spring AI's OpenAI starter pulls in spring-boot-starter-webflux
+                because its default HTTP client is WebClient. We're a servlet
+                MVC application; having webflux on the classpath causes Spring
+                Boot to auto-configure both reactive and servlet stacks, which
+                produces BeanDefinitionOverrideException at startup and (when
+                worked around) silently breaks Jackson HTTP message converters
+                so REST endpoints return empty bodies. Spring AI gracefully
+                falls back to RestClient when WebClient is absent.
+            -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-webflux</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- VectorStore interface + SimpleVectorStore (file-backed in-process). -->
