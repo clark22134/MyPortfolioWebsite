@@ -27,7 +27,13 @@
 
     <properties>
         <java.version>21</java.version>
-        <spring-ai.version>1.0.1</spring-ai.version>
+        <!--
+            Pinned to 1.0.5 to remediate CVE-2026-22738 (CRITICAL): SpEL
+            injection in spring-ai-vector-store when a user-supplied value
+            is used as a filter expression key. 1.0.5 is the first patched
+            release on the 1.0.x line (1.1.4 on 1.1.x).
+        -->
+        <spring-ai.version>1.0.5</spring-ai.version>
     </properties>
 
     <dependencyManagement>
@@ -83,7 +89,7 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-openai</artifactId>
-            <version>1.0.1</version>
+            <version>${spring-ai.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.springframework</groupId>

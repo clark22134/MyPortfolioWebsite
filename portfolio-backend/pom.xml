@@ -26,7 +26,13 @@
             Spring AI 1.0.x is the GA line compatible with Spring Boot 3.5.x.
             Pinned via BOM so transitive AI deps stay aligned.
         -->
-        <spring-ai.version>1.0.1</spring-ai.version>
+        <!--
+            Pinned to 1.0.5 to remediate CVE-2026-22738 (CRITICAL): SpEL
+            injection in spring-ai-vector-store when a user-supplied value
+            is used as a filter expression key. 1.0.5 is the first patched
+            release on the 1.0.x line (1.1.4 on 1.1.x).
+        -->
+        <spring-ai.version>1.0.5</spring-ai.version>
     </properties>
 
     <dependencyManagement>
@@ -178,7 +184,7 @@
         </dependency>
 
         <!--
-            spring-ai-openai (1.0.1) declares spring-webflux as a direct
+            spring-ai-openai declares spring-webflux as a direct
             (non-optional) dependency for its streaming code path that uses
             WebClient. We don't stream chat completions in production, and our
             embeddings/chat calls go through RestClient, so excluding the
@@ -190,7 +196,7 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-openai</artifactId>
-            <version>1.0.1</version>
+            <version>${spring-ai.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.springframework</groupId>
