@@ -11,6 +11,7 @@
 - [1 — Portfolio API](#1--portfolio-api)
 - [2 — E-Commerce API](#2--e-commerce-api)
 - [3 — ATS (Applicant Tracking System) API](#3--ats-applicant-tracking-system-api)
+- [4 — Portfolio Assistant API](#4--portfolio-assistant-api)
 - [Common Error Formats](#common-error-formats)
 
 ---
@@ -432,7 +433,138 @@ These endpoints return `"status": "coming-soon"` and do not perform real operati
 
 ---
 
-### Portfolio Error Response Formats
+### 1.7 Portfolio Assistant (Chatbot)
+
+**Base URL**: `https://clarkfoster.com/api/chatbot`
+**Auth**: None — endpoints are public
+**Rate Limit**: 20 requests/min per IP (application-layer sliding window, separate from WAF rate limiting)
+**Feature flag**: All chatbot endpoints return `503` with `{ "available": false }` if `OPENAI_API_KEY` is absent or `chatbot.enabled=false`
+
+#### Endpoints
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/chatbot/health` | No | Check chatbot availability |
+| `POST` | `/api/chatbot/message` | No | Send a message, receive a complete response |
+| `POST` | `/api/chatbot/stream` | No | Send a message, receive response as Server-Sent Events |
+
+---
+
+#### GET /api/chatbot/health
+
+Returns whether the chatbot is currently available (i.e., API key present and feature enabled).
+
+**Response** `200 OK` (available)
+
+```json
+{
+  "available": true
+}
+```
+
+**Response** `200 OK` (disabled/key absent)
+
+```json
+{
+  "available": false
+}
+```
+
+---
+
+#### POST /api/chatbot/message
+
+Sends a message and returns the full generated response in a single JSON payload. Use `/api/chatbot/stream` for streaming responses.
+
+**Request Body**
+
+```json
+{
+  "message": "What projects has Clark built?",
+  "conversationId": "abc-123"
+}
+```
+
+| Field | Type | Constraints | Description |
+|---|---|---|---|
+| `message` | `String` | Required · `@NotBlank` · max 1000 chars | User's question |
+| `conversationId` | `String` | Optional · max 64 chars | Conversation session key for multi-turn memory |
+
+**Response** `200 OK`
+
+```json
+{
+  "response": "Clark has built three production applications...",
+  "citations": [
+    {
+      "index": 1,
+      "title": "Projects Overview",
+      "section": "Portfolio Website",
+      "source": "projects"
+    }
+  ],
+  "conversationId": "abc-123"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `response` | `String` | Full generated answer |
+| `citations` | `Citation[]` | Source passages used to ground the response |
+| `conversationId` | `String` | Echo of the provided conversation ID (or generated if omitted) |
+
+**Response** `429 Too Many Requests` — rate limit exceeded (per-IP, 20 req/min)
+
+**Response** `503 Service Unavailable` — chatbot disabled or API key absent
+
+---
+
+#### POST /api/chatbot/stream
+
+Sends a message and returns the response as a Server-Sent Events stream. The Angular frontend uses this endpoint for real-time token streaming.
+
+**Request Body** — same as `POST /api/chatbot/message`
+
+**Response** `200 OK` — `Content-Type: text/event-stream`
+
+SSE events are emitted in this sequence:
+
+| Event type | Data format | Description |
+|---|---|---|
+| `token` | `"fragment text"` | One or more incremental text fragments as the LLM generates the response |
+| `citations` | `[{"index":1,"title":"...","section":"...","source":"..."}]` | JSON array of citations emitted once, after the final token |
+| `done` | `""` | Stream complete — no more events will follow |
+| `error` | `"Error message"` | Recoverable error (e.g., OpenAI timeout); stream ends |
+
+**Example stream**
+
+```
+event: token
+data: "Clark has built"
+
+event: token
+data: " three production applications"
+
+event: citations
+data: [{"index":1,"title":"Projects","section":"Portfolio Website","source":"projects"}]
+
+event: done
+data: 
+```
+
+**Citation record schema**
+
+| Field | Type | Description |
+|---|---|---|
+| `index` | `int` | 1-based citation number referenced in the response text |
+| `title` | `String` | Document title from YAML front-matter or filename |
+| `section` | `String` | Section heading within the document |
+| `source` | `String` | Source identifier (e.g., `projects`, `skills`, `ai-projects`) |
+
+**Response** `429 Too Many Requests` — rate limit exceeded
+**Response** `503 Service Unavailable` — chatbot disabled or API key absent
+
+---
 
 **Standard API response** (`ApiResponse<T>`)
 

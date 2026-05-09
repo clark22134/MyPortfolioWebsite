@@ -46,7 +46,7 @@ export class ProductService {
   searchProducts(theKeyword: string): Observable<Product[]> {
 
     // need to build URL based on the keyword (URL-encode for safety)
-    const searchUrl = `${this.baseUrl}/search/findByNameContaining?name=${encodeURIComponent(theKeyword)}`;
+    const searchUrl = `${this.baseUrl}/search/findByNameContainingIgnoreCase?name=${encodeURIComponent(theKeyword)}`;
     return this.getProducts(searchUrl);
   }
 
@@ -55,7 +55,7 @@ export class ProductService {
                         theKeyword: string): Observable<GetResponseProducts> {
 
     // need to build URL based on keyword, page and size (URL-encode for safety)
-    const searchUrl = `${this.baseUrl}/search/findByNameContaining?name=${encodeURIComponent(theKeyword)}`
+    const searchUrl = `${this.baseUrl}/search/findByNameContainingIgnoreCase?name=${encodeURIComponent(theKeyword)}`
                     + `&page=${thePage - 1}&size=${thePageSize}`;
 
     return this.httpClient.get<GetResponseProducts>(searchUrl);

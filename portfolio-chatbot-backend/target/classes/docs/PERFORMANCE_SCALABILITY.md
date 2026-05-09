@@ -36,6 +36,7 @@ Every backend runs as a Lambda function. Lambda scales automatically from 0 to 1
 | Portfolio Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
 | E-Commerce Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
 | ATS Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
+| Portfolio Assistant | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost; OpenAI API call is the latency bottleneck, not Lambda |
 | Portfolio Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
 | E-Commerce Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
 | ATS Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
@@ -76,6 +77,8 @@ The Aurora Serverless v2 max ACU setting (currently 4 ACU on the single shared c
 **E-Commerce:** Read-heavy catalog browsing (Spring Data REST auto-exposed endpoints with pagination) with write spikes during checkout. The cart merge logic (guest → authenticated) and order placement are the write-intensive paths. Aurora Serverless v2 scales to meet connection demand automatically. Product catalog reads are the prime candidate for caching since the inventory changes infrequently. Session consistency through stateless JWT makes horizontal Lambda scaling straightforward for the application tier.
 
 **ATS (HireFlow):** The most computationally intensive. Resume parsing (Apache Tika → PDFBox/POI → regex skill extraction) is CPU-bound and synchronous. The Haversine distance calculation for candidate-job scoring runs in application code across all eligible candidates. Lambda's default 2048 MB memory allocation handles the parsing workload for typical resumes; the function timeout is set to 30 seconds. At scale, the parsing pipeline should move off the synchronous Lambda invocation path (SQS queue), and the scoring algorithm benefits from pre-computed distance caches or spatial database indexes. The 12 MB upload limit in the Nginx local dev config already constrains per-request memory impact; API Gateway enforces a 10 MB payload limit in production.
+
+**Portfolio Assistant:** The chatbot Lambda (`portfolio-chatbot-backend`) performs no database I/O — `DataSourceAutoConfiguration` is excluded. Its scaling characteristics differ from the three backend functions. At startup (`@PostConstruct`), the knowledge base is ingested via the OpenAI Embeddings API and stored in a `SimpleVectorStore` (in-process, memory-resident). SnapStart captures the initialized vector index in the JVM checkpoint, so warm invocations skip re-ingestion entirely. Per-query latency is dominated by the synchronous OpenAI API call to `gpt-4o-mini`. SSE token streaming keeps the *perceived* latency low — the browser receives the first token within ~800ms, and the full response streams in 2–5 seconds. The Lambda timeout is 30 seconds (well above the p99 LLM generation time). The in-process `SimpleVectorStore` cosine similarity search over a few hundred chunks completes in under 1ms. At higher traffic, the per-IP rate limiter (`ConcurrentHashMap`, 20 req/min) is instance-local; at multi-instance concurrency, Redis (ElastiCache) would be the correct replacement. OpenAI's own rate limits and latency become the primary bottleneck above moderate traffic.
 
 ---
 
@@ -152,6 +155,21 @@ private static final long LOCKOUT_DURATION_SECONDS = 1800;
 - Pre-computed distance matrix for active job-candidate pairs, refreshed on candidate/job location changes
 - PostgreSQL's built-in `earth_distance` and `cube` extensions support efficient proximity queries natively
 
+#### Bottleneck 6 — Synchronous OpenAI API Call (Portfolio Assistant)
+
+**Impact:** Every chatbot query makes a synchronous HTTPS call to the OpenAI Embeddings API (to embed the user query) followed by a synchronous streaming call to `gpt-4o-mini` for generation. The embedding call adds ~100–200ms before retrieval begins. The generation stream adds 2–5 seconds to complete. These are sequential external network calls — Lambda is blocked waiting for OpenAI's response for the entire duration.
+
+**Mitigation (current):**
+- SSE token streaming means the browser receives the first token within ~800ms — perceived latency is significantly lower than total generation time
+- Lambda's 30-second timeout is well above the p99 generation time
+- Per-IP rate limiting (20 req/min) prevents a single user from creating sustained OpenAI load
+
+**Mitigation (at scale):**
+- Pre-compute embeddings for common queries and cache them (query → embedding cache)
+- Async query queuing via SQS if sustained high concurrency is needed
+- Switch to a smaller, faster model (e.g., `gpt-4o-mini` → `gpt-3.5-turbo`) for latency-sensitive paths
+- OpenAI's Batch API for offline/background tasks
+
 ### 2.2 Bottleneck Summary Matrix
 
 | Bottleneck | Severity (Current) | Severity (At Scale) | Mitigation Effort |
@@ -161,6 +179,7 @@ private static final long LOCKOUT_DURATION_SECONDS = 1800;
 | In-memory rate limiting | None — WAF handles as primary gate | **High** — bypassed by multi-instance routing | Low — Redis drop-in replacement |
 | SQL LIKE product search | None — 100 products | **Medium** — linear scan at scale | Medium — OpenSearch integration |
 | Haversine scoring | None — small candidate pool | **Medium** — O(n) per request | Low–Medium — PostGIS or pre-computation |
+| Synchronous OpenAI API call (chatbot) | Low — SSE streaming masks latency | **Medium** — OpenAI rate limits + concurrent Lambda instances | Medium — query cache + async queuing |
 
 ---
 

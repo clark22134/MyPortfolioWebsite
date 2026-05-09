@@ -139,6 +139,7 @@ All three applications share a single serverless infrastructure layer with Cloud
 |-------|-----------|
 | **Frontend** | Angular 21, TypeScript 5.9, RxJS, Angular CDK, Bootstrap 5 (E-Commerce), SCSS |
 | **Backend** | Spring Boot 3.5.13, Java 21, Spring Security, Spring Data JPA, Spring Data REST |
+| **AI / RAG** | Spring AI 1.0.5, OpenAI gpt-4o-mini (T=0.2), text-embedding-3-small (1536-dim), SimpleVectorStore |
 | **Databases** | Aurora Serverless v2 (1 shared cluster, 3 databases), PostgreSQL 15.17, H2 (local tests) |
 | **Auth** | JWT (JJWT), HTTP-only cookies, BCrypt, refresh token rotation |
 | **Parsing** | Apache Tika, PDFBox, Apache POI (ATS resume parsing) |
@@ -165,6 +166,7 @@ An authenticated admin portal for managing and showcasing projects, with a publi
 - SMTP-backed contact form (Gmail integration)
 - Accessibility toolbar: font scaling (75%–200%), high contrast, reduced motion, text-to-speech, screen reader mode
 - Automated WCAG 2.1 AA testing (axe-core + Puppeteer) blocking merges on failure
+- Embedded **Portfolio Assistant** (RAG chatbot): Spring AI 1.0.5, query expansion, cosine similarity retrieval, reranking, streaming SSE citations
 
 **Structure:**
 ```
@@ -176,10 +178,19 @@ portfolio-backend/
 └── dto/            LoginRequest, ProjectResponse, ContactRequest, ApiResponse
 
 portfolio-frontend/
-├── components/     nav, home, projects, login, contact, footer, accessibility-toolbar
-├── services/       auth.service, project.service, contact.service, accessibility.service
+├── components/     nav, home, projects, login, contact, footer, accessibility-toolbar, chatbot-launcher
+├── services/       auth.service, project.service, contact.service, accessibility.service, chatbot.service
 ├── guards/         authGuard
 └── a11y-tests/     axe-core Puppeteer test suite
+
+portfolio-chatbot-backend/
+├── controller/     PortfolioAssistantController
+├── service/        RagService, KnowledgeIngestionService
+├── config/         ChatbotConfig (@ConditionalOnExpression)
+├── dto/            ChatRequest, ChatResponse, Citation
+└── resources/
+    ├── knowledge/  about.md, projects.md, skills.md, credentials.md, ai-projects.md, ...
+    └── docs/       bundled repository documentation (embedded at build time)
 ```
 
 ---
@@ -249,7 +260,7 @@ ats-frontend/
 
 | Component | Configuration | Monthly Cost |
 |-----------|--------------|:------------:|
-| **Lambda** | 3 functions (Java 21, SnapStart, 2048 MB), EventBridge warming every 4 min | ~$6–8 |
+| **Lambda** | 4 functions (Java 21, SnapStart, 2048 MB), EventBridge warming every 4 min — portfolio, e-commerce, ATS, chatbot | ~$6–8 |
 | **Aurora Serverless v2** | 1 shared cluster (3 databases), PostgreSQL 15.17, 0.5–4 ACU | ~$25–30 |
 | **CloudFront** | 3 distributions, global edge caching, TLS termination | ~$3–5 |
 | **API Gateway** | 3 REST APIs (regional), Lambda proxy integration | ~$1–2 |
@@ -470,6 +481,7 @@ Detailed documentation is available in the [`docs/`](docs/) directory:
 | [Accessibility](docs/ACCESSIBILITY.md) | WCAG 2.1 AA compliance details |
 | [UML Diagrams](docs/UML_DIAGRAMS.md) | System and sequence diagrams |
 | [Project Highlights](docs/PROJECT_HIGHLIGHTS.md) | Technical highlights and challenges |
+| [Unified Architecture](docs/UNIFIED_ARCHITECTURE.md) | Cross-cutting architecture overview |
 
 ---
 

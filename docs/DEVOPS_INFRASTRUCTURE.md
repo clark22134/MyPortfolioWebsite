@@ -53,10 +53,10 @@ Every pull request runs 10 parallel jobs before a merge is possible:
 |-----|-------------|
 | **PR Quality Checks** | Auto-labels PR based on changed paths (backend, frontend, infrastructure, docs, deps, security, tests) using `.github/labeler.yml` |
 | **Security Scan** | Trivy filesystem scan (CRITICAL/HIGH) + TruffleHog secret scanning (verified secrets only) |
-| **Backend Tests** (×3) | `mvn clean test` + `mvn package` + JaCoCo coverage for portfolio, e-commerce, and ATS backends |
+| **Backend Tests** (×4) | `mvn clean test` + `mvn package` + JaCoCo coverage for portfolio, e-commerce, ATS, and portfolio-chatbot backends |
 | **Frontend Tests** (×3) | `npm ci` → lint → `ng test` → production build for portfolio, e-commerce, and ATS frontends |
 | **Accessibility Test** | Serves portfolio frontend build, runs axe-core WCAG 2.1 AA audit via Puppeteer (depends on frontend test artifact) |
-| **Dependency Audit** | `npm audit` (moderate+) on all 3 frontends + `mvn dependency-check:check` (CVSS ≥ 7) on all 3 backends |
+| **Dependency Audit** | `npm audit` (moderate+) on all 3 frontends + `mvn dependency-check:check` (CVSS ≥ 7) on all 4 backends |
 | **Automated Code Review** | CodeRabbit AI reviewer posts comments on non-trivial changes |
 
 **Concurrency:** `pr-${{ pull_request.number }}` — new pushes to the same PR cancel in-progress runs. Each PR gets one active validation at a time.
@@ -78,6 +78,7 @@ graph TD
         TF2["ATS<br/>Frontend Tests"]
         TB3["E-Commerce<br/>Backend Tests"]
         TF3["E-Commerce<br/>Frontend Tests"]
+        TB4["Portfolio Chatbot<br/>Backend Tests"]
     end
 
     Gate --> TF["Stage 2 — Terraform"]
@@ -101,6 +102,7 @@ graph TD
         DP["Portfolio<br/>Lambda + S3 Frontend"]
         DE["E-Commerce<br/>Lambda + S3 Frontend"]
         DA["ATS<br/>Lambda + S3 Frontend"]
+        DC["Portfolio Chatbot<br/>Lambda"]
     end
 
     Deploy --> Verify["Stage 5 — Post-Deploy"]
@@ -159,20 +161,26 @@ All 6 codebases are analyzed in a single SonarCloud project. Coverage comes from
 
 The serverless architecture eliminates Docker images in favor of direct Lambda deployment packages and S3-hosted static frontends:
 
-**Backend Lambda packages (portfolio, e-commerce, ATS):**
+**Backend Lambda packages (portfolio, e-commerce, ATS, portfolio-chatbot):**
 
 ```
 ┌─────────────────────────────────────────────┐
 │ Step 1: Maven Build (Spring Boot fat JAR)   │
 │   mvn clean package -DskipTests             │
 │   Output: target/*-SNAPSHOT.jar (~40MB)     │
+│   Note: portfolio-chatbot bundles           │
+│   classpath:knowledge/*.md and              │
+│   classpath:docs/*.md in the JAR via the    │
+│   maven-shade-plugin resource transform.    │
+│   Knowledge base is embedded at build time. │
 ├─────────────────────────────────────────────┤
 │ Step 2: Lambda Deployment                   │
 │   Upload JAR to Lambda function             │
 │   Runtime: Java 21 with SnapStart enabled  │
-│   Configuration: 2048MB memory, 512MB /tmp  │
+│   Configuration: 2048MB memory, 2048MB /tmp │
 │   Warm-up: EventBridge rule (4min interval) │
-│   Environment: DB secrets from Secrets Mgr  │
+│   Environment: OPENAI_API_KEY (chatbot)     │
+│                DB secrets (others)          │
 └─────────────────────────────────────────────┘
 ```
 
@@ -212,16 +220,17 @@ The serverless architecture eliminates Docker images in favor of direct Lambda d
 
 ### 2.2 Lambda Configuration
 
-| Configuration | Value | Rationale |
-|--------------|-------|-----------|
-| **Runtime** | Java 21 (Corretto) | Spring Boot 3+ requirement |
-| **SnapStart** | Enabled | Reduces cold starts from ~8s to 1-2s |
-| **Memory** | 2048 MB | Optimal for Spring Boot workloads |
-| **Timeout** | 30 seconds | API Gateway maximum |
-| **/tmp storage** | 2048 MB | Resume parsing, temp file operations |
-| **Architecture** | x86_64 | Widest library compatibility |
-| **VPC** | Private subnets | Secure Aurora connectivity |
-| **Warm-up** | EventBridge (4min) | Maintain warm snapshots |
+| Configuration | portfolio-backend | ecommerce-backend | ats-backend | portfolio-chatbot-backend |
+|--------------|-------------------|-------------------|-------------|--------------------------|
+| **Runtime** | Java 21 (Corretto) | Java 21 (Corretto) | Java 21 (Corretto) | Java 21 (Corretto) |
+| **SnapStart** | Enabled | Enabled | Enabled | Enabled (captures vector index) |
+| **Memory** | 2048 MB | 2048 MB | 2048 MB | 2048 MB |
+| **Timeout** | 30 seconds | 30 seconds | 30 seconds | 30 seconds |
+| **/tmp storage** | 512 MB | 512 MB | 2048 MB | 2048 MB |
+| **VPC** | Private subnets | Private subnets | Private subnets | Private subnets |
+| **Warm-up** | EventBridge (4min) | EventBridge (4min) | EventBridge (4min) | EventBridge (4min) |
+| **Database** | Aurora (portfolio) | Aurora (ecommerce) | Aurora (ats) | **None** (no JPA/JDBC) |
+| **Key env vars** | `SPRING_DATASOURCE_*`, `JWT_SECRET` | `SPRING_DATASOURCE_*`, `JWT_SECRET` | `SPRING_DATASOURCE_*` | `OPENAI_API_KEY`, `CHATBOT_ENABLED`, `CHATBOT_RATE_LIMIT_PER_MIN`, `CHATBOT_DOCS_PATH` |
 
 ### 2.3 Versioning & Tagging
 
@@ -618,6 +627,7 @@ The default profile (no `SPRING_PROFILES_ACTIVE`) uses H2 in-memory databases an
 | **Admin account** | Username, password, email, full name | Terraform variables → Lambda env vars | Lambda env vars `ADMIN_*` |
 | **Email (SMTP)** | Gmail username, app password, contact email | Terraform variables → Lambda env vars | Lambda env vars `MAIL_*`, `CONTACT_EMAIL` |
 | **Database** | PostgreSQL username, password (shared Aurora cluster) | AWS Secrets Manager (auto-rotation) | Lambda env vars via Secrets Manager ARN |
+| **AI / Chatbot** | OpenAI API key | Terraform variables → Lambda env var | Lambda env var `OPENAI_API_KEY` (chatbot Lambda only) |
 | **CI/CD** | AWS role ARN, SonarCloud token, OpenAI API key | GitHub Secrets | GitHub Actions env |
 
 ### 6.2 Secrets Flow
