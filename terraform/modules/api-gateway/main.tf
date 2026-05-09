@@ -41,6 +41,12 @@ variable "lambda_alias" {
 # Used by the portfolio API to send chatbot traffic to a non-VPC Lambda that
 # can reach api.openai.com directly. Leave empty to disable.
 # ---------------------------------------------------------------------------
+variable "enable_chatbot" {
+  description = "Whether to create the /api/chatbot/{proxy+} branch. Must be a plan-time-known boolean (cannot be derived from a computed Lambda ARN, otherwise count is unknown until apply)."
+  type        = bool
+  default     = false
+}
+
 variable "chatbot_lambda_invoke_arn" {
   description = "Invoke ARN (or alias invoke ARN) of a second Lambda to handle /api/chatbot/{proxy+}."
   type        = string
@@ -124,10 +130,13 @@ resource "aws_api_gateway_integration" "root_lambda" {
 # ---------------------------------------------------------------------------
 # More-specific paths win in API Gateway routing, so this branch always
 # wins over the catch-all `/{proxy+}` integration above for chatbot
-# traffic. Created only when chatbot_lambda_invoke_arn is non-empty so
-# environments without a chatbot Lambda incur no extra resources.
+# traffic. Created only when var.enable_chatbot is true so environments
+# without a chatbot Lambda incur no extra resources. We use an explicit
+# bool flag (instead of `var.chatbot_lambda_invoke_arn != ""`) because the
+# invoke ARN comes from another module's Lambda alias and is unknown at
+# plan time on the first run, which makes `count` unresolvable.
 locals {
-  chatbot_enabled = var.chatbot_lambda_invoke_arn != ""
+  chatbot_enabled = var.enable_chatbot
 }
 
 resource "aws_api_gateway_resource" "api" {

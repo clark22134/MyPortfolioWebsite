@@ -290,6 +290,7 @@ module "portfolio_api_gateway" {
   # Route /api/chatbot/{proxy+} to the dedicated, non-VPC chatbot Lambda.
   # All other paths still hit module.portfolio_lambda via the catch-all
   # {proxy+} integration.
+  enable_chatbot               = true
   chatbot_lambda_invoke_arn    = module.portfolio_chatbot_lambda.alias_invoke_arn
   chatbot_lambda_function_name = module.portfolio_chatbot_lambda.function_name
   chatbot_lambda_alias         = module.portfolio_chatbot_lambda.alias_name

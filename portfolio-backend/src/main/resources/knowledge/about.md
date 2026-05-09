@@ -6,7 +6,7 @@ source: home
 
 # About Clark Foster
 
-Clark Foster is a Full-Stack Software Developer and Security Engineer with **nine years**
+Clark Foster is a Full-Stack Software Developer and DevSecOps Engineer with **nine years**
 of professional experience delivering secure, accessible, and scalable applications in
 enterprise and U.S. federal environments.
 
