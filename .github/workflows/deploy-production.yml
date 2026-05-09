@@ -405,7 +405,7 @@ jobs:
 
             for attempt in $(seq 1 "$max_attempts"); do
               body=$(mktemp)
-              status=$(curl -sS -L --max-time 30 -o "$body" -w "%{http_code}" "$url" || true)
+              status=$(curl -sS -L --compressed --max-time 30 -o "$body" -w "%{http_code}" "$url" || true)
 
               if [ "$status" -ge 200 ] && [ "$status" -lt 400 ] && { [ -z "$expected" ] || grep -Fq "$expected" "$body"; }; then
                 echo "${name} OK"
