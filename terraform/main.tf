@@ -187,6 +187,13 @@ module "portfolio_lambda" {
     # NAT and burn the entire SnapStart init budget.
     CHATBOT_ENABLED = "false"
     OPENAI_API_KEY  = ""
+    # Disable Spring AI's OpenAI auto-config entirely on this Lambda. With
+    # CHATBOT_ENABLED=false the OPENAI_API_KEY is empty, so OpenAiChat /
+    # OpenAiEmbedding auto-configurations would still try to instantiate
+    # `openAiApi` at context refresh and fail with "OpenAI API key must be
+    # set", killing SnapStart pre-snapshot init.
+    SPRING_AI_MODEL_CHAT      = "none"
+    SPRING_AI_MODEL_EMBEDDING = "none"
   }
 }
 
