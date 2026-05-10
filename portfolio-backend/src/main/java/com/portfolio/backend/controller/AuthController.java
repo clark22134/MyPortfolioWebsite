@@ -42,6 +42,7 @@ import java.util.Optional;
 public class AuthController {
 
     private static final String SAME_SITE_STRICT = "Strict";
+    private static final String MESSAGE_KEY = "message";
 
     private final AuthService authService;
     private final RateLimitingService rateLimitingService;
@@ -92,7 +93,7 @@ public class AuthController {
         revokeRefreshTokenIfPresent(httpRequest);
         clearAuthCookies(httpResponse);
 
-        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+        return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Logged out successfully"));
     }
 
     @GetMapping("/me")
@@ -123,7 +124,7 @@ public class AuthController {
         refreshTokenService.revokeAllUserTokens(userDetails.getUsername());
         clearAuthCookies(httpResponse);
 
-        return ResponseEntity.ok(Map.of("message", "Logged out from all devices"));
+        return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Logged out from all devices"));
     }
 
     @PostMapping("/register")
@@ -205,7 +206,7 @@ public class AuthController {
 
         setAuthCookies(httpResponse, newAccessToken, newRefreshToken.getToken());
 
-        return ResponseEntity.ok(Map.of("message", "Token refreshed successfully"));
+        return ResponseEntity.ok(Map.of(MESSAGE_KEY, "Token refreshed successfully"));
     }
 
     private ResponseEntity<?> handleFailedLogin(String rateLimitKey) {

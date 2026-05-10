@@ -6,8 +6,8 @@ import { OrderHistoryItem } from '../common/order-history.model';
 @Injectable({ providedIn: 'root' })
 export class OrderHistoryService {
 
-  private apiUrl = '/api/orders';
-  private http = inject(HttpClient);
+  private readonly apiUrl = '/api/orders';
+  private readonly http = inject(HttpClient);
 
   getOrderHistory(): Observable<OrderHistoryItem[]> {
     return this.http.get<OrderHistoryItem[]>(this.apiUrl);

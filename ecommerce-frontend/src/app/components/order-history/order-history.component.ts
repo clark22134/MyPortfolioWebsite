@@ -15,7 +15,7 @@ type SortField = 'date-desc' | 'date-asc' | 'price-desc' | 'price-asc' | 'qty-de
 })
 export class OrderHistoryComponent implements OnInit {
 
-  private orderHistoryService = inject(OrderHistoryService);
+  private readonly orderHistoryService = inject(OrderHistoryService);
 
   allOrders = signal<OrderHistoryItem[]>([]);
   searchTerm = signal('');
@@ -31,7 +31,7 @@ export class OrderHistoryComponent implements OnInit {
     if (term) {
       orders = orders.filter(o =>
         o.orderTrackingNumber.toLowerCase().includes(term) ||
-        (o.status && o.status.toLowerCase().includes(term)) ||
+        o.status?.toLowerCase().includes(term) ||
         o.totalPrice.toString().includes(term) ||
         new Date(o.dateCreated).toLocaleDateString().includes(term)
       );

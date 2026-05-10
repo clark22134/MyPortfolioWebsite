@@ -22,8 +22,8 @@ export class CartService {
 
   storage: Storage = localStorage;
   private currentUserEmail: string | null = null;
-  private http = inject(HttpClient);
-  private cartApiUrl = '/api/cart';
+  private readonly http = inject(HttpClient);
+  private readonly cartApiUrl = '/api/cart';
 
   constructor() {
     // Restore user email from storage to build the correct cart key

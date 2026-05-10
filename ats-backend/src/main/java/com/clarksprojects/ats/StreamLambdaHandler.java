@@ -7,6 +7,8 @@ import com.amazonaws.serverless.proxy.spring.SpringBootLambdaContainerHandler;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.clarksprojects.ats.repository.JobRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
 
@@ -25,6 +27,8 @@ import java.nio.charset.StandardCharsets;
  */
 public class StreamLambdaHandler implements RequestStreamHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(StreamLambdaHandler.class);
+
     private static SpringBootLambdaContainerHandler<AwsProxyRequest, AwsProxyResponse> handler;
 
     static {
@@ -33,7 +37,7 @@ public class StreamLambdaHandler implements RequestStreamHandler {
         } catch (ContainerInitializationException e) {
             // If we fail here, Lambda will re-throw the exception on every request
             e.printStackTrace();
-            throw new RuntimeException("Could not initialize Spring Boot application", e);
+            throw new IllegalStateException("Could not initialize Spring Boot application", e);
         }
     }
 
@@ -73,7 +77,7 @@ public class StreamLambdaHandler implements RequestStreamHandler {
             repo.count();
         } catch (Exception e) {
             // Warmers must never fail loudly; log and move on.
-            System.err.println("Warmer DB touch failed: " + e.getMessage());
+            log.error("Warmer DB touch failed: {}", e.getMessage(), e);
         }
     }
 }

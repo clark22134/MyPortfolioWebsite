@@ -142,7 +142,7 @@ export class JobsComponent implements OnInit {
   }
 
   formatType(type: string): string {
-    return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return type.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
 
   formatDate(dateStr: string): string {
@@ -197,7 +197,7 @@ export class JobsComponent implements OnInit {
   }
 
   goToJobsPage(n: number | string): void {
-    this.jobsPage = typeof n === 'string' ? parseInt(n, 10) : n;
+    this.jobsPage = typeof n === 'string' ? Number.parseInt(n, 10) : n;
     this.cdr.detectChanges();
   }
   prevJobsPage(): void { if (this.jobsPage > 1) this.goToJobsPage(this.jobsPage - 1); }

@@ -8,7 +8,7 @@ import { Router } from '@angular/router';
   styleUrl: './search.component.css',
 })
 export class SearchComponent {
-  constructor(private router: Router) {}
+  constructor(private readonly router: Router) {}
 
   doSearch(value: string) {
     const keyword = (value ?? '').trim();

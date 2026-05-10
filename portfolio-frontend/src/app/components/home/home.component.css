@@ -822,7 +822,6 @@ h2 {
 
 .about ul {
   list-style: none;
-  padding: 0;
   display: inline-block;
   text-align: left;
   background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);

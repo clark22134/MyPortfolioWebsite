@@ -7,18 +7,18 @@
       <table class="cart-table" aria-label="Shopping cart items">
         <thead>
           <tr>
-            <th scope="col" width="20%">Product Image</th>
-            <th scope="col" width="35%">Product Detail</th>
-            <th scope="col" width="20%">Quantity</th>
-            <th scope="col" width="15%">Subtotal</th>
-            <th scope="col" width="10%">Remove</th>
+            <th scope="col">Product Image</th>
+            <th scope="col">Product Detail</th>
+            <th scope="col">Quantity</th>
+            <th scope="col">Subtotal</th>
+            <th scope="col">Remove</th>
           </tr>
         </thead>
         <tbody>
           @for (cartItem of cartItems; track cartItem.id) {
           <tr>
             <td>
-              <img [src]="cartItem.imageUrl" class="cart-img" [alt]="cartItem.name + ' product image'">
+              <img [src]="cartItem.imageUrl" class="cart-img" [alt]="cartItem.name">
             </td>
             <td>
               <p class="product-name">{{ cartItem.name }}</p>

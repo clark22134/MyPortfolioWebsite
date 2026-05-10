@@ -23,7 +23,7 @@ export class AppComponent {
   title = 'Portfolio';
   terminalComplete = false;
 
-  constructor(private terminalLoaderService: TerminalLoaderService) {
+  constructor(private readonly terminalLoaderService: TerminalLoaderService) {
     this.terminalLoaderService.complete$.subscribe(complete => {
       this.terminalComplete = complete;
     });

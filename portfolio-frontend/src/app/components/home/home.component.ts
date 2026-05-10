@@ -25,8 +25,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   aboutVisible = false;
   typedText = '';
   isTyping = true;
-  private fullText = 'WELCOME';
-  private typingSpeed = 150;
+  private readonly fullText = 'WELCOME';
+  private readonly typingSpeed = 150;
   private terminalSub: Subscription | null = null;
 
   skillCategories = [
@@ -70,9 +70,9 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   isAuthenticated = false;
 
   constructor(
-    private projectService: ProjectService,
-    private authService: AuthService,
-    private terminalLoaderService: TerminalLoaderService
+    private readonly projectService: ProjectService,
+    private readonly authService: AuthService,
+    private readonly terminalLoaderService: TerminalLoaderService
   ) {
     this.authService.currentUser$.subscribe(user => {
       this.isAuthenticated = !!user;

@@ -320,7 +320,7 @@ export class TalentComponent implements OnInit, OnDestroy {
   }
 
   goToPage(n: number | string): void {
-    this.page = typeof n === 'string' ? parseInt(n, 10) : n;
+    this.page = typeof n === 'string' ? Number.parseInt(n, 10) : n;
     this.cdr.detectChanges();
   }
   prevPage(): void { if (this.page > 1) this.goToPage(this.page - 1); }

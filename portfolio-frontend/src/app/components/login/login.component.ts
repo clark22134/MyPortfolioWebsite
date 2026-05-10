@@ -20,8 +20,8 @@ export class LoginComponent {
   isAuthenticated = false;
 
   constructor(
-    private authService: AuthService,
-    private router: Router
+    private readonly authService: AuthService,
+    private readonly router: Router
   ) {
     this.authService.currentUser$.subscribe(user => {
       this.isAuthenticated = !!user;

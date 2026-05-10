@@ -113,9 +113,7 @@ public class RefreshTokenService {
      */
     @Transactional
     public void revokeAllUserTokens(String username) {
-        userRepository.findByUsername(username).ifPresent(user ->
-            refreshTokenRepository.revokeAllByUser(user)
-        );
+        userRepository.findByUsername(username).ifPresent(refreshTokenRepository::revokeAllByUser);
     }
 
     /**

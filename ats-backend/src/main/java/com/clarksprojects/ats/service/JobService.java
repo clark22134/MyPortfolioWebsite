@@ -26,6 +26,7 @@ public class JobService {
 
     static final String TALENT_POOL_EMPLOYER = "SYSTEM";
     static final String TALENT_POOL_TITLE = "Talent Pool";
+    static final String TALENT_POOL_DEPARTMENT = "Talent Pool";
 
     private final JobRepository jobRepository;
     private final CandidateRepository candidateRepository;
@@ -52,7 +53,7 @@ public class JobService {
                 .orElseGet(() -> jobRepository.save(Job.builder()
                         .employer(TALENT_POOL_EMPLOYER)
                         .title(TALENT_POOL_TITLE)
-                        .department("Talent Pool")
+                        .department(TALENT_POOL_DEPARTMENT)
                         .location("N/A")
                         .status(JobStatus.ON_HOLD)
                         .employmentType(EmploymentType.FULL_TIME)

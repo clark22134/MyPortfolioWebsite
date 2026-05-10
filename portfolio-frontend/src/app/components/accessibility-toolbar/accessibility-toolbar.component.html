@@ -67,7 +67,7 @@
         class="a11y-btn full-width"
         [class.active]="settings.highContrast"
         (click)="toggleHighContrast()"
-        [attr.aria-pressed]="settings.highContrast"
+        [attr.aria-checked]="settings.highContrast"
         role="switch">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              aria-hidden="true" focusable="false">
@@ -85,7 +85,7 @@
         class="a11y-btn full-width"
         [class.active]="settings.reducedMotion"
         (click)="toggleReducedMotion()"
-        [attr.aria-pressed]="settings.reducedMotion"
+        [attr.aria-checked]="settings.reducedMotion"
         role="switch">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              aria-hidden="true" focusable="false">
@@ -102,7 +102,7 @@
         class="a11y-btn full-width"
         [class.active]="settings.ttsEnabled"
         (click)="toggleTTS()"
-        [attr.aria-pressed]="settings.ttsEnabled"
+        [attr.aria-checked]="settings.ttsEnabled"
         role="switch">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              aria-hidden="true" focusable="false">
@@ -143,7 +143,7 @@
         class="a11y-btn full-width"
         [class.active]="settings.screenReaderMode"
         (click)="toggleScreenReaderMode()"
-        [attr.aria-pressed]="settings.screenReaderMode"
+        [attr.aria-checked]="settings.screenReaderMode"
         role="switch">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              aria-hidden="true" focusable="false">

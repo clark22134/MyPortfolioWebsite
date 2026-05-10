@@ -23,6 +23,8 @@ public class ProjectController {
 
     private final ProjectService projectService;
 
+    private static final String PROJECT_RESOURCE = "Project";
+
     @GetMapping
     public ResponseEntity<List<Project>> getAllProjects() {
         return ResponseEntity.ok(projectService.getAllProjects());
@@ -36,7 +38,7 @@ public class ProjectController {
     @GetMapping("/{id}")
     public ResponseEntity<Project> getProjectById(@PathVariable Long id) {
         Project project = projectService.getProjectById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(PROJECT_RESOURCE, "id", id));
         return ResponseEntity.ok(project);
     }
 
@@ -52,7 +54,7 @@ public class ProjectController {
             @Valid @RequestBody Project project) {
         // Verify project exists
         projectService.getProjectById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(PROJECT_RESOURCE, "id", id));
         
         Project updated = projectService.updateProject(id, project);
         return ResponseEntity.ok(updated);
@@ -62,7 +64,7 @@ public class ProjectController {
     public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
         // Verify project exists
         projectService.getProjectById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Project", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(PROJECT_RESOURCE, "id", id));
         
         projectService.deleteProject(id);
         return ResponseEntity.noContent().build();

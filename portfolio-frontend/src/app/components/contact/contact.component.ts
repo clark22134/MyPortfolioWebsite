@@ -28,8 +28,8 @@ export class ContactComponent {
   isAuthenticated = false;
 
   constructor(
-    private contactService: ContactService,
-    private authService: AuthService
+    private readonly contactService: ContactService,
+    private readonly authService: AuthService
   ) {
     this.authService.currentUser$.subscribe(user => {
       this.isAuthenticated = !!user;

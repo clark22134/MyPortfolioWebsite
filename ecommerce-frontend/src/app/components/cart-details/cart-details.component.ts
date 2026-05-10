@@ -23,7 +23,7 @@ export class CartDetailsComponent implements OnInit {
     this.listCartDetails();
   }
 
-  constructor(private cartService: CartService) {}
+  constructor(private readonly cartService: CartService) {}
 
   listCartDetails() {
     // get a handle to the cart items

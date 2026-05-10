@@ -46,15 +46,18 @@ public class RagService {
     private static final int CONTEXT_PASSAGES = 4;
     private static final int MAX_QUESTION_CHARS = 1000;
 
-    private static final Map<Pattern, String> ACRONYMS = new LinkedHashMap<>() {{
-        put(p("\\bATS\\b"), "ATS (Applicant Tracking System)");
-        put(p("\\bRAG\\b"), "RAG (Retrieval-Augmented Generation)");
-        put(p("\\bIaC\\b"), "IaC (Infrastructure as Code)");
-        put(p("\\bCI/CD\\b"), "CI/CD (continuous integration and continuous delivery)");
-        put(p("\\bWCAG\\b"), "WCAG (Web Content Accessibility Guidelines)");
-        put(p("\\bCFI\\b"), "CFI (Certified Flight Instructor)");
-        put(p("\\bUSMC\\b"), "USMC (U.S. Marine Corps)");
-    }};
+    private static final Map<Pattern, String> ACRONYMS;
+
+    static {
+        ACRONYMS = new LinkedHashMap<>();
+        ACRONYMS.put(p("\\bATS\\b"), "ATS (Applicant Tracking System)");
+        ACRONYMS.put(p("\\bRAG\\b"), "RAG (Retrieval-Augmented Generation)");
+        ACRONYMS.put(p("\\bIaC\\b"), "IaC (Infrastructure as Code)");
+        ACRONYMS.put(p("\\bCI/CD\\b"), "CI/CD (continuous integration and continuous delivery)");
+        ACRONYMS.put(p("\\bWCAG\\b"), "WCAG (Web Content Accessibility Guidelines)");
+        ACRONYMS.put(p("\\bCFI\\b"), "CFI (Certified Flight Instructor)");
+        ACRONYMS.put(p("\\bUSMC\\b"), "USMC (U.S. Marine Corps)");
+    }
 
     private static final List<String> CATEGORY_PRIORITY = List.of(
             "about", "projects", "live-project", "ai-projects",
@@ -114,7 +117,7 @@ public class RagService {
     }
 
     /** No-op placeholder for symmetry; citations are streamed via the sink. */
-    public List<Citation> lastCitations(String conversationId) {
+    public List<Citation> lastCitations(@SuppressWarnings("unused") String conversationId) {
         return List.of();
     }
 

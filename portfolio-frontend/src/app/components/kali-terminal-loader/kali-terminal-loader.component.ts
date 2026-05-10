@@ -15,7 +15,7 @@ export class KaliTerminalLoaderComponent implements OnInit, OnDestroy {
   fadeOut = false;
   hidden = false;
 
-  private lines: string[] = [
+  private readonly lines: string[] = [
     'root@kali:~$ ./welcome.sh --init --security-mode=enhanced',
     '',
     '[✓] Initializing security protocols...',
@@ -36,9 +36,9 @@ export class KaliTerminalLoaderComponent implements OnInit, OnDestroy {
   ];
 
   private intervalId: ReturnType<typeof setInterval> | null = null;
-  private timeouts: ReturnType<typeof setTimeout>[] = [];
+  private readonly timeouts: ReturnType<typeof setTimeout>[] = [];
 
-  constructor(private terminalLoaderService: TerminalLoaderService) {}
+  constructor(private readonly terminalLoaderService: TerminalLoaderService) {}
 
   ngOnInit(): void {
     this.runAnimation();
