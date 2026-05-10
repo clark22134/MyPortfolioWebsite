@@ -231,7 +231,7 @@ The entire infrastructure is defined in Terraform (~2,190 lines across 8 modules
 | `networking` | VPC, 2 public + 2 private subnets, IGW, NAT Gateway, route tables |
 | `acm` | SSL certificate with DNS validation for 4 domains |
 | `aurora` | 1 shared Aurora Serverless v2 cluster (3 databases, PostgreSQL 15.17, 0.5–4 ACU) |
-| `lambda` | 3 Lambda functions (Java 21, SnapStart, 2048 MB), IAM execution roles, EventBridge warm-up rules |
+| `lambda` | 4 Lambda functions (Java 21, SnapStart, 1024–2048 MB), IAM execution roles, EventBridge warm-up rules |
 | `api-gateway` | 3 REST API Gateways (regional), Lambda proxy integrations |
 | `cloudfront` | 3 CloudFront distributions, Route 53 DNS records for 4 domains |
 | `cloudfront-waf` | CloudFront WAFv2 Web ACL with 5 rules (us-east-1) |

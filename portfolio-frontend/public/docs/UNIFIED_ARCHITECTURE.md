@@ -118,7 +118,7 @@ The deliberate selection of three distinct business domains — content manageme
                     │                                      │
                     │  ┌──────────────────────────────┐    │
                     │  │  AWS Lambda + API Gateway     │    │
-                    │  │  3 Lambda Functions (Java 21) │    │
+                    │  │  4 Lambda Functions (Java 21) │    │
                     │  │  3 REST APIs (regional)       │    │
                     │  │  SnapStart enabled (1-2s cold)│    │
                     │  └──────────────────────────────┘    │

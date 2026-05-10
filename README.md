@@ -99,7 +99,7 @@ All three applications share a single serverless infrastructure layer with Cloud
            │ │  SnapStart  │ │       │ │  SnapStart  │ │       │ │  SnapStart  │ │
            │ │  Spring     │ │       │ │  Spring     │ │       │ │  Spring     │ │
            │ │  Boot 3     │ │       │ │  Boot 3     │ │       │ │  Boot 3     │ │
-           │ │  2048 MB    │ │       │ │  2048 MB    │ │       │ │  2048 MB    │ │
+           │ │  1024 MB    │ │       │ │  2048 MB    │ │       │ │  1024 MB    │ │
            │ └──────┬──────┘ │       │ └──────┬──────┘ │       │ └──────┬──────┘ │
            │        │        │       │        │        │       │        │        │
            │ ┌──────▼──────┐ │       │ ┌──────▼──────┐ │       │ ┌──────▼──────┐ │
@@ -113,7 +113,7 @@ All three applications share a single serverless infrastructure layer with Cloud
 
                           AWS Serverless Infrastructure
                      ┌────────────────────────────────────┐
-                     │  3 Lambda functions (SnapStart)    │
+                     │  4 Lambda functions (SnapStart)    │
                      │  3 API Gateways (REST regional)    │
                      │  3 S3 buckets (static hosting)     │
                      │  3 CloudFront distributions        │
@@ -163,10 +163,10 @@ An authenticated admin portal for managing and showcasing projects, with a publi
 - Three-layer rate limiting (WAF → Nginx → application-level with brute-force lockout)
 - CSRF protection via `CookieCsrfTokenRepository` + `X-XSRF-TOKEN` header coordination
 - Per-user session limits (max 5 active refresh tokens, per-token device metadata)
-- SMTP-backed contact form (Gmail integration)
+- SMTP-backed contact form (AWS SES in production; Gmail SMTP for local development)
 - Accessibility toolbar: font scaling (75%–200%), high contrast, reduced motion, text-to-speech, screen reader mode
 - Automated WCAG 2.1 AA testing (axe-core + Puppeteer) blocking merges on failure
-- Embedded **Portfolio Assistant** (RAG chatbot): Spring AI 1.0.5, query expansion, cosine similarity retrieval, reranking, streaming SSE citations
+- **Portfolio Assistant** (RAG chatbot via dedicated Lambda outside VPC): Spring AI 1.0.5, query expansion, cosine similarity retrieval, reranking, streaming SSE citations
 
 **Structure:**
 ```
@@ -183,14 +183,14 @@ portfolio-frontend/
 ├── guards/         authGuard
 └── a11y-tests/     axe-core Puppeteer test suite
 
-portfolio-chatbot-backend/
+portfolio-chatbot-backend/          ← standalone production chatbot Lambda (outside VPC)
 ├── controller/     PortfolioAssistantController
 ├── service/        RagService, KnowledgeIngestionService
 ├── config/         ChatbotConfig (@ConditionalOnExpression)
 ├── dto/            ChatRequest, ChatResponse, Citation
 └── resources/
-    ├── knowledge/  about.md, projects.md, skills.md, credentials.md, ai-projects.md, ...
-    └── docs/       bundled repository documentation (embedded at build time)
+    ├── knowledge/  bundled at build time from portfolio-backend/src/main/resources/knowledge/
+    └── docs/       bundled at build time from /docs/ (via Maven resources configuration)
 ```
 
 ---
@@ -260,7 +260,7 @@ ats-frontend/
 
 | Component | Configuration | Monthly Cost |
 |-----------|--------------|:------------:|
-| **Lambda** | 4 functions (Java 21, SnapStart, 2048 MB), EventBridge warming every 4 min — portfolio, e-commerce, ATS, chatbot | ~$6–8 |
+| **Lambda** | 4 functions (Java 21, SnapStart, EventBridge warming every 4 min) — portfolio: 1024 MB, e-commerce: 2048 MB, ATS: 1024 MB, chatbot: 1024 MB | ~$6–8 |
 | **Aurora Serverless v2** | 1 shared cluster (3 databases), PostgreSQL 15.17, 0.5–4 ACU | ~$25–30 |
 | **CloudFront** | 3 distributions, global edge caching, TLS termination | ~$3–5 |
 | **API Gateway** | 3 REST APIs (regional), Lambda proxy integration | ~$1–2 |
@@ -317,6 +317,7 @@ ats-frontend/
    MAIL_USERNAME=your_gmail@gmail.com
    MAIL_PASSWORD=your_gmail_app_password
    CONTACT_EMAIL=your_contact@email.com
+   OPENAI_API_KEY=            # optional — enables Portfolio Assistant chatbot in local dev
 
    # E-Commerce
    ECOMMERCE_JWT_SECRET=your_ecommerce_jwt_secret

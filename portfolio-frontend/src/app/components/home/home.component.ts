@@ -1,4 +1,3 @@
-import { environment } from './../../environments/environment.prod';
 import { Component, OnInit, AfterViewInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';

@@ -14,7 +14,7 @@ This guide documents the migration from ECS Fargate to a serverless architecture
 - **Total: ~$163-193/month**
 
 ### After (Serverless)
-- 3 Lambda functions: ~$2-5/month (with free tier)
+- 4 Lambda functions: ~$5-8/month (with free tier)
 - 3 API Gateways: ~$3.50/month (with free tier)
 - 3 CloudFront distributions: ~$1-2/month
 - 3 S3 buckets: ~$0.50/month
@@ -169,7 +169,7 @@ terraform apply serverless.tfplan
 This will create:
 - VPC with public and private subnets
 - 1 shared Aurora Serverless v2 cluster (3 databases)
-- 3 Lambda functions (placeholder code)
+- 4 Lambda functions (portfolio, e-commerce, ATS, chatbot)
 - 3 API Gateways
 - 3 S3 buckets for frontend hosting
 - 3 CloudFront distributions

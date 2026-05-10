@@ -4,6 +4,7 @@ import com.portfolio.backend.security.JwtRequestFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -30,12 +31,17 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    // Projects are publicly readable; mutations (POST/PUT/DELETE) require authentication
+    private static final String[] PUBLIC_GET_ENDPOINTS = {
+            "/api/projects",
+            "/api/projects/**"
+    };
+
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/refresh",
             "/api/health",
-            "/api/projects/**",
             "/api/contact/**",
             "/api/chatbot/**",
             "/h2-console/**",
@@ -81,6 +87,7 @@ public class SecurityConfig {
     private void configureAuthorization(HttpSecurity http) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated()
                 );

@@ -91,7 +91,7 @@ graph TD
 
     TF --> Build["Stage 3 — Build & Scan"]
     subgraph Build["Stage 3 — Build Artifacts & Security Scan"]
-        B1["Maven build (3 JARs)<br/>Angular build (3 frontends)"]
+        B1["Maven build (4 JARs)<br/>Angular build (3 frontends)"]
         B1 --> Scan["Trivy filesystem scan<br/>(CRITICAL/HIGH)"]
         Scan --> SARIF["Upload SARIF<br/>to GitHub Security"]
     end
@@ -170,7 +170,7 @@ The serverless architecture eliminates Docker images in favor of direct Lambda d
 │ Step 2: Lambda Deployment                   │
 │   Upload JAR to Lambda function             │
 │   Runtime: Java 21 with SnapStart enabled  │
-│   Configuration: 2048MB memory, 512MB /tmp  │
+│   Configuration: 1024–2048 MB memory (portfolio/ATS/chatbot: 1024 MB; e-commerce: 2048 MB) │
 │   Warm-up: EventBridge rule (4min interval) │
 │   Environment: DB secrets from Secrets Mgr  │
 └─────────────────────────────────────────────┘
@@ -216,11 +216,11 @@ The serverless architecture eliminates Docker images in favor of direct Lambda d
 |--------------|-------|-----------|
 | **Runtime** | Java 21 (Corretto) | Spring Boot 3+ requirement |
 | **SnapStart** | Enabled | Reduces cold starts from ~8s to 1-2s |
-| **Memory** | 2048 MB | Optimal for Spring Boot workloads |
+| **Memory** | 1024–2048 MB (portfolio/ATS/chatbot: 1024 MB; e-commerce: 2048 MB) | Tuned per workload — e-commerce needs 2048 MB for large product queries |
 | **Timeout** | 30 seconds | API Gateway maximum |
 | **/tmp storage** | 2048 MB | Resume parsing, temp file operations |
 | **Architecture** | x86_64 | Widest library compatibility |
-| **VPC** | Private subnets | Secure Aurora connectivity |
+| **VPC** | Private subnets (portfolio/e-commerce/ATS); **None** for chatbot (outside VPC — needs direct egress to api.openai.com) | Chatbot has no DB access and avoids NAT Gateway cost (~$32/mo) |
 | **Warm-up** | EventBridge (4min) | Maintain warm snapshots |
 
 ### 2.3 Versioning & Tagging
@@ -285,7 +285,7 @@ sequenceDiagram
     end
 
     Note over GA: Stage 3: Build (no Docker images)
-    GA->>GA: Maven build (3 Spring Boot JARs)
+    GA->>GA: Maven build (4 Spring Boot JARs)
     GA->>GA: Angular build (3 static frontends)
     GA->>GA: Security scan (Trivy + TruffleHog)
 
@@ -458,7 +458,7 @@ graph TB
     end
 
     subgraph External
-        SMTP["Gmail SMTP"]
+        SMTP["AWS SES / Gmail SMTP"]
         GH["GitHub Actions<br/>(OIDC)"]
     end
 

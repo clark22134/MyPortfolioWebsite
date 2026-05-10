@@ -125,6 +125,7 @@ resource "aws_rds_cluster" "aurora" {
   master_password           = random_password.master.result
   db_subnet_group_name      = aws_db_subnet_group.aurora.name
   vpc_security_group_ids    = [aws_security_group.aurora.id]
+  deletion_protection       = true
   skip_final_snapshot       = false
   final_snapshot_identifier = "${var.environment}-${var.cluster_identifier}-final-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
   backup_retention_period   = 7
