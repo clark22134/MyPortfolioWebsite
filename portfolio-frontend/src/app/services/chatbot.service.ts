@@ -168,7 +168,10 @@ export class ChatbotService {
     const dataLines: string[] = [];
     for (const line of raw.split('\n')) {
       if (line.startsWith('event:')) event = line.slice(6).trim();
-      else if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^\s/, ''));
+      // Do NOT strip the leading character after 'data:' — OpenAI token chunks
+      // frequently start with a space (e.g. " context") that carries the
+      // inter-word gap. Stripping it causes words to concatenate with no spaces.
+      else if (line.startsWith('data:')) dataLines.push(line.slice(5));
     }
     const data = dataLines.join('\n');
 

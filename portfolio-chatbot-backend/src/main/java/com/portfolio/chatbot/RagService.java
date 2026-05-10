@@ -42,8 +42,8 @@ public class RagService {
 
     private static final Logger log = LoggerFactory.getLogger(RagService.class);
 
-    private static final int TOP_K = 8;
-    private static final int CONTEXT_PASSAGES = 4;
+    private static final int TOP_K = 12;
+    private static final int CONTEXT_PASSAGES = 6;
     private static final int MAX_QUESTION_CHARS = 1000;
 
     private static final Map<Pattern, String> ACRONYMS = new LinkedHashMap<>() {{
@@ -57,7 +57,7 @@ public class RagService {
     }};
 
     private static final List<String> CATEGORY_PRIORITY = List.of(
-            "about", "projects", "live-project", "ai-projects",
+            "about", "projects", "ai-projects",
             "skills", "credentials", "accessibility", "contact", "documentation");
 
     private static final String SYSTEM_PROMPT = """
@@ -67,14 +67,18 @@ public class RagService {
             decisions, accessibility work, AI work, and documentation.
 
             Rules:
-            - Answer ONLY using the numbered CONTEXT passages below. If the
-              answer isn't in the context, say so plainly and suggest the
-              relevant page (Projects, AI Projects, Credentials, Contact,
+            - Use the numbered CONTEXT passages below as your primary source.
+              If a question is answerable from the context, answer from it and
+              cite sources inline as [1], [2], etc.
+            - If the context does not cover the question, answer from your
+              general knowledge of the conversation so far but be clear that
+              the detail may not be on this page, and suggest the relevant
+              section (Projects, AI Projects, Credentials, Contact,
               Accessibility, or Documentation).
+            - Be comprehensive: when asked about projects, describe ALL
+              projects mentioned in the context, not just one.
             - Be concise and direct. Use short paragraphs and bullet lists.
             - Use markdown for formatting (bold, lists, inline code).
-            - Cite sources inline as [1], [2] referring to the numbered
-              passages. Multiple citations like [1][3] are fine.
             - Never invent URLs, certifications, employers, or dates.
             - Speak about Clark in the third person.
             """;
@@ -145,13 +149,32 @@ public class RagService {
     }
 
     private List<Document> rerankAndDedupe(List<Document> hits) {
+        // `hits` is already ordered by cosine similarity (highest first) from the
+        // vector store. We deduplicate by source::section preserving that order
+        // (LinkedHashMap + putIfAbsent keeps the first / highest-score occurrence
+        // per key). We then sort by cosine score descending, using category
+        // priority only as a tiebreaker when scores are absent or virtually equal.
+        // Previously this sorted solely by category priority, which caused
+        // lower-relevance "about" passages to crowd out high-relevance project
+        // passages regardless of the query.
         Map<String, Document> bestByKey = new LinkedHashMap<>();
         for (Document d : hits) {
             String key = str(d.getMetadata().get("source")) + "::" + str(d.getMetadata().get("section"));
             bestByKey.putIfAbsent(key, d);
         }
         return bestByKey.values().stream()
-                .sorted((a, b) -> Integer.compare(priority(a), priority(b)))
+                .sorted((a, b) -> {
+                    Double sa = a.getScore();
+                    Double sb = b.getScore();
+                    // Sort by similarity score descending.
+                    if (sa != null && sb != null) {
+                        double diff = sb - sa;
+                        // Use priority only when scores are within 1 % of each other.
+                        if (Math.abs(diff) > 0.01) return diff > 0 ? 1 : -1;
+                    }
+                    // Tiebreaker: prefer higher-priority categories.
+                    return Integer.compare(priority(a), priority(b));
+                })
                 .limit(CONTEXT_PASSAGES)
                 .collect(Collectors.toList());
     }
