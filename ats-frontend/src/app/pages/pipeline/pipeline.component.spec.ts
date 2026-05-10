@@ -161,4 +161,132 @@ describe('PipelineComponent', () => {
     httpMock.expectOne('/api/jobs/1').flush(mockJob);
     httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
   });
+
+  it('should open edit with candidate data', () => {
+    const fixture = TestBed.createComponent(PipelineComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    httpMock.expectOne('/api/jobs/1').flush(mockJob);
+    httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
+
+    component.openEdit(mockCandidates[0]);
+    expect(component.editingCandidate).toBe(mockCandidates[0]);
+    expect(component.editForm.firstName).toBe('Jane');
+  });
+
+  it('should close edit and clear form', () => {
+    const fixture = TestBed.createComponent(PipelineComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    httpMock.expectOne('/api/jobs/1').flush(mockJob);
+    httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
+
+    component.openEdit(mockCandidates[0]);
+    component.closeEdit();
+    expect(component.editingCandidate).toBeNull();
+    expect(component.editForm).toEqual({});
+  });
+
+  it('should save edit and reload candidates', () => {
+    const fixture = TestBed.createComponent(PipelineComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    httpMock.expectOne('/api/jobs/1').flush(mockJob);
+    httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
+
+    component.openEdit(mockCandidates[0]);
+    component.saveEdit();
+
+    const putReq = httpMock.expectOne(req => req.method === 'PUT' && req.url.startsWith('/api/candidates/'));
+    putReq.flush(mockCandidates[0]);
+
+    httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
+    expect(component.editingCandidate).toBeNull();
+  });
+
+  it('should not call API when saveEdit with no editingCandidate', () => {
+    const fixture = TestBed.createComponent(PipelineComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    httpMock.expectOne('/api/jobs/1').flush(mockJob);
+    httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
+
+    component.editingCandidate = null;
+    component.saveEdit();
+    httpMock.expectNone(req => req.method === 'PUT');
+  });
+
+  it('should delete candidate when confirmed', () => {
+    const fixture = TestBed.createComponent(PipelineComponent);
+    const component = fixture.componentInstance;
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/jobs/1').flush(mockJob);
+    httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
+
+    component.deleteCandidate(1);
+    const deleteReq = httpMock.expectOne(req => req.method === 'DELETE' && req.url === '/api/candidates/1');
+    deleteReq.flush(null);
+    httpMock.expectOne('/api/candidates?jobId=1').flush([]);
+  });
+
+  it('should not delete when confirm cancelled', () => {
+    const fixture = TestBed.createComponent(PipelineComponent);
+    const component = fixture.componentInstance;
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/jobs/1').flush(mockJob);
+    httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
+
+    component.deleteCandidate(1);
+    httpMock.expectNone(req => req.method === 'DELETE');
+  });
+
+  it('should return stage colors', () => {
+    const fixture = TestBed.createComponent(PipelineComponent);
+    const component = fixture.componentInstance;
+    expect(component.getColor('APPLIED')).toBeTruthy();
+    expect(component.getColor('INTERVIEW')).toBeTruthy();
+    fixture.detectChanges();
+    httpMock.expectOne('/api/jobs/1').flush(mockJob);
+    httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
+  });
+
+  it('should format date', () => {
+    const fixture = TestBed.createComponent(PipelineComponent);
+    const component = fixture.componentInstance;
+    const result = component.formatDate('2025-01-20T00:00:00');
+    expect(result).toContain('Jan');
+    expect(result).toContain('20');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/jobs/1').flush(mockJob);
+    httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
+  });
+
+  it('should render edit modal template when editingCandidate is set', () => {
+    const fixture = TestBed.createComponent(PipelineComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    httpMock.expectOne('/api/jobs/1').flush(mockJob);
+    httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
+
+    component.openEdit(mockCandidates[0]);
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[aria-label="Edit Candidate"]')).toBeTruthy();
+  });
+
+  it('should render candidates in pipeline view', () => {
+    const fixture = TestBed.createComponent(PipelineComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+    httpMock.expectOne('/api/jobs/1').flush(mockJob);
+    httpMock.expectOne('/api/candidates?jobId=1').flush(mockCandidates);
+
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain(mockCandidates[0].firstName);
+  });
 });

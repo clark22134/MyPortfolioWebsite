@@ -206,4 +206,36 @@ class JobControllerTest {
         mockMvc.perform(delete("/api/jobs/99"))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void getAllJobs_withEmployerFilter_delegatesToEmployerService() throws Exception {
+        when(jobService.getJobsByEmployer("Acme")).thenReturn(List.of(
+                buildJobResponse(1L, "Software Engineer", JobStatus.OPEN)
+        ));
+
+        mockMvc.perform(get("/api/jobs").param("employer", "Acme"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].title").value("Software Engineer"));
+    }
+
+    @Test
+    void getAllJobs_withBlankEmployer_returnsAllJobs() throws Exception {
+        when(jobService.getAllJobs()).thenReturn(List.of(
+                buildJobResponse(1L, "Engineer", JobStatus.OPEN)
+        ));
+
+        mockMvc.perform(get("/api/jobs").param("employer", "  "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void getTopCandidates_delegatesToService() throws Exception {
+        when(jobService.getTopCandidates(1L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/jobs/1/top-candidates"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
 }

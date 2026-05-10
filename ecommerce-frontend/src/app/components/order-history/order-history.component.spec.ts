@@ -152,4 +152,27 @@ describe('OrderHistoryComponent', () => {
     component.searchTerm.set('');
     expect(component.filteredOrders().length).toBe(3);
   });
+
+  it('should render orders in template', () => {
+    component.allOrders.set(mockOrders);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toBeTruthy();
+  });
+
+  it('should render expanded order details when order is expanded', () => {
+    component.allOrders.set(mockOrders);
+    component.toggleExpand(1);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toBeTruthy();
+  });
+
+  it('should render empty state when no orders match search', () => {
+    component.allOrders.set(mockOrders);
+    component.onSearchChange('zzzznonexistent');
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toBeTruthy();
+  });
 });

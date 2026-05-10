@@ -140,4 +140,28 @@ class AuthControllerAuthenticatedTest {
         mockMvc.perform(post("/api/auth/logout"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void getProfile_withBillingAddress_includesBillingInResponse() throws Exception {
+        Address billing = new Address();
+        billing.setStreet("456 Billing Blvd");
+        billing.setCity("San Francisco");
+        billing.setState("CA");
+        billing.setZipCode("94105");
+        billing.setCountry("US");
+
+        Customer customer = new Customer();
+        customer.setEmail("profile@example.com");
+        customer.setFirstName("Jane");
+        customer.setLastName("Billing");
+        customer.setDefaultBillingAddress(billing);
+
+        when(customerRepository.findByEmail("profile@example.com")).thenReturn(Optional.of(customer));
+
+        mockMvc.perform(get("/api/auth/profile")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.defaultBillingAddress.city").value("San Francisco"))
+                .andExpect(jsonPath("$.defaultBillingAddress.street").value("456 Billing Blvd"));
+    }
 }
