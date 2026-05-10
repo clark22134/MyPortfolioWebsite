@@ -344,18 +344,74 @@ $danger: #ff4d4f;
 }
 
 // ---------- Mobile ----------
-@media (max-width: 600px) {
+// Breakpoint at 640 px covers phones in landscape and smaller tablets.
+@media (max-width: 640px) {
+  // Panel: full-width sheet that slides up from the bottom.
+  // Uses dvh (dynamic viewport height) so the panel shrinks automatically
+  // when the virtual keyboard appears — vh stays fixed and causes overflow.
   .chatbot-panel {
-    right: 0.5rem;
-    left: 0.5rem;
-    bottom: 4.5rem;
-    width: auto;
-    height: calc(100vh - 6rem);
-    border-radius: 12px;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    // dvh tracks the actual visible viewport; fall back to svh then vh.
+    height: calc(100dvh - 3.75rem);
+    height: calc(100svh - 3.75rem);
+    border-radius: 16px 16px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    // Slide up from the bottom on mobile for a native-sheet feel.
+    animation: panelInMobile 0.22s cubic-bezier(0.32, 0.72, 0, 1);
   }
+
+  @keyframes panelInMobile {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  // Launcher: push it above the iOS home indicator.
   .chatbot-launcher {
     right: 0.75rem;
-    bottom: 0.75rem;
+    // env(safe-area-inset-bottom) is non-zero on notched iPhones / iPads.
+    bottom: max(0.75rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+  }
+
+  // Composer: add bottom safe-area padding so the send row clears the
+  // home indicator bar on iPhone X+.
+  .composer {
+    padding-bottom: max(0.65rem, calc(env(safe-area-inset-bottom) + 0.4rem));
+
+    // iOS Safari auto-zooms on any input whose font-size < 16px.
+    // Override the 0.92rem (~14.7px) default to prevent the page zooming.
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  // Touch targets: icon buttons and send button must be at least 44 × 44 px
+  // per WCAG 2.5.5 (AAA) / Apple HIG. Increase padding to meet this.
+  .icon-btn {
+    padding: 0.6rem;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .send-btn {
+    padding: 0.65rem 0.9rem;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  // Citations are 0.78rem (~12.5px) — too small for comfortable mobile reading.
+  .citations {
+    font-size: 0.85rem;
+  }
+
+  // Slightly larger bubble text for readability.
+  .msg .bubble {
+    font-size: 0.95rem;
+    max-width: 90%;
   }
 }
 
