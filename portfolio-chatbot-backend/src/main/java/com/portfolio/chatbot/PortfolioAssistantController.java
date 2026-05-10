@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -168,8 +169,12 @@ public class PortfolioAssistantController {
     }
 
     private static ResponseEntity<String> sseResponse(String body) {
+        // Explicitly declare UTF-8. Spring's StringHttpMessageConverter defaults
+        // to ISO-8859-1 for text/* types, which mangles multi-byte characters
+        // (em-dash, curly quotes, etc.) coming from the OpenAI token stream.
+        MediaType utf8Sse = new MediaType(MediaType.TEXT_EVENT_STREAM, StandardCharsets.UTF_8);
         return ResponseEntity.ok()
-                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .contentType(utf8Sse)
                 .body(body);
     }
 
