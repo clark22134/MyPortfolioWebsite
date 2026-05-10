@@ -15,18 +15,20 @@ The floating chatbot in the bottom-right of every page on this portfolio.
 Answers questions about Clark's background, projects, technologies, and
 documentation by retrieving from a curated knowledge base.
 
-- **Architecture**: Retrieval-Augmented Generation (RAG) inside the existing
-  Spring Boot backend — no extra microservice.
-- **Vector store**: Spring AI `SimpleVectorStore` (file-backed JSON). Chosen
-  over ChromaDB because the corpus (≈ 7–10k lines of markdown → a few hundred
-  chunks) is well under the threshold where a dedicated server adds value, and
-  this keeps the AWS Lambda packaging single-artifact. Swappable to
-  Chroma / PGVector behind the `VectorStore` interface.
+- **Architecture**: Retrieval-Augmented Generation (RAG) deployed as a
+  dedicated AWS Lambda (`portfolio-chatbot-backend/`) — separate from the
+  main portfolio backend so it can reach api.openai.com directly without VPC
+  tunneling.
+- **Vector store**: Spring AI `SimpleVectorStore` (in-process). The corpus
+  (~7–10k lines of markdown → a few hundred chunks) is well under the
+  threshold where a dedicated server adds value. Swappable to Chroma /
+  PGVector behind the `VectorStore` interface.
 - **Embeddings**: OpenAI `text-embedding-3-small` (1536-dim).
-- **LLM**: OpenAI `gpt-4o-mini` for low-latency streaming responses.
-- **Retrieval pipeline**: query expansion → semantic top-k=8 →
-  rerank + dedupe → top-4 context → streamed answer with citations.
-- **Source**: `portfolio-backend/src/main/java/com/portfolio/backend/chatbot/`.
+- **LLM**: OpenAI `gpt-4.1` for accurate, instruction-following responses.
+- **Retrieval pipeline**: query expansion → semantic top-k=12 →
+  cosine-similarity rerank + dedupe → top-6 context passages →
+  synchronous SSE response with citations.
+- **Source**: `portfolio-chatbot-backend/src/main/java/com/portfolio/chatbot/`.
 
 ## 2. Multimodal Search Engine
 
