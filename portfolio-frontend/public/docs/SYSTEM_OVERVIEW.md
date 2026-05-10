@@ -173,7 +173,7 @@ All three systems run on a single AWS infrastructure stack, managed entirely thr
 
 ### Observability
 
-- **CloudWatch Logs** for all 3 Lambda functions (7-day retention)
+- **CloudWatch Logs** for all 4 Lambda functions (7-day retention)
 - **CloudWatch Lambda Insights** for memory, duration, and cold start telemetry
 - **WAF metrics** with sampled request logging
 - **Spring Actuator** health endpoints on all backends (`/actuator/health`)

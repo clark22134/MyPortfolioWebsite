@@ -53,7 +53,7 @@ Every pull request runs 10 parallel jobs before a merge is possible:
 |-----|-------------|
 | **PR Quality Checks** | Auto-labels PR based on changed paths (backend, frontend, infrastructure, docs, deps, security, tests) using `.github/labeler.yml` |
 | **Security Scan** | Trivy filesystem scan (CRITICAL/HIGH) + TruffleHog secret scanning (verified secrets only) |
-| **Backend Tests** (×4) | `mvn clean test` + `mvn package` + JaCoCo coverage for portfolio, e-commerce, ATS, and portfolio-chatbot backends |
+| **Backend Tests** (×3) | `mvn clean test` + `mvn package` + JaCoCo coverage for portfolio, e-commerce, and ATS backends |
 | **Frontend Tests** (×3) | `npm ci` → lint → `ng test` → production build for portfolio, e-commerce, and ATS frontends |
 | **Accessibility Test** | Serves portfolio frontend build, runs axe-core WCAG 2.1 AA audit via Puppeteer (depends on frontend test artifact) |
 | **Dependency Audit** | `npm audit` (moderate+) on all 3 frontends + `mvn dependency-check:check` (CVSS ≥ 7) on all 4 backends |
@@ -78,7 +78,6 @@ graph TD
         TF2["ATS<br/>Frontend Tests"]
         TB3["E-Commerce<br/>Backend Tests"]
         TF3["E-Commerce<br/>Frontend Tests"]
-        TB4["Portfolio Chatbot<br/>Backend Tests"]
     end
 
     Gate --> TF["Stage 2 — Terraform"]
@@ -92,7 +91,7 @@ graph TD
 
     TF --> Build["Stage 3 — Build & Scan"]
     subgraph Build["Stage 3 — Build Artifacts & Security Scan"]
-        B1["Maven build (3 JARs)<br/>Angular build (3 frontends)"]
+        B1["Maven build (4 JARs)<br/>Angular build (3 frontends)"]
         B1 --> Scan["Trivy filesystem scan<br/>(CRITICAL/HIGH)"]
         Scan --> SARIF["Upload SARIF<br/>to GitHub Security"]
     end
@@ -177,7 +176,7 @@ The serverless architecture eliminates Docker images in favor of direct Lambda d
 │ Step 2: Lambda Deployment                   │
 │   Upload JAR to Lambda function             │
 │   Runtime: Java 21 with SnapStart enabled  │
-│   Configuration: 2048MB memory, 2048MB /tmp │
+│   Configuration: 1024–2048 MB memory (portfolio/ATS/chatbot: 1024 MB; e-commerce: 2048 MB) │
 │   Warm-up: EventBridge rule (4min interval) │
 │   Environment: OPENAI_API_KEY (chatbot)     │
 │                DB secrets (others)          │
@@ -224,10 +223,10 @@ The serverless architecture eliminates Docker images in favor of direct Lambda d
 |--------------|-------------------|-------------------|-------------|--------------------------|
 | **Runtime** | Java 21 (Corretto) | Java 21 (Corretto) | Java 21 (Corretto) | Java 21 (Corretto) |
 | **SnapStart** | Enabled | Enabled | Enabled | Enabled (captures vector index) |
-| **Memory** | 2048 MB | 2048 MB | 2048 MB | 2048 MB |
+| **Memory** | 1024 MB | 2048 MB | 1024 MB | 1024 MB |
 | **Timeout** | 30 seconds | 30 seconds | 30 seconds | 30 seconds |
 | **/tmp storage** | 512 MB | 512 MB | 2048 MB | 2048 MB |
-| **VPC** | Private subnets | Private subnets | Private subnets | Private subnets |
+| **VPC** | Private subnets | Private subnets | Private subnets | **None** (outside VPC — needs direct egress to api.openai.com; no DB access) |
 | **Warm-up** | EventBridge (4min) | EventBridge (4min) | EventBridge (4min) | EventBridge (4min) |
 | **Database** | Aurora (portfolio) | Aurora (ecommerce) | Aurora (ats) | **None** (no JPA/JDBC) |
 | **Key env vars** | `SPRING_DATASOURCE_*`, `JWT_SECRET` | `SPRING_DATASOURCE_*`, `JWT_SECRET` | `SPRING_DATASOURCE_*` | `OPENAI_API_KEY`, `CHATBOT_ENABLED`, `CHATBOT_RATE_LIMIT_PER_MIN`, `CHATBOT_DOCS_PATH` |
@@ -467,7 +466,7 @@ graph TB
     end
 
     subgraph External
-        SMTP["Gmail SMTP"]
+        SMTP["AWS SES / Gmail SMTP"]
         GH["GitHub Actions<br/>(OIDC)"]
     end
 

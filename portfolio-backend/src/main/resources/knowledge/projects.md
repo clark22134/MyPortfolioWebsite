@@ -7,7 +7,7 @@ source: projects-page
 # Full-Stack Projects
 
 Live, production-grade applications hosted on this portfolio site. All three
-share the same DevSecOps pipeline (GitHub Actions → Docker → AWS) and the same
+share the same DevSecOps pipeline (GitHub Actions → Lambda/S3 → AWS) and the same
 WCAG 2.1 AA accessibility baseline.
 
 ## 1. Applicant Tracking System (ATS)
@@ -16,7 +16,7 @@ A modern ATS with **Kanban pipeline boards** that move candidates through
 screening, interview, offer, and onboarding stages.
 
 - **Frontend**: Angular 21, drag-and-drop boards, optimistic UI updates.
-- **Backend**: Spring Boot 3.5 (Java 21), JWT auth, role-based access.
+- **Backend**: Spring Boot 3.5 (Java 21). No authentication — ATS is an intentionally open public demo showcasing the recruiting pipeline without access controls.
 - **Database**: PostgreSQL with Flyway-style schema in `ats-db/init/01-schema.sql`.
 - **URL on this site**: `/ats/`
 - **Source**: `ats-backend/`, `ats-frontend/`, `ats-db/`
@@ -30,7 +30,7 @@ checkout, and order management.
   test-setup.ts for Vitest unit tests.
 - **Backend**: Spring Boot 3.5 + Spring Data JPA. Country/state and order
   schemas live in `ecommerce-backend/sql_scripts/`.
-- **Database**: PostgreSQL (containerized in `ecommerce-db/`), seeded with
+- **Database**: MySQL (Docker Compose locally); PostgreSQL-compatible Aurora Serverless v2 in production, seeded with
   100 sample products.
 - **URL on this site**: `/ecommerce/`
 - **Source**: `ecommerce-backend/`, `ecommerce-frontend/`, `ecommerce-db/`

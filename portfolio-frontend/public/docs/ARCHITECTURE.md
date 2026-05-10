@@ -33,7 +33,7 @@ graph TB
     end
 
     subgraph External
-        SMTP["Gmail SMTP<br/>Contact Form Delivery"]
+        SMTP["AWS SES / Gmail SMTP<br/>Contact Form Delivery"]
     end
 
     Browser -->|HTTPS| Route53
@@ -119,7 +119,7 @@ sequenceDiagram
     participant APIGW as API Gateway
     participant API as Spring Boot (Lambda)
     participant DB as Aurora PostgreSQL
-    participant SMTP as Gmail SMTP
+    participant SMTP as SMTP (AWS SES / Gmail)
     participant SM as Secrets Manager
 
     Note over SM,API: Startup: Secrets injected as Lambda env vars
@@ -170,7 +170,7 @@ sequenceDiagram
 | **Spring Boot API (Lambda)** | Stateless REST backend packaged as a Lambda function using `aws-serverless-java-container-springboot3`. Handles authentication, project CRUD, and contact form submission. JWT filter chain validates every request. |
 | **Aurora Serverless v2** | Managed PostgreSQL 15.17 database (0.5–4 ACU). Stores users, projects, and refresh tokens. Scales toward zero during idle periods; auto-scales ACU under load. |
 | **Secrets Manager** | Aurora-managed database credentials stored in Secrets Manager and accessed by Lambda at runtime. JWT signing key, admin password, and SMTP credentials are passed as Terraform variables to Lambda environment variables — no application secrets stored in Secrets Manager. |
-| **Gmail SMTP** | External email relay for contact form submissions. Configured via Spring Mail with injected credentials. |
+| **SMTP (AWS SES)** | Email relay for contact form submissions. AWS SES (`email-smtp.us-east-1.amazonaws.com`) in production; Gmail SMTP by default for local development. Configured via Spring Mail with environment-injected credentials. |
 | **RefreshTokenService** | Enforces a maximum of 5 active refresh tokens per user. Tracks device (user agent) and IP address per session. Supports single-device and all-device logout. |
 
 ### 1.5 Architecture Rationale
@@ -184,7 +184,7 @@ The portfolio is a low-traffic, content-driven site. A single Spring Boot backen
 | Decision | Benefit | Cost |
 |----------|---------|------|
 | JWT with refresh tokens vs. session-based auth | Stateless backend, no session store needed | Token revocation requires database lookup on refresh; can't instantly revoke access tokens |
-| Spring Mail (Gmail SMTP) vs. SES | Zero AWS cost for low-volume email, simpler config | Gmail rate limits (500/day), requires app password management |
+| Spring Mail + AWS SES (production) / Gmail (local dev) | AWS SES provides managed email delivery with no daily send limits at portfolio scale; Gmail SMTP used for local development simplicity | SES requires domain/email verification and SMTP credentials; Gmail needs app password management |
 | H2 for dev / Aurora PostgreSQL for prod | Fast local iteration, schema validation catches drift early | `ddl-auto=validate` in prod requires manual schema migration scripts |
 | CloudFront CDN + S3 | Global low-latency SPA delivery, ~$1/month at portfolio traffic | S3 origin latency on cache miss; requires CloudFront invalidation on deploy |
 | Lambda (serverless) vs. always-on container | Pay per request, no idle cost; auto-scales to thousands of concurrent users | Cold starts (mitigated by SnapStart + EventBridge warming); 15-min max execution time |

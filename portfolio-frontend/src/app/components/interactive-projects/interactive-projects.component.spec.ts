@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { InteractiveProjectsComponent } from './interactive-projects.component';
 import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { LoginResponse } from '../../models/user.model';
 
 describe('InteractiveProjectsComponent', () => {
@@ -37,8 +37,9 @@ describe('InteractiveProjectsComponent', () => {
     authService = TestBed.inject(AuthService) as SpyObj<AuthService>;
     router = TestBed.inject(Router);
     vi.spyOn(router, 'navigate');
-    // Set up default return value for isAuthenticated
+    // Set up default return values
     authService.isAuthenticated.mockReturnValue(true);
+    authService.logout.mockReturnValue(of(null));
 
     fixture = TestBed.createComponent(InteractiveProjectsComponent);
     component = fixture.componentInstance;

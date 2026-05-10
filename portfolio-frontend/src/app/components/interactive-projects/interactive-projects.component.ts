@@ -79,7 +79,7 @@ export class InteractiveProjectsComponent implements OnInit {
   }
 
   logout(): void {
-    this.authService.logout();
+    this.authService.logout().subscribe();
     this.router.navigate(['/']);
   }
 

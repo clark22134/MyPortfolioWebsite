@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -11,7 +11,7 @@ import { AccessibilityService } from '../../services/accessibility.service';
   templateUrl: './nav.component.html',
   styleUrl: './nav.component.css'
 })
-export class NavComponent implements OnInit, AfterViewInit {
+export class NavComponent implements OnInit {
   isMenuOpen = false;
   isAuthenticated = false;
 
@@ -33,10 +33,6 @@ export class NavComponent implements OnInit, AfterViewInit {
     this.authService.currentUser$.subscribe(user => {
       this.isAuthenticated = !!user;
     });
-  }
-
-  ngAfterViewInit(): void {
-    // Keyboard trap: keep focus within the nav when open
   }
 
   toggleMenu(): void {
@@ -62,7 +58,7 @@ export class NavComponent implements OnInit, AfterViewInit {
   }
 
   handleLogout(): void {
-    this.authService.logout();
+    this.authService.logout().subscribe();
     this.closeMenu();
     this.router.navigate(['/']);
     this.a11yService.announceToScreenReader('Logged out successfully');

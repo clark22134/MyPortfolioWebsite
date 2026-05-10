@@ -33,9 +33,10 @@ Every backend runs as a Lambda function. Lambda scales automatically from 0 to 1
 
 | Component | Current Config | Scaling Mechanism |
 |-----------|---------------|-------------------|
-| Portfolio Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
+| Portfolio Backend | Lambda (1024 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
 | E-Commerce Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
-| ATS Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
+| ATS Backend | Lambda (1024 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
+| Portfolio Assistant | Lambda (1024 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost; OpenAI API call is the latency bottleneck, not Lambda |
 | Portfolio Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
 | E-Commerce Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
 | ATS Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
@@ -75,7 +76,7 @@ The Aurora Serverless v2 max ACU setting (currently 4 ACU on the single shared c
 
 **E-Commerce:** Read-heavy catalog browsing (Spring Data REST auto-exposed endpoints with pagination) with write spikes during checkout. The cart merge logic (guest → authenticated) and order placement are the write-intensive paths. Aurora Serverless v2 scales to meet connection demand automatically. Product catalog reads are the prime candidate for caching since the inventory changes infrequently. Session consistency through stateless JWT makes horizontal Lambda scaling straightforward for the application tier.
 
-**ATS (HireFlow):** The most computationally intensive. Resume parsing (Apache Tika → PDFBox/POI → regex skill extraction) is CPU-bound and synchronous. The Haversine distance calculation for candidate-job scoring runs in application code across all eligible candidates. Lambda's default 2048 MB memory allocation handles the parsing workload for typical resumes; the function timeout is set to 30 seconds. At scale, the parsing pipeline should move off the synchronous Lambda invocation path (SQS queue), and the scoring algorithm benefits from pre-computed distance caches or spatial database indexes. The 12 MB upload limit in the Nginx local dev config already constrains per-request memory impact; API Gateway enforces a 10 MB payload limit in production.
+**ATS (HireFlow):** The most computationally intensive. Resume parsing (Apache Tika → PDFBox/POI → regex skill extraction) is CPU-bound and synchronous. The Haversine distance calculation for candidate-job scoring runs in application code across all eligible candidates. Lambda's 1024 MB memory allocation handles the parsing workload for typical resumes; the function timeout is set to 30 seconds. At scale, the parsing pipeline should move off the synchronous Lambda invocation path (SQS queue), and the scoring algorithm benefits from pre-computed distance caches or spatial database indexes. The 12 MB upload limit in the Nginx local dev config already constrains per-request memory impact; API Gateway enforces a 10 MB payload limit in production.
 
 ---
 
@@ -434,9 +435,10 @@ The candidate's pipeline stage (`APPLIED`, `SCREENING`, `INTERVIEW`, etc.) is st
 
 | Service | Memory | SnapStart | Estimated Cost/Month |
 |---------|--------|-----------|---------------------|
-| Portfolio Backend (Lambda) | 2048 MB | Enabled | ~$0 (free tier) |
+| Portfolio Backend (Lambda) | 1024 MB | Enabled | ~$0 (free tier) |
 | E-Commerce Backend (Lambda) | 2048 MB | Enabled | ~$0 (free tier) |
-| ATS Backend (Lambda) | 2048 MB | Enabled | ~$0 (free tier) |
+| ATS Backend (Lambda) | 1024 MB | Enabled | ~$0 (free tier) |
+| Portfolio Assistant (Lambda) | 1024 MB | Enabled | ~$0 (free tier) |
 | Frontends (S3 + CloudFront) | N/A | N/A | ~$1–3 (S3 storage + CloudFront transfer) |
 | Aurora Serverless v2 (1 shared cluster, 3 DBs) | 0.5–4 ACU | N/A | ~$43 (0.5 ACU minimum × $0.12/ACU-hour) |
 | **Total** | — | — | **~$45–50** |
