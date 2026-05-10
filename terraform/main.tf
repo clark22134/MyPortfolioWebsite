@@ -16,7 +16,7 @@ terraform {
   backend "s3" {
     bucket         = "clarkfoster-portfolio-tf-state"
     key            = "portfolio/terraform.tfstate"
-    region         = "eu-west-2"
+    region         = "us-east-1"
     encrypt        = true
     dynamodb_table = "portfolio-terraform-locks"
   }
@@ -744,7 +744,7 @@ resource "aws_iam_role_policy" "github_actions" {
           "dynamodb:PutItem",
           "dynamodb:DeleteItem"
         ]
-        Resource = "arn:aws:dynamodb:eu-west-2:010438493245:table/portfolio-terraform-locks"
+        Resource = "arn:aws:dynamodb:us-east-1:010438493245:table/portfolio-terraform-locks"
       },
       {
         Sid    = "TerraformInfrastructure"

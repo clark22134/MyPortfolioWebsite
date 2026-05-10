@@ -434,7 +434,7 @@ graph TB
         ACM["ACM Certificate<br/>*.clarkfoster.com<br/>(CloudFront requires us-east-1)"]
     end
 
-    subgraph "AWS — eu-west-2 (Primary Region)"
+    subgraph "AWS — us-east-1 (Primary Region)"
         R53["Route 53<br/>clarkfoster.com → CF1<br/>shop.clarkfoster.com → CF2<br/>ats.clarkfoster.com → CF3"]
 
         subgraph "Static Frontend Hosting"
@@ -516,7 +516,7 @@ The serverless infrastructure is defined across 8 Terraform modules (~2190 lines
 
 **Remote state backend:** S3 bucket (`clarkfoster-portfolio-tf-state`) with DynamoDB locking (`portfolio-terraform-locks`), provisioned separately via `terraform/bootstrap/`. The bootstrap resources use `prevent_destroy = true` and `PAY_PER_REQUEST` billing.
 
-**Multi-region deployment:** CloudFront and WAF resources must be created in `us-east-1` (AWS requirement). The `modules/acm` and `modules/cloudfront-waf` modules use the `aws.us_east_1` provider alias. All other resources are in `eu-west-2`.
+**Multi-region deployment:** CloudFront and WAF resources must be created in `us-east-1` (AWS requirement). The `modules/acm` and `modules/cloudfront-waf` modules use the `aws.us_east_1` provider alias. All other resources are in `us-east-1`.
 
 ### 4.3 Infrastructure as Code Structure
 
@@ -524,7 +524,7 @@ The serverless infrastructure is defined across 8 Terraform modules (~2190 lines
 terraform/
 ├── main.tf                          # Root module: 3 complete application stacks
 ├── variables.tf                     # Input variables (domain, environment, region)
-├── providers.tf                     # AWS provider (eu-west-2) + alias (us-east-1)
+├── providers.tf                     # AWS provider (us-east-1) + alias (us-east-1)
 ├── outputs.tf                       # Outputs (CloudFront URLs, Lambda ARNs, DB endpoints)
 ├── main.tf.fargate-backup           # Backup of original ECS/Fargate configuration
 ├── bootstrap/                       # S3 + DynamoDB for remote state (one-time setup)
