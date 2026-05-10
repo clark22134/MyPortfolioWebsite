@@ -75,14 +75,18 @@ jobs:
 
       - name: Restore LCOV reports to expected paths
         run: |
+          # Each frontend's coverage/ dir is uploaded wholesale; restore it back.
+          # Angular puts the lcov under coverage/<project-name>/lcov.info, which
+          # is what sonar-project.properties references for each module.
           for component in portfolio-frontend ats-frontend ecommerce-frontend; do
             artifact_dir="${component}-lcov"
-            if [ -f "${artifact_dir}/lcov.info" ]; then
+            if [ -d "${artifact_dir}" ]; then
               mkdir -p "${component}/coverage"
-              cp "${artifact_dir}/lcov.info" "${component}/coverage/lcov.info"
-              echo "Restored ${component} LCOV report"
+              cp -r "${artifact_dir}/." "${component}/coverage/"
+              echo "Restored ${component} LCOV reports:"
+              find "${component}/coverage" -name 'lcov.info'
             else
-              echo "No LCOV report found for ${component}"
+              echo "No LCOV artifact found for ${component}"
             fi
           done
 
