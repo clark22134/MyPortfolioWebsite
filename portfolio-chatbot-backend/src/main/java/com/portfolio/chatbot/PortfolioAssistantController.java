@@ -1,5 +1,6 @@
 package com.portfolio.chatbot;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -16,10 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import reactor.core.publisher.Flux;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,20 +39,22 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PortfolioAssistantController {
 
     private static final Logger log = LoggerFactory.getLogger(PortfolioAssistantController.class);
-    private static final long STREAM_TIMEOUT_MS = 60_000L;
 
     private final ObjectProvider<RagService> ragServiceProvider;
     private final int requestsPerMinute;
     private final boolean enabled;
+    private final ObjectMapper objectMapper;
     private final Map<String, Window> ipWindows = new ConcurrentHashMap<>();
 
     public PortfolioAssistantController(
             ObjectProvider<RagService> ragServiceProvider,
             @Value("${chatbot.enabled:true}") boolean enabled,
-            @Value("${chatbot.rate-limit.per-minute:20}") int requestsPerMinute) {
+            @Value("${chatbot.rate-limit.per-minute:20}") int requestsPerMinute,
+            ObjectMapper objectMapper) {
         this.ragServiceProvider = ragServiceProvider;
         this.enabled = enabled;
         this.requestsPerMinute = requestsPerMinute;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/health")
@@ -92,57 +92,85 @@ public class PortfolioAssistantController {
         }
     }
 
+    /**
+     * SSE streaming endpoint — compatible with AWS Lambda proxy integration.
+     *
+     * <p>The {@code aws-serverless-java-container} library buffers the entire
+     * HTTP response before returning it to API Gateway; asynchronous
+     * {@link org.springframework.web.servlet.mvc.method.annotation.SseEmitter}
+     * callbacks run on a Reactor scheduler thread and race with the container's
+     * response capture, so only the first token (or none) reaches the client.
+     *
+     * <p>The fix: collect all tokens synchronously with
+     * {@code Flux.collectList().block()}, build the complete SSE body as a
+     * plain string, and return it as {@code ResponseEntity<String>}. The
+     * frontend's {@code consumeSse} reads from {@code response.body}
+     * (a {@code ReadableStream}) and processes all events correctly even when
+     * they arrive in a single buffered chunk.
+     */
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream(@Valid @RequestBody ChatRequest request, HttpServletRequest http) {
-        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MS);
+    public ResponseEntity<String> stream(@Valid @RequestBody ChatRequest request, HttpServletRequest http) {
         RagService rag = ragServiceProvider.getIfAvailable();
 
         if (!enabled || rag == null) {
-            sendAndComplete(emitter, "error", "Chatbot is not configured.");
-            return emitter;
+            return sseResponse(sseEvent("error", "Chatbot is not configured.") + sseEvent("done", ""));
         }
         if (!allow(clientIp(http))) {
-            sendAndComplete(emitter, "error", "Too many requests. Please slow down.");
-            return emitter;
+            return sseResponse(sseEvent("error", "Too many requests. Please slow down.") + sseEvent("done", ""));
         }
 
         List<Citation> citations = new ArrayList<>();
-        Flux<String> tokens;
+        List<String> tokenList;
         try {
-            tokens = rag.stream(request.message(), request.conversationId(), citations);
+            tokenList = rag.stream(request.message(), request.conversationId(), citations)
+                    .collectList()
+                    .block();
         } catch (Exception e) {
-            log.error("Chatbot stream init failed", e);
-            sendAndComplete(emitter, "error", "Sorry, I hit an error.");
-            return emitter;
+            log.error("Chatbot stream error", e);
+            return sseResponse(sseEvent("error", "Sorry, I hit an error.") + sseEvent("done", ""));
         }
 
-        tokens.subscribe(
-                chunk -> safeSend(emitter, "token", chunk),
-                err -> {
-                    log.warn("Chatbot stream error: {}", err.getMessage());
-                    sendAndComplete(emitter, "error", "Stream interrupted.");
-                },
-                () -> {
-                    safeSend(emitter, "citations", citations);
-                    sendAndComplete(emitter, "done", "");
-                }
-        );
-        return emitter;
+        StringBuilder body = new StringBuilder();
+        if (tokenList != null) {
+            for (String chunk : tokenList) {
+                body.append(sseEvent("token", chunk));
+            }
+        }
+        try {
+            body.append(sseEvent("citations", objectMapper.writeValueAsString(citations)));
+        } catch (Exception e) {
+            log.warn("Could not serialize citations", e);
+            body.append(sseEvent("citations", "[]"));
+        }
+        body.append(sseEvent("done", ""));
+
+        return sseResponse(body.toString());
     }
 
     // ---------- helpers ----------
 
-    private static void safeSend(SseEmitter emitter, String event, Object data) {
-        try {
-            emitter.send(SseEmitter.event().name(event).data(data));
-        } catch (IOException ignored) {
-            // client disconnected
+    /**
+     * Format a single SSE event. Multi-line data values are split into
+     * multiple {@code data:} lines per the SSE spec.
+     */
+    private static String sseEvent(String name, String data) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("event:").append(name).append("\n");
+        if (data != null && !data.isEmpty()) {
+            for (String line : data.split("\n", -1)) {
+                sb.append("data:").append(line).append("\n");
+            }
+        } else {
+            sb.append("data:\n");
         }
+        sb.append("\n");
+        return sb.toString();
     }
 
-    private static void sendAndComplete(SseEmitter emitter, String event, Object data) {
-        safeSend(emitter, event, data);
-        emitter.complete();
+    private static ResponseEntity<String> sseResponse(String body) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .body(body);
     }
 
     private boolean allow(String ip) {
