@@ -718,6 +718,7 @@ resource "aws_iam_role_policy" "github_actions" {
         ]
         Resource = [
           module.portfolio_lambda.function_arn,
+          module.portfolio_chatbot_lambda.function_arn,
           module.ecommerce_lambda.function_arn,
           module.ats_lambda.function_arn
         ]
@@ -732,8 +733,8 @@ resource "aws_iam_role_policy" "github_actions" {
           "s3:ListBucket"
         ]
         Resource = [
-          "arn:aws:s3:::clarkfoster-portfolio-tf-state",
-          "arn:aws:s3:::clarkfoster-portfolio-tf-state/*"
+          "arn:aws:s3:::clarkfoster-portfolio-tf-state-use1",
+          "arn:aws:s3:::clarkfoster-portfolio-tf-state-use1/*"
         ]
       },
       {
