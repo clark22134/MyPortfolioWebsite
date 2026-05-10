@@ -776,7 +776,7 @@ graph TB
             EB["EventBridge<br/>3 Warming Rules"]
         end
 
-        subgraph State["Terraform State — eu-west-2"]
+        subgraph State["Terraform State — us-east-1"]
             TF_S3["S3 Bucket<br/>clarkfoster-portfolio-tf-state"]
             DDB["DynamoDB<br/>portfolio-terraform-locks"]
         end
@@ -941,7 +941,7 @@ graph LR
 | **EventBridge (3 rules)** | Scheduled rules invoke each Lambda function every 4 minutes to keep the JVM warm and prevent cold starts. |
 | **CloudWatch** | Centralized logging for Lambda invocations and API Gateway access logs. 7-day retention balances troubleshooting access with storage cost. |
 | **GitHub Actions (OIDC)** | CI/CD pipeline with keyless AWS authentication. The OIDC provider trusts the GitHub repository and branch. No long-lived AWS access keys stored in GitHub. The IAM role grants permissions for Lambda updates, S3 sync, CloudFront invalidation, and Terraform state access. |
-| **Terraform Remote State** | S3 bucket in eu-west-2 with versioning and AES256 encryption. DynamoDB table provides state locking to prevent concurrent Terraform runs. Bootstrap module creates these resources before the main configuration is applied. |
+| **Terraform Remote State** | S3 bucket in us-east-1 with versioning and AES256 encryption. DynamoDB table provides state locking to prevent concurrent Terraform runs. Bootstrap module creates these resources before the main configuration is applied. |
 
 ### 4.6 Architecture Rationale
 
@@ -959,4 +959,4 @@ Three independent Lambda functions replace a shared ECS cluster — isolating bl
 | Lambda via API Gateway vs. ALB + ECS | No load balancer cost (~$16/month each, ~$48/month for 3). Lambda scales to zero when idle. | Lambda concurrency limits and 15-minute max duration apply. Streaming responses require response streaming configuration. |
 | GitHub Actions OIDC vs. stored IAM access keys | No long-lived credentials to rotate or leak. Token scoped to specific repo and branch. | Slightly more complex IAM trust policy. Debugging OIDC failures is less intuitive than key-based auth. |
 | 7-day CloudWatch log retention vs. longer | Low storage cost. | Limited historical debugging. Acceptable for a portfolio site — production systems would use 30–90 days or archive to S3. |
-| Terraform remote state in eu-west-2 vs. us-east-1 | Separates state from application infrastructure. Reduces risk of accidental deletion when working in us-east-1. | Cross-region latency on `terraform plan/apply` (minimal in practice). |
+| Terraform remote state in us-east-1 vs. us-east-1 | Separates state from application infrastructure. Reduces risk of accidental deletion when working in us-east-1. | Cross-region latency on `terraform plan/apply` (minimal in practice). |

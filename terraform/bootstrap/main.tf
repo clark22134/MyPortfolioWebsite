@@ -21,7 +21,7 @@ terraform {
 }
 
 provider "aws" {
-  region = "eu-west-2"
+  region = "us-east-1"
 }
 
 # S3 bucket for Terraform state

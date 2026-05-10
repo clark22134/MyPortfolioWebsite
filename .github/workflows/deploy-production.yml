@@ -114,6 +114,7 @@ jobs:
       # string and the chatbot stays disabled — but the secret resource will
       # NOT be destroyed thanks to prevent_destroy in main.tf.
       TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      TF_VAR_aws_region: us-east-1
     steps:
       - uses: actions/checkout@v6
 
@@ -135,7 +136,7 @@ jobs:
           LOCK_INFO=$(aws dynamodb get-item \
             --table-name portfolio-terraform-locks \
             --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
-            --region eu-west-2 --output json 2>/dev/null || echo '{}')
+            --region us-east-1 --output json 2>/dev/null || echo '{}')
 
           if [ "$LOCK_INFO" != "{}" ] && [ "$(echo $LOCK_INFO | jq -r '.Item')" != "null" ]; then
             LOCK_CREATED=$(echo $LOCK_INFO | jq -r '.Item.Info.S' | jq -r '.Created' 2>/dev/null || echo "")
@@ -147,14 +148,14 @@ jobs:
                 aws dynamodb delete-item \
                   --table-name portfolio-terraform-locks \
                   --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
-                  --region eu-west-2
+                  --region us-east-1
               fi
             else
               echo "Cannot parse lock timestamp, clearing..."
               aws dynamodb delete-item \
                 --table-name portfolio-terraform-locks \
                 --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
-                --region eu-west-2
+                --region us-east-1
             fi
           else
             echo "No existing lock found"
