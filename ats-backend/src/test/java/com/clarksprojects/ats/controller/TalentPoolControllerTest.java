@@ -90,4 +90,27 @@ class TalentPoolControllerTest {
         mockMvc.perform(get("/api/talent-pool/resumes/not-a-valid-uuid.txt"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void serveResume_returns404ForValidUuidButMissingFile() throws Exception {
+        // Use a UUID-format filename pointing to a file that does not exist in tmpdir
+        String filename = "00000000-0000-0000-0000-000000000000.pdf";
+        mockMvc.perform(get("/api/talent-pool/resumes/" + filename))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void upload_returns400ForUnsupportedExtension() throws Exception {
+        // Service throws IllegalArgumentException for disallowed extensions
+        when(resumeParserService.parse(any()))
+                .thenReturn(new com.clarksprojects.ats.dto.ParsedResume(
+                        "Jane", "Doe", "jane@example.com", null, null, "text"));
+        // candidateService would be called, but storeFile checks extension first
+        // trigger via a .exe file (IllegalArgumentException from storeFile)
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "resume.exe", "application/octet-stream", new byte[]{0x4D, 0x5A});
+
+        mockMvc.perform(multipart("/api/talent-pool/upload").file(file))
+                .andExpect(status().isBadRequest());
+    }
 }

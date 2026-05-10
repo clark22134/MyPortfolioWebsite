@@ -134,4 +134,46 @@ class AuthControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value("withaddr@example.com"));
     }
+
+    @Test
+    void register_withBillingAddress_succeeds() throws Exception {
+        when(customerRepository.existsByEmail("billing@example.com")).thenReturn(false);
+        when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(jwtUtils.generateToken("billing@example.com")).thenReturn("jwt-token");
+
+        RegisterRequest.AddressDto shipping = new RegisterRequest.AddressDto(
+                "100 Main St", "Austin", "TX", "78701", "US");
+        RegisterRequest.AddressDto billing = new RegisterRequest.AddressDto(
+                "200 Billing Ave", "Austin", "TX", "78701", "US");
+
+        RegisterRequest request = new RegisterRequest(
+                "billing@example.com", "securePass123", "Bill", "User",
+                shipping, billing, null, null, null, null, null);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.email").value("billing@example.com"));
+    }
+
+    @Test
+    void register_withCardInfo_masksCardNumber() throws Exception {
+        when(customerRepository.existsByEmail("card@example.com")).thenReturn(false);
+        when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(jwtUtils.generateToken("card@example.com")).thenReturn("jwt-token");
+
+        RegisterRequest.AddressDto shipping = new RegisterRequest.AddressDto(
+                "100 Main St", "Seattle", "WA", "98101", "US");
+
+        RegisterRequest request = new RegisterRequest(
+                "card@example.com", "securePass123", "Card", "User",
+                shipping, null, "Visa", "Card User", "4111111111111234", 12, 2027);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.email").value("card@example.com"));
+    }
 }

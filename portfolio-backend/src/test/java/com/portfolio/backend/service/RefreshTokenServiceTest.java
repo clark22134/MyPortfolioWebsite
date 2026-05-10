@@ -146,4 +146,46 @@ class RefreshTokenServiceTest {
         assertThat(token.isRevoked()).isTrue();
         verify(refreshTokenRepository).save(token);
     }
+
+    @Test
+    void revokeAllUserTokens_byUserEntity_delegatesToRepository() {
+        service.revokeAllUserTokens(testUser);
+
+        verify(refreshTokenRepository).revokeAllByUser(testUser);
+    }
+
+    @Test
+    void revokeAllUserTokens_byUsername_whenUserFound_revokesTokens() {
+        when(userRepository.findByUsername("testuser")).thenReturn(java.util.Optional.of(testUser));
+
+        service.revokeAllUserTokens("testuser");
+
+        verify(refreshTokenRepository).revokeAllByUser(testUser);
+    }
+
+    @Test
+    void revokeAllUserTokens_byUsername_whenUserNotFound_doesNothing() {
+        when(userRepository.findByUsername("unknown")).thenReturn(java.util.Optional.empty());
+
+        service.revokeAllUserTokens("unknown");
+
+        verifyNoInteractions(refreshTokenRepository);
+    }
+
+    @Test
+    void rotateRefreshToken_revokesOldAndCreatesNew() {
+        RefreshToken oldToken = new RefreshToken();
+        oldToken.setUser(testUser);
+        oldToken.setRevoked(false);
+
+        when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(refreshTokenRepository.countByUserAndRevokedFalse(testUser)).thenReturn(0L);
+
+        RefreshToken newToken = service.rotateRefreshToken(oldToken, "Chrome", "10.0.0.1");
+
+        assertThat(oldToken.isRevoked()).isTrue();
+        assertThat(newToken.getUser()).isEqualTo(testUser);
+        assertThat(newToken.getUserAgent()).isEqualTo("Chrome");
+        assertThat(newToken.getIpAddress()).isEqualTo("10.0.0.1");
+    }
 }

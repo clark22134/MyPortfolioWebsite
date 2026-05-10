@@ -67,4 +67,13 @@ class GlobalExceptionHandlerTest {
 
         assertThat(result).containsEntry("error", "Failed to process the uploaded file. Please try again.");
     }
+
+    @Test
+    void handleBadRequest_returnsErrorMessage() {
+        IllegalArgumentException ex = new IllegalArgumentException("Unsupported file extension: .exe");
+
+        Map<String, String> result = handler.handleBadRequest(ex);
+
+        assertThat(result).containsEntry("error", "Unsupported file extension: .exe");
+    }
 }
