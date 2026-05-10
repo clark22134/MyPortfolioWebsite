@@ -9,7 +9,7 @@ source: ai-projects-page
 A focused collection of applied AI work that complements the full-stack
 projects on this site.
 
-## 1. Portfolio RAG Chatbot (this site's assistant)
+## 1. Portfolio RAG Chatbot (this site's assistant) — **Live**
 
 The floating chatbot in the bottom-right of every page on this portfolio.
 Answers questions about Clark's background, projects, technologies, and
@@ -30,7 +30,7 @@ documentation by retrieving from a curated knowledge base.
   synchronous SSE response with citations.
 - **Source**: `portfolio-chatbot-backend/src/main/java/com/portfolio/chatbot/`.
 
-## 2. Multimodal Search Engine
+## 2. Multimodal Search Engine — **In Development**
 
 Search across images and text using CLIP embeddings — query with text to find
 images, or query with an image to find related text.
@@ -40,7 +40,7 @@ images, or query with an image to find related text.
 - **Pipeline**: image preprocessing → embedding → FAISS index → re-ranking by
   cosine similarity.
 
-## 3. ML Pipeline with MLOps
+## 3. ML Pipeline with MLOps — **In Development**
 
 End-to-end machine learning pipeline: feature engineering, training, model
 versioning with **MLflow**, and automated deployment.
@@ -49,7 +49,7 @@ versioning with **MLflow**, and automated deployment.
 - **Tracking**: MLflow experiments, parameters, metrics, artifacts.
 - **Deployment**: model registry → containerized inference service.
 
-## 4. Fine-Tuned LLM
+## 4. Fine-Tuned LLM — **Planned**
 
 Custom domain-specific language models fine-tuned with **LoRA / QLoRA** on
 HuggingFace transformers.

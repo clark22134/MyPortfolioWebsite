@@ -149,13 +149,35 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>
+          <!-- ${argLine} is populated by JaCoCo's prepare-agent goal at runtime -->
+          <argLine>${argLine}
             -XX:+EnableDynamicAgentLoading
             --add-opens java.base/java.lang=ALL-UNNAMED
             --add-opens java.base/java.lang.reflect=ALL-UNNAMED
             -Dnet.bytebuddy.experimental=true
           </argLine>
         </configuration>
+      </plugin>
+
+      <!-- JaCoCo for code coverage -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.14</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

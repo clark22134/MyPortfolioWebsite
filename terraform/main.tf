@@ -14,7 +14,7 @@ terraform {
 
   # S3 backend for remote state management with DynamoDB locking
   backend "s3" {
-    bucket         = "clarkfoster-portfolio-tf-state"
+    bucket         = "clarkfoster-portfolio-tf-state-use1"
     key            = "portfolio/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = true

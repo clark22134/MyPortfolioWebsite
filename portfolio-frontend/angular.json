@@ -94,7 +94,8 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "buildTarget": "portfolio-frontend:build:test",
-            "setupFiles": ["src/test-setup.ts"]
+            "setupFiles": ["src/test-setup.ts"],
+            "coverageReporters": ["lcov", "text-summary"]
           }
         }
       }
