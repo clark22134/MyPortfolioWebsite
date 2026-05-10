@@ -2,10 +2,14 @@ package com.clarksprojects.ats.service;
 
 import com.clarksprojects.ats.dto.JobRequest;
 import com.clarksprojects.ats.dto.JobResponse;
+import com.clarksprojects.ats.dto.TopCandidateMatch;
+import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.EmploymentType;
 import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.JobStatus;
+import com.clarksprojects.ats.entity.PipelineStage;
 import com.clarksprojects.ats.exception.ResourceNotFoundException;
+import com.clarksprojects.ats.repository.CandidateRepository;
 import com.clarksprojects.ats.repository.JobRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +32,9 @@ class JobServiceTest {
 
     @Mock
     private JobRepository jobRepository;
+
+    @Mock
+    private CandidateRepository candidateRepository;
 
     @InjectMocks
     private JobService jobService;
@@ -200,5 +207,306 @@ class JobServiceTest {
         assertThatThrownBy(() -> jobService.findJobOrThrow(5L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Job not found: 5");
+    }
+
+    // ── getAllJobs talent-pool filtering ──────────────────────────────────────
+
+    @Test
+    void getAllJobs_filtersTalentPoolJobFromResult() {
+        Job talentPoolJob = Job.builder()
+                .id(99L)
+                .employer(JobService.TALENT_POOL_EMPLOYER)
+                .title(JobService.TALENT_POOL_TITLE)
+                .department(JobService.TALENT_POOL_DEPARTMENT)
+                .location("N/A")
+                .status(JobStatus.ON_HOLD)
+                .employmentType(EmploymentType.FULL_TIME)
+                .candidates(new ArrayList<>())
+                .build();
+
+        when(jobRepository.findAll()).thenReturn(List.of(sampleJob, talentPoolJob));
+
+        List<JobResponse> result = jobService.getAllJobs();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getTitle()).isEqualTo("Software Engineer");
+    }
+
+    // ── getJobsByStatus talent-pool filtering ─────────────────────────────────
+
+    @Test
+    void getJobsByStatus_filtersTalentPoolJobFromResult() {
+        Job talentPoolJob = Job.builder()
+                .id(99L)
+                .employer(JobService.TALENT_POOL_EMPLOYER)
+                .title(JobService.TALENT_POOL_TITLE)
+                .department(JobService.TALENT_POOL_DEPARTMENT)
+                .location("N/A")
+                .status(JobStatus.ON_HOLD)
+                .employmentType(EmploymentType.FULL_TIME)
+                .candidates(new ArrayList<>())
+                .build();
+
+        when(jobRepository.findByStatusOrderByCreatedAtDesc(JobStatus.ON_HOLD))
+                .thenReturn(List.of(sampleJob, talentPoolJob));
+
+        List<JobResponse> result = jobService.getJobsByStatus(JobStatus.ON_HOLD);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getId()).isEqualTo(1L);
+    }
+
+    // ── getJobsByEmployer ─────────────────────────────────────────────────────
+
+    @Test
+    void getJobsByEmployer_returnsMatchingJobs() {
+        when(jobRepository.findByEmployerIgnoreCaseOrderByCreatedAtDesc("Acme Technologies"))
+                .thenReturn(List.of(sampleJob));
+
+        List<JobResponse> result = jobService.getJobsByEmployer("Acme Technologies");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getEmployer()).isEqualTo("Acme Technologies");
+        verify(jobRepository).findByEmployerIgnoreCaseOrderByCreatedAtDesc("Acme Technologies");
+    }
+
+    @Test
+    void getJobsByEmployer_noMatches_returnsEmptyList() {
+        when(jobRepository.findByEmployerIgnoreCaseOrderByCreatedAtDesc("Unknown Corp"))
+                .thenReturn(List.of());
+
+        List<JobResponse> result = jobService.getJobsByEmployer("Unknown Corp");
+
+        assertThat(result).isEmpty();
+    }
+
+    // ── findOrCreateTalentPoolJob ─────────────────────────────────────────────
+
+    @Test
+    void findOrCreateTalentPoolJob_returnsExistingWhenFound() {
+        Job existing = Job.builder()
+                .id(99L)
+                .employer(JobService.TALENT_POOL_EMPLOYER)
+                .title(JobService.TALENT_POOL_TITLE)
+                .candidates(new ArrayList<>())
+                .build();
+
+        when(jobRepository.findByEmployerAndTitle(JobService.TALENT_POOL_EMPLOYER, JobService.TALENT_POOL_TITLE))
+                .thenReturn(Optional.of(existing));
+
+        Job result = jobService.findOrCreateTalentPoolJob();
+
+        assertThat(result.getId()).isEqualTo(99L);
+        verify(jobRepository, never()).save(any());
+    }
+
+    @Test
+    void findOrCreateTalentPoolJob_createsNewWhenAbsent() {
+        Job created = Job.builder()
+                .id(100L)
+                .employer(JobService.TALENT_POOL_EMPLOYER)
+                .title(JobService.TALENT_POOL_TITLE)
+                .department(JobService.TALENT_POOL_DEPARTMENT)
+                .candidates(new ArrayList<>())
+                .build();
+
+        when(jobRepository.findByEmployerAndTitle(JobService.TALENT_POOL_EMPLOYER, JobService.TALENT_POOL_TITLE))
+                .thenReturn(Optional.empty());
+        when(jobRepository.save(any(Job.class))).thenReturn(created);
+
+        Job result = jobService.findOrCreateTalentPoolJob();
+
+        assertThat(result.getId()).isEqualTo(100L);
+        assertThat(result.getTitle()).isEqualTo(JobService.TALENT_POOL_TITLE);
+        verify(jobRepository).save(any(Job.class));
+    }
+
+    // ── getTopCandidates ─────────────────────────────────────────────────────
+
+    @Test
+    void getTopCandidates_jobHasNoRequiredSkills_returnsEmptyList() {
+        Job job = Job.builder()
+                .id(1L)
+                .employer("Acme")
+                .title("Dev")
+                .requiredSkills(null)
+                .status(JobStatus.OPEN)
+                .employmentType(EmploymentType.FULL_TIME)
+                .candidates(new ArrayList<>())
+                .build();
+
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+
+        List<TopCandidateMatch> result = jobService.getTopCandidates(1L);
+
+        assertThat(result).isEmpty();
+        verify(candidateRepository, never()).findAll();
+    }
+
+    @Test
+    void getTopCandidates_candidateWithMatchingSkills_isIncluded() {
+        Job job = Job.builder()
+                .id(1L)
+                .employer("Acme")
+                .title("Dev")
+                .requiredSkills("Java, Spring")
+                .status(JobStatus.OPEN)
+                .employmentType(EmploymentType.FULL_TIME)
+                .candidates(new ArrayList<>())
+                .build();
+
+        Candidate matching = Candidate.builder()
+                .id(10L)
+                .firstName("Alice")
+                .lastName("Smith")
+                .email("alice@example.com")
+                .skills("Java, Spring, Docker")
+                .stage(PipelineStage.APPLIED)
+                .stageOrder(0)
+                .job(sampleJob)
+                .build();
+
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+        when(candidateRepository.findAll()).thenReturn(List.of(matching));
+
+        List<TopCandidateMatch> result = jobService.getTopCandidates(1L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).candidateId()).isEqualTo(10L);
+        assertThat(result.get(0).skillsMatchPercent()).isEqualTo(100);
+    }
+
+    @Test
+    void getTopCandidates_candidateWithNoMatchingSkills_isFiltered() {
+        Job job = Job.builder()
+                .id(1L)
+                .employer("Acme")
+                .title("Dev")
+                .requiredSkills("Java, Spring")
+                .status(JobStatus.OPEN)
+                .employmentType(EmploymentType.FULL_TIME)
+                .candidates(new ArrayList<>())
+                .build();
+
+        Candidate noMatch = Candidate.builder()
+                .id(20L)
+                .firstName("Bob")
+                .lastName("Jones")
+                .email("bob@example.com")
+                .skills("Python, Django")
+                .stage(PipelineStage.APPLIED)
+                .stageOrder(0)
+                .job(sampleJob)
+                .build();
+
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+        when(candidateRepository.findAll()).thenReturn(List.of(noMatch));
+
+        List<TopCandidateMatch> result = jobService.getTopCandidates(1L);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getTopCandidates_withGeoCoordsOnBothJobAndCandidate_includesDistanceInResult() {
+        Job job = Job.builder()
+                .id(1L)
+                .employer("Acme")
+                .title("Dev")
+                .requiredSkills("Java")
+                .latitude(37.3382)
+                .longitude(-121.8863)  // San Jose, CA
+                .status(JobStatus.OPEN)
+                .employmentType(EmploymentType.FULL_TIME)
+                .candidates(new ArrayList<>())
+                .build();
+
+        Candidate candidate = Candidate.builder()
+                .id(10L)
+                .firstName("Alice")
+                .lastName("Smith")
+                .email("alice@example.com")
+                .skills("Java")
+                .latitude(37.7749)
+                .longitude(-122.4194)  // San Francisco, CA
+                .stage(PipelineStage.APPLIED)
+                .stageOrder(0)
+                .job(sampleJob)
+                .build();
+
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+        when(candidateRepository.findAll()).thenReturn(List.of(candidate));
+
+        List<TopCandidateMatch> result = jobService.getTopCandidates(1L);
+
+        assertThat(result).hasSize(1);
+        // Distance SJ → SF is ~48 miles — should be populated
+        assertThat(result.get(0).distanceMiles()).isGreaterThan(40.0);
+        assertThat(result.get(0).distanceMiles()).isLessThan(60.0);
+    }
+
+    @Test
+    void getTopCandidates_moreThanFiveCandidates_limitsResultToFive() {
+        Job job = Job.builder()
+                .id(1L)
+                .employer("Acme")
+                .title("Dev")
+                .requiredSkills("Java")
+                .status(JobStatus.OPEN)
+                .employmentType(EmploymentType.FULL_TIME)
+                .candidates(new ArrayList<>())
+                .build();
+
+        List<Candidate> candidates = new ArrayList<>();
+        for (int i = 1; i <= 8; i++) {
+            candidates.add(Candidate.builder()
+                    .id((long) i)
+                    .firstName("Candidate")
+                    .lastName("Number" + i)
+                    .email("c" + i + "@example.com")
+                    .skills("Java, Spring")
+                    .stage(PipelineStage.APPLIED)
+                    .stageOrder(0)
+                    .job(sampleJob)
+                    .build());
+        }
+
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+        when(candidateRepository.findAll()).thenReturn(candidates);
+
+        List<TopCandidateMatch> result = jobService.getTopCandidates(1L);
+
+        assertThat(result).hasSize(5);
+    }
+
+    @Test
+    void getTopCandidates_candidateWithNullSkills_isFiltered() {
+        Job job = Job.builder()
+                .id(1L)
+                .employer("Acme")
+                .title("Dev")
+                .requiredSkills("Java")
+                .status(JobStatus.OPEN)
+                .employmentType(EmploymentType.FULL_TIME)
+                .candidates(new ArrayList<>())
+                .build();
+
+        Candidate noSkills = Candidate.builder()
+                .id(5L)
+                .firstName("Dave")
+                .lastName("Blank")
+                .email("dave@example.com")
+                .skills(null)
+                .stage(PipelineStage.APPLIED)
+                .stageOrder(0)
+                .job(sampleJob)
+                .build();
+
+        when(jobRepository.findById(1L)).thenReturn(Optional.of(job));
+        when(candidateRepository.findAll()).thenReturn(List.of(noSkills));
+
+        List<TopCandidateMatch> result = jobService.getTopCandidates(1L);
+
+        assertThat(result).isEmpty();
     }
 }

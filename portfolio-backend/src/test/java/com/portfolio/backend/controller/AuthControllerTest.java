@@ -25,12 +25,15 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.security.test.context.support.WithMockUser;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -218,5 +221,101 @@ class AuthControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ── /api/auth/refresh ──────────────────────────────────────────────────
+
+    @Test
+    void refresh_WithNoRefreshTokenCookie_ShouldReturnUnauthorized() throws Exception {
+        // CookieUtil is mocked — default return is Optional.empty()
+        when(cookieUtil.getRefreshTokenFromCookies(any())).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Refresh token not found"));
+    }
+
+    @Test
+    void refresh_WithInvalidRefreshToken_ShouldReturnUnauthorized() throws Exception {
+        when(cookieUtil.getRefreshTokenFromCookies(any())).thenReturn(Optional.of("invalid-token"));
+        when(refreshTokenService.findByToken("invalid-token")).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Invalid or expired refresh token"));
+    }
+
+    @Test
+    void refresh_WithValidRefreshToken_ShouldReturnNewAccessToken() throws Exception {
+        when(cookieUtil.getRefreshTokenFromCookies(any()))
+                .thenReturn(Optional.of(mockRefreshToken.getToken()));
+        when(refreshTokenService.findByToken(mockRefreshToken.getToken()))
+                .thenReturn(Optional.of(mockRefreshToken));
+        when(refreshTokenService.validateRefreshToken(mockRefreshToken)).thenReturn(true);
+        when(userDetailsService.loadUserByUsername(mockUser.getUsername()))
+                .thenReturn(org.springframework.security.core.userdetails.User
+                        .withUsername("testuser").password("encoded").authorities("ROLE_USER").build());
+        when(jwtUtil.generateAccessToken(any())).thenReturn("new-access-token");
+
+        // Mock token rotation — returns a new refresh token
+        RefreshToken rotatedToken = new RefreshToken();
+        rotatedToken.setId(2L);
+        rotatedToken.setToken(UUID.randomUUID().toString());
+        rotatedToken.setUser(mockUser);
+        rotatedToken.setExpiryDate(Instant.now().plusSeconds(604800));
+        when(refreshTokenService.rotateRefreshToken(any(), any(), any())).thenReturn(rotatedToken);
+
+        when(cookieUtil.createAccessTokenCookie("new-access-token"))
+                .thenReturn(new Cookie("access_token", "new-access-token"));
+        when(cookieUtil.createRefreshTokenCookie(rotatedToken.getToken()))
+                .thenReturn(new Cookie("refresh_token", rotatedToken.getToken()));
+
+        mockMvc.perform(post("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Token refreshed successfully"));
+    }
+
+    // ── /api/auth/logout ───────────────────────────────────────────────────
+
+    @Test
+    @WithMockUser
+    void logout_ShouldClearCookiesAndReturn200() throws Exception {
+        Cookie clearAccess = new Cookie("access_token", "");
+        clearAccess.setMaxAge(0);
+        Cookie clearRefresh = new Cookie("refresh_token", "");
+        clearRefresh.setMaxAge(0);
+
+        when(cookieUtil.createClearAccessTokenCookie()).thenReturn(clearAccess);
+        when(cookieUtil.createClearRefreshTokenCookie()).thenReturn(clearRefresh);
+
+        mockMvc.perform(post("/api/auth/logout")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Logged out successfully"));
+    }
+
+    // ── /api/auth/me ───────────────────────────────────────────────────────
+
+    @Test
+    @WithMockUser(username = "testuser")
+    void me_WithAuthenticatedUser_ShouldReturnUserInfo() throws Exception {
+        when(authService.findByUsername("testuser")).thenReturn(mockUser);
+
+        mockMvc.perform(get("/api/auth/me")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("testuser"))
+                .andExpect(jsonPath("$.email").value("test@example.com"));
+    }
+
+    @Test
+    void me_WithoutAuthentication_ShouldReturnForbiddenOrUnauthorized() throws Exception {
+        // Spring Security returns 403 for anonymous access when no entrypoint is configured
+        mockMvc.perform(get("/api/auth/me")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().is4xxClientError());
     }
 }

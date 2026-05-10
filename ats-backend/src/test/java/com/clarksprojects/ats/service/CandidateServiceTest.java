@@ -2,6 +2,7 @@ package com.clarksprojects.ats.service;
 
 import com.clarksprojects.ats.dto.CandidateRequest;
 import com.clarksprojects.ats.dto.CandidateResponse;
+import com.clarksprojects.ats.dto.ParsedResume;
 import com.clarksprojects.ats.dto.StageMoveRequest;
 import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.EmploymentType;
@@ -256,5 +257,114 @@ class CandidateServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Candidate not found: 99");
         verify(candidateRepository, never()).delete(any());
+    }
+
+    // ── searchCandidates ─────────────────────────────────────────────────────
+
+    @Test
+    void searchCandidates_noSkillsFilter_returnsAllRepoResults() {
+        when(candidateRepository.search("Alice", null, null)).thenReturn(List.of(sampleCandidate));
+
+        List<CandidateResponse> result = candidateService.searchCandidates("Alice", null, null, null);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getFirstName()).isEqualTo("Alice");
+        verify(candidateRepository).search("Alice", null, null);
+    }
+
+    @Test
+    void searchCandidates_blankName_passesNullToRepository() {
+        when(candidateRepository.search(null, null, null)).thenReturn(List.of(sampleCandidate));
+
+        List<CandidateResponse> result = candidateService.searchCandidates("  ", null, null, null);
+
+        assertThat(result).hasSize(1);
+        verify(candidateRepository).search(null, null, null);
+    }
+
+    @Test
+    void searchCandidates_withSkillsFilter_returnsOnlyMatchingCandidates() {
+        Candidate javaCandidate = Candidate.builder()
+                .id(10L).firstName("Alice").lastName("Smith")
+                .email("alice@example.com").skills("Java, Spring")
+                .stage(PipelineStage.APPLIED).stageOrder(0).job(sampleJob).build();
+
+        Candidate pythonCandidate = Candidate.builder()
+                .id(11L).firstName("Bob").lastName("Jones")
+                .email("bob@example.com").skills("Python, Django")
+                .stage(PipelineStage.APPLIED).stageOrder(0).job(sampleJob).build();
+
+        when(candidateRepository.search(null, null, null))
+                .thenReturn(List.of(javaCandidate, pythonCandidate));
+
+        List<CandidateResponse> result = candidateService.searchCandidates(null, "java", null, null);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getId()).isEqualTo(10L);
+    }
+
+    @Test
+    void searchCandidates_withStageFilter_passesStageNameToRepository() {
+        when(candidateRepository.search(null, "APPLIED", null)).thenReturn(List.of(sampleCandidate));
+
+        List<CandidateResponse> result = candidateService.searchCandidates(null, null, PipelineStage.APPLIED, null);
+
+        assertThat(result).hasSize(1);
+        verify(candidateRepository).search(null, "APPLIED", null);
+    }
+
+    @Test
+    void searchCandidates_candidateHasNullSkills_filteredOutBySkillsSearch() {
+        Candidate noSkillsCandidate = Candidate.builder()
+                .id(12L).firstName("Carol").lastName("Clark")
+                .email("carol@example.com").skills(null)
+                .stage(PipelineStage.APPLIED).stageOrder(0).job(sampleJob).build();
+
+        when(candidateRepository.search(null, null, null)).thenReturn(List.of(noSkillsCandidate));
+
+        List<CandidateResponse> result = candidateService.searchCandidates(null, "java", null, null);
+
+        assertThat(result).isEmpty();
+    }
+
+    // ── createFromParsedResume ────────────────────────────────────────────────
+
+    @Test
+    void createFromParsedResume_savesAndReturnsTalentPoolCandidate() {
+        Job talentPoolJob = Job.builder()
+                .id(99L)
+                .employer(JobService.TALENT_POOL_EMPLOYER)
+                .title(JobService.TALENT_POOL_TITLE)
+                .department(JobService.TALENT_POOL_DEPARTMENT)
+                .location("N/A")
+                .status(JobStatus.ON_HOLD)
+                .employmentType(EmploymentType.FULL_TIME)
+                .candidates(new ArrayList<>())
+                .build();
+
+        ParsedResume parsed = new ParsedResume("Jane", "Doe", "jane@example.com", "555-0100",
+                "Java, Docker", "raw resume text");
+
+        Candidate saved = Candidate.builder()
+                .id(50L)
+                .firstName("Jane").lastName("Doe")
+                .email("jane@example.com").phone("555-0100")
+                .skills("Java, Docker")
+                .resumeUrl("/resumes/abc-123.pdf")
+                .stage(PipelineStage.APPLIED).stageOrder(0)
+                .job(talentPoolJob)
+                .build();
+
+        when(jobService.findOrCreateTalentPoolJob()).thenReturn(talentPoolJob);
+        when(candidateRepository.save(any(Candidate.class))).thenReturn(saved);
+
+        CandidateResponse result = candidateService.createFromParsedResume(parsed, "/resumes/abc-123.pdf");
+
+        assertThat(result.getId()).isEqualTo(50L);
+        assertThat(result.getEmail()).isEqualTo("jane@example.com");
+        assertThat(result.getSkills()).isEqualTo("Java, Docker");
+        assertThat(result.isTalentPool()).isTrue();
+        assertThat(result.getJobTitle()).isEqualTo("Talent Pool");
+        verify(candidateRepository).save(any(Candidate.class));
     }
 }
