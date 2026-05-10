@@ -103,7 +103,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.component }}-lcov
-          path: ${{ inputs.component }}/coverage/lcov.info
+          path: ${{ inputs.component }}/coverage/
           if-no-files-found: ignore
           retention-days: 1
 
