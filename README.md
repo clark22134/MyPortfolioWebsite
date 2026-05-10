@@ -148,7 +148,7 @@ All three applications share a single serverless infrastructure layer with Cloud
 | **API Layer** | API Gateway (REST regional), Lambda proxy integration |
 | **Infrastructure** | Terraform, AWS VPC, Route53, ACM, CloudFront WAF, CloudWatch |
 | **CI/CD** | GitHub Actions, OIDC, SonarCloud, Trivy, TruffleHog, JaCoCo |
-| **Testing** | JUnit 5, Mockito, Vitest, Karma, axe-core + Puppeteer (WCAG 2.1 AA) |
+| **Testing** | JUnit 5, Mockito, Vitest, @vitest/coverage-v8, axe-core + Puppeteer (WCAG 2.1 AA) |
 
 ---
 
@@ -434,15 +434,31 @@ See `make help` for the full list of available commands.
 |-------|-----------|-------|
 | **Backend Unit** | JUnit 5 + Mockito | Controllers, services, exception handlers |
 | **Backend Integration** | Spring Boot Test + H2 | Full context wiring, repository queries |
-| **Frontend Unit** | Vitest (E-Commerce, ATS), Karma (Portfolio) | Components, services, guards |
+| **Frontend Unit** | Vitest + @angular/build:unit-test | Components, services, guards (all three frontends) |
 | **Accessibility** | axe-core + Puppeteer | WCAG 2.1 AA compliance across 5 pages |
 | **Security Scanning** | TruffleHog, Trivy | Secret detection, CVE scanning |
-| **Code Quality** | SonarCloud + JaCoCo | Coverage, code smells, duplication |
+| **Code Quality** | SonarCloud + JaCoCo + V8 coverage | Coverage, code smells, duplication |
 
-**Run all tests:**
+**Coverage generation:**
 ```bash
+# Backend — generates target/site/jacoco/jacoco.xml
+cd portfolio-backend  && mvn test
+cd ats-backend        && mvn test
+cd ecommerce-backend  && mvn test
+
+# Frontend — generates coverage/lcov.info
+cd portfolio-frontend  && npm run test:ci
+cd ats-frontend        && npm run test:ci
+cd ecommerce-frontend  && npm run test:ci
+
+# All tests
 make test
 ```
+
+**CI coverage flow:**  
+Each test job uploads its coverage file as a GitHub Actions artifact. The `code-quality` job waits for all six test jobs, downloads the artifacts, and restores them to the paths expected by `sonar-project.properties` before running the SonarCloud scan. This ensures SonarCloud always receives accurate, current coverage data.
+
+**Required secrets:** `SONAR_TOKEN` must be set in repository Settings → Secrets.
 
 **Run accessibility tests (Portfolio):**
 ```bash

@@ -203,35 +203,39 @@ public class KnowledgeIngestionService {
         List<Document> out = new ArrayList<>();
         try {
             for (Project p : projectRepository.findAll()) {
-                StringBuilder sb = new StringBuilder();
-                sb.append("# ").append(safe(p.getTitle())).append("\n\n");
-                if (p.getDescription() != null) {
-                    sb.append(p.getDescription()).append("\n\n");
-                }
-                if (p.getTechnologies() != null && !p.getTechnologies().isEmpty()) {
-                    sb.append("Technologies: ").append(String.join(", ", p.getTechnologies())).append(".\n");
-                }
-                if (p.getStartDate() != null) {
-                    sb.append("Duration: ").append(p.getStartDate());
-                    sb.append(" to ").append(p.getEndDate() != null ? p.getEndDate() : "present").append(".\n");
-                }
-                if (p.getGithubUrl() != null) {
-                    sb.append("GitHub: ").append(p.getGithubUrl()).append("\n");
-                }
-                if (p.getDemoUrl() != null) {
-                    sb.append("Demo: ").append(p.getDemoUrl()).append("\n");
-                }
-                Map<String, Object> meta = new HashMap<>();
-                meta.put(META_CATEGORY, "live-project");
-                meta.put(META_TITLE, safe(p.getTitle()));
-                meta.put(META_SOURCE, "db:project:" + p.getId());
-                meta.put(META_SECTION, safe(p.getTitle()));
-                out.add(new Document(sb.toString(), meta));
+                out.add(projectToDocument(p));
             }
         } catch (Exception e) {
             log.warn("Could not load projects from DB (likely not initialized yet): {}", e.getMessage());
         }
         return out;
+    }
+
+    private Document projectToDocument(Project p) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("# ").append(safe(p.getTitle())).append("\n\n");
+        if (p.getDescription() != null) {
+            sb.append(p.getDescription()).append("\n\n");
+        }
+        if (p.getTechnologies() != null && !p.getTechnologies().isEmpty()) {
+            sb.append("Technologies: ").append(String.join(", ", p.getTechnologies())).append(".\n");
+        }
+        if (p.getStartDate() != null) {
+            sb.append("Duration: ").append(p.getStartDate());
+            sb.append(" to ").append(p.getEndDate() != null ? p.getEndDate() : "present").append(".\n");
+        }
+        if (p.getGithubUrl() != null) {
+            sb.append("GitHub: ").append(p.getGithubUrl()).append("\n");
+        }
+        if (p.getDemoUrl() != null) {
+            sb.append("Demo: ").append(p.getDemoUrl()).append("\n");
+        }
+        Map<String, Object> meta = new HashMap<>();
+        meta.put(META_CATEGORY, "live-project");
+        meta.put(META_TITLE, safe(p.getTitle()));
+        meta.put(META_SOURCE, "db:project:" + p.getId());
+        meta.put(META_SECTION, safe(p.getTitle()));
+        return new Document(sb.toString(), meta);
     }
 
     // ---------- parsing ----------
@@ -240,19 +244,7 @@ public class KnowledgeIngestionService {
         Map<String, Object> meta = new HashMap<>(baseMeta);
         meta.put(META_SOURCE, source);
 
-        Matcher fm = FRONT_MATTER.matcher(raw);
-        String body = raw;
-        if (fm.find()) {
-            for (String line : fm.group(1).split("\\r?\\n")) {
-                int colon = line.indexOf(':');
-                if (colon > 0) {
-                    String k = line.substring(0, colon).trim();
-                    String v = line.substring(colon + 1).trim();
-                    if (!k.isEmpty() && !v.isEmpty()) meta.put(k, v);
-                }
-            }
-            body = raw.substring(fm.end());
-        }
+        String body = stripFrontMatter(raw, meta);
 
         // Split on H1/H2 to keep section context tight; each section becomes its own
         // Document and is then sub-split by the TokenTextSplitter.
@@ -278,6 +270,24 @@ public class KnowledgeIngestionService {
             sections.add(new Document(chunk, sectionMeta));
         }
         return sections;
+    }
+
+    /** Strips YAML front-matter from {@code raw}, merging key/value pairs into {@code meta},
+     *  and returns the remaining body. Returns {@code raw} unchanged if no front-matter is found. */
+    private static String stripFrontMatter(String raw, Map<String, Object> meta) {
+        Matcher fm = FRONT_MATTER.matcher(raw);
+        if (!fm.find()) {
+            return raw;
+        }
+        for (String line : fm.group(1).split("\\r?\\n")) {
+            int colon = line.indexOf(':');
+            if (colon > 0) {
+                String k = line.substring(0, colon).trim();
+                String v = line.substring(colon + 1).trim();
+                if (!k.isEmpty() && !v.isEmpty()) meta.put(k, v);
+            }
+        }
+        return raw.substring(fm.end());
     }
 
     private static Map<String, Object> defaultMeta(String filename) {

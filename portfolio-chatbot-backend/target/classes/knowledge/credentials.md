@@ -23,23 +23,48 @@ copies of each certificate.
 
 - Private Pilot
 - Commercial Pilot (Instrument Rated)
-- Certified Flight Instructor (CFI)
-- Certified Flight Instructor — Instrument (CFII)
-- Certified Flight Instructor — Multi-Engine Instrument (CFMEI)
+  - ASEL — Airplane Single-Engine Land
+  - AMEL — Airplane Multi-Engine Land
+- Certified Flight Instructor (CFI) — Recertification required
+- Certified Flight Instructor — Instrument (CFII) — Recertification required
+- Certified Flight Instructor — Multi-Engine Instrument (CFMEI) — Recertification required
 - Advanced Ground Instructor (AGI)
 - Instrument Ground Instructor (IGI)
 
+## Resume
+
+A PDF resume is available for download at `/resume.pdf` on this site.
+It includes a profile summary, detailed technical skills, professional experience, and education.
+
 ## Professional roles
 
-- **Software Engineer / DevSecOps Lead** — current full-stack and security
-  engineering work.
-- **Software Engineering Intern** — earlier role focused on application
-  development fundamentals.
-- **Officer & NCO, U.S. Marine Corps** — 10+ years of service, 8 years in
-  leadership roles, multi-million-dollar operations experience.
+- **Software Engineer / DevSecOps Lead — CGI Federal** (2021 – Present)
+  - Engineered full-stack applications (Python, .NET, REST APIs, SQL) supporting large-scale
+    federal data systems.
+  - Designed CI/CD pipelines (GitHub Actions) reducing deployment time by ~70% and increasing
+    release frequency.
+  - Built ETL and data pipeline systems for real-time visibility into security and operational
+    metrics (CDM program).
+  - Developed AI-powered analytics tools using prompt engineering and LLMs to extract insights
+    from large datasets.
+  - Integrated DevSecOps practices (automated security scanning, pipeline enforcement), improving
+    compliance and reducing risk.
+  - Mentored engineers and interns, improving onboarding speed and team throughput.
+
+- **Software Engineering Intern — CGI Federal** (2020)
+  - Delivered analytics strategy for Department of Veterans Affairs, influencing data-driven
+    decision making.
+  - Optimized PowerShell automation scripts, improving operational efficiency.
+  - Worked within Agile/Scrum teams delivering iterative software improvements.
+
+- **Officer & NCO, U.S. Marine Corps** (2007 – 2018)
+  - Led operations for teams of 700+ personnel in multinational environments.
+  - Managed logistics and accountability for assets exceeding $40M.
+  - Executed missions in high-stress environments requiring rapid decision-making and leadership.
 
 ## Education
 
-Bachelor's degree in a computing-related field (see Credentials page for
-specifics). Continuous self-directed learning in cloud, AI/ML, and
-accessibility.
+- **B.S., Computer Science** — Louisiana Tech University
+- **B.S., Professional Aviation** — Louisiana Tech University
+
+Continuous self-directed learning in cloud, AI/ML, and accessibility.

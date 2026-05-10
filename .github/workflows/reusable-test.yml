@@ -66,7 +66,7 @@ jobs:
 
       - name: Test (Node)
         if: inputs.type == 'node'
-        run: cd ${{ inputs.component }} && npm test -- --watch=false ${{ inputs.node-test-args }}
+        run: cd ${{ inputs.component }} && npm test -- --watch=false --coverage ${{ inputs.node-test-args }}
 
       - name: Build (Node)
         if: inputs.type == 'node'
@@ -87,6 +87,24 @@ jobs:
         with:
           name: ${{ inputs.component }}-dist
           path: ${{ inputs.component }}/dist/
+          retention-days: 1
+
+      - name: Upload JaCoCo Coverage Report
+        if: always() && inputs.type == 'java'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.component }}-jacoco
+          path: ${{ inputs.component }}/target/site/jacoco/jacoco.xml
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Upload LCOV Coverage Report
+        if: always() && inputs.type == 'node'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.component }}-lcov
+          path: ${{ inputs.component }}/coverage/lcov.info
+          if-no-files-found: ignore
           retention-days: 1
 
       - name: Upload Coverage

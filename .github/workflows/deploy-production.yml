@@ -24,6 +24,8 @@ jobs:
   code-quality:
     name: Code Quality (SonarCloud)
     runs-on: ubuntu-latest
+    # Must wait for all test jobs so coverage artifacts are available before the scan
+    needs: [test-backend, test-frontend, test-ats-backend, test-ats-frontend, test-ecommerce-backend, test-ecommerce-frontend]
     permissions:
       contents: read
     steps:
@@ -44,12 +46,57 @@ jobs:
           cd ../ats-backend && mvn compile -DskipTests -q
           cd ../ecommerce-backend && mvn compile -DskipTests -q
 
+      - name: Download JaCoCo coverage reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-jacoco'
+          merge-multiple: false
+        continue-on-error: true
+
+      - name: Restore JaCoCo reports to expected paths
+        run: |
+          for component in portfolio-backend ats-backend ecommerce-backend; do
+            artifact_dir="${component}-jacoco"
+            if [ -f "${artifact_dir}/jacoco.xml" ]; then
+              mkdir -p "${component}/target/site/jacoco"
+              cp "${artifact_dir}/jacoco.xml" "${component}/target/site/jacoco/jacoco.xml"
+              echo "Restored ${component} JaCoCo report"
+            else
+              echo "No JaCoCo report found for ${component}"
+            fi
+          done
+
+      - name: Download LCOV coverage reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-lcov'
+          merge-multiple: false
+        continue-on-error: true
+
+      - name: Restore LCOV reports to expected paths
+        run: |
+          for component in portfolio-frontend ats-frontend ecommerce-frontend; do
+            artifact_dir="${component}-lcov"
+            if [ -f "${artifact_dir}/lcov.info" ]; then
+              mkdir -p "${component}/coverage"
+              cp "${artifact_dir}/lcov.info" "${component}/coverage/lcov.info"
+              echo "Restored ${component} LCOV report"
+            else
+              echo "No LCOV report found for ${component}"
+            fi
+          done
+
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v7
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        continue-on-error: true
+
+      - name: SonarCloud Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   test-backend:
     name: Backend Tests
@@ -121,7 +168,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: us-east-1
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -135,7 +182,7 @@ jobs:
         run: |
           LOCK_INFO=$(aws dynamodb get-item \
             --table-name portfolio-terraform-locks \
-            --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
+            --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state-use1/portfolio/terraform.tfstate"}}' \
             --region us-east-1 --output json 2>/dev/null || echo '{}')
 
           if [ "$LOCK_INFO" != "{}" ] && [ "$(echo $LOCK_INFO | jq -r '.Item')" != "null" ]; then
@@ -147,14 +194,14 @@ jobs:
                 echo "Stale lock (>30 min), clearing..."
                 aws dynamodb delete-item \
                   --table-name portfolio-terraform-locks \
-                  --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
+                  --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state-use1/portfolio/terraform.tfstate"}}' \
                   --region us-east-1
               fi
             else
               echo "Cannot parse lock timestamp, clearing..."
               aws dynamodb delete-item \
                 --table-name portfolio-terraform-locks \
-                --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state/portfolio/terraform.tfstate"}}' \
+                --key '{"LockID": {"S": "clarkfoster-portfolio-tf-state-use1/portfolio/terraform.tfstate"}}' \
                 --region us-east-1
             fi
           else

@@ -12,17 +12,22 @@ enterprise and U.S. federal environments.
 
 ## Engineering focus
 
-- **Languages**: Java, C#, Python, TypeScript, JavaScript, SQL, Bash.
+- **Languages**: Java, C#, Python, TypeScript (5.9), JavaScript, SQL, Bash, PowerShell.
 - **Backend**: Spring Boot 3.x, .NET / ASP.NET Core, FastAPI, REST API design, JPA/Hibernate.
-- **Frontend**: Angular (currently 21), React, RxJS, accessible component design.
-- **Data**: PostgreSQL, Aurora Serverless, H2, Redis, basic warehouse work.
-- **Cloud / IaC**: AWS (Lambda, API Gateway, CloudFront, S3, WAF, ACM, Secrets Manager,
-  Aurora Serverless), Terraform, Docker, GitHub Actions CI/CD.
+- **Frontend**: Angular (currently 21, standalone components, signals), React, RxJS, accessible
+  component design, Web Speech API (Text-to-Speech).
+- **Data**: PostgreSQL, Aurora Serverless v2 (PostgreSQL 15.17), H2, Redis, MySQL, basic warehouse work.
+- **Cloud / IaC**: AWS (Lambda with SnapStart, API Gateway, CloudFront, S3, WAF, ACM, Secrets Manager,
+  Aurora Serverless, Route 53, CloudWatch, EC2), Terraform (~2,190 lines, 8 modules), Docker,
+  GitHub Actions CI/CD.
 - **Observability**: Splunk and the ELK stack for log aggregation, metrics, and alerting.
-- **Security / DevSecOps**: JWT, OAuth2, OWASP Top 10 controls, automated SCA, SAST,
-  rate limiting, CSRF protection, secret scanning, SBOM generation.
-- **AI / ML**: LangChain, HuggingFace transformers, OpenAI APIs, Retrieval-Augmented
-  Generation (RAG), vector stores, basic fine-tuning with LoRA / QLoRA.
+- **Security / DevSecOps**: JWT, OAuth2, OWASP Top 10 controls, automated SCA, SAST, Jenkins,
+  Ansible, rate limiting, CSRF protection, secret scanning, SBOM generation.
+- **Cybersecurity**: Network and host penetration testing, threat hunting, incident response,
+  digital forensics (CompTIA PenTest+, eCTHP, eCIR, eJPT certified).
+- **AI / ML**: LangChain, HuggingFace transformers, OpenAI APIs, Spring AI, Retrieval-Augmented
+  Generation (RAG), vector stores, GitHub Copilot, IDP (Intelligent Document Processing),
+  basic fine-tuning with LoRA / QLoRA.
 
 ## Leadership background
 
@@ -49,3 +54,18 @@ partnership. He emphasizes:
 
 For credentials, certifications, and licenses see the Credentials page. For ways
 to get in touch see the Contact page.
+
+## About this portfolio site
+
+This site is itself a production-grade application. It uses:
+
+- Angular 21 with TypeScript 5.9 (standalone components, signals, lazy-loaded routes)
+- Spring Boot 3.5 with Java 21 (LTS)
+- JWT Authentication, Spring Security, CSRF protection, BCrypt
+- WCAG 2.1 AA compliance + Section 508 alignment + WAI-ARIA 1.2
+- Automated accessibility testing (axe-core + Puppeteer), Web Speech API (TTS)
+- AWS Lambda with SnapStart, Aurora Serverless v2 (PostgreSQL 15.17), CloudFront CDN,
+  API Gateway (HTTP API), WAF, S3, Route 53, ACM
+- Terraform Infrastructure as Code (~2,190 lines, 8 modules in `terraform/`)
+- GitHub Actions CI/CD (DevSecOps pipeline with Trivy, TruffleHog, SonarCloud, OWASP Dependency-Check)
+- Nginx-fronted Docker locally; fully serverless in production

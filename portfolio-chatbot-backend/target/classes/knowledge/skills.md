@@ -15,7 +15,7 @@ FastAPI; Node.js (light use).
 
 ## Frontend frameworks
 Angular (currently 21, standalone components, signals, lazy loading), React,
-RxJS, accessible component design, Vitest, Karma → Vitest migration.
+RxJS, accessible component design, Vitest (Angular's built-in test runner via @angular/build:unit-test).
 
 ## Databases
 PostgreSQL, Aurora Serverless v2, H2 (dev), Redis (caching / rate limiting),
@@ -28,7 +28,8 @@ Aurora Serverless. Terraform for all infrastructure (`terraform/` and
 
 ## CI/CD and DevSecOps
 GitHub Actions for build, test, lint, SCA, SAST, container scan, and deploy.
-SonarQube for code quality and coverage gates. Automated dependency updates.
+Jenkins for legacy pipeline orchestration. Ansible for configuration management.
+SonarCloud for code quality and coverage gates. Automated dependency updates.
 Secret scanning and SBOM generation.
 
 ## Observability
@@ -37,7 +38,13 @@ correlation IDs, basic distributed tracing.
 
 ## AI / ML
 LangChain, HuggingFace Transformers, OpenAI APIs (chat + embeddings),
-Spring AI, FAISS, ChromaDB, MLflow, LoRA / QLoRA fine-tuning, RAG patterns.
+Spring AI, FAISS, ChromaDB, MLflow, LoRA / QLoRA fine-tuning, RAG patterns,
+GitHub Copilot, IDP (Intelligent Document Processing), prompt engineering.
+
+## Cybersecurity
+Network and host penetration testing, threat hunting, incident response,
+digital forensics (CompTIA PenTest+, eCTHP, eCIR, eJPT certified).
+OWASP Top 10, secure SDLC, CVE scanning.
 
 ## Security
 OWASP Top 10 controls, JWT with refresh tokens, BCrypt password hashing,
@@ -47,4 +54,4 @@ queries, dependency CVE scanning.
 ## Accessibility
 WCAG 2.1 AA target, axe-core automated tests, manual screen-reader testing
 (NVDA, VoiceOver), keyboard-only navigation testing, focus management,
-color-contrast tooling.
+color-contrast tooling, Web Speech API (Text-to-Speech).

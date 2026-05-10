@@ -51,9 +51,9 @@ documentation, and an accessibility statement.
 
 ## Cross-cutting practices
 
-- **Testing**: JUnit 5 + Mockito (backend), Vitest + axe-core (frontend),
-  JaCoCo coverage, Spring Security Test for auth flows.
-- **Quality gates**: SonarQube (`sonar-project.properties`), GitHub Actions
+- **Testing**: JUnit 5 + Mockito (backend), Vitest + @vitest/coverage-v8 + axe-core (frontend),
+  JaCoCo XML coverage (backends), LCOV coverage (frontends), Spring Security Test for auth flows.
+- **Quality gates**: SonarCloud (`sonar-project.properties`), GitHub Actions
   build + test on every PR.
 - **Containerization**: Each app has its own Dockerfile. `docker-compose.yml`
   spins up the entire stack locally; `scripts/deploy-local.sh` is the
