@@ -55,14 +55,14 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
   private mermaidInitialized = false;
 
   constructor(
-    private route: ActivatedRoute,
-    private http: HttpClient
+    private readonly route: ActivatedRoute,
+    private readonly http: HttpClient
   ) {}
 
   ngOnInit(): void {
     this.routeSub = this.route.paramMap.subscribe(params => {
       const slug = params.get('slug') ?? '';
-      this.docTitle = DOC_MAP[slug] ?? slug.replace(/_/g, ' ');
+      this.docTitle = DOC_MAP[slug] ?? slug.replaceAll('_', ' ');
       this.loadDocument(slug);
     });
   }

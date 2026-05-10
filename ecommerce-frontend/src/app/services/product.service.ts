@@ -9,9 +9,9 @@ import { ProductCategory } from '../common/product-category.model';
 })
 export class ProductService {
 
-  private baseUrl = '/api/products';
-  private httpClient = inject(HttpClient);
-  private categoryUrl = '/api/product-category';
+  private readonly baseUrl = '/api/products';
+  private readonly httpClient = inject(HttpClient);
+  private readonly categoryUrl = '/api/product-category';
 
   getProduct(theProductId: number): Observable<Product> {
     const productUrl = `${this.baseUrl}/${theProductId}`;

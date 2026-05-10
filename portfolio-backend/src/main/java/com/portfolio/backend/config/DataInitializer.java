@@ -23,6 +23,10 @@ public class DataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
+    private static final String ECOMMERCE_TITLE  = "E-Commerce Platform";
+    private static final String TECH_SPRING_BOOT = "Spring Boot";
+    private static final String TECH_ANGULAR     = "Angular";
+
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
     private final PasswordEncoder passwordEncoder;
@@ -88,21 +92,21 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void updateExistingProjects() {
-        projectRepository.findByTitle("E-Commerce Platform").ifPresent(project -> {
+        projectRepository.findByTitle(ECOMMERCE_TITLE).ifPresent(project -> {
             project.setDemoUrl("https://shop.clarkfoster.com");
-            project.setTechnologies(List.of("Angular", "Spring Boot", "MySQL", "JWT", "Spring Data REST", "Bootstrap"));
+            project.setTechnologies(List.of(TECH_ANGULAR, TECH_SPRING_BOOT, "MySQL", "JWT", "Spring Data REST", "Bootstrap"));
             projectRepository.save(project);
             log.debug("Updated E-Commerce Platform project with demo URL");
         });
     }
 
     private void initializeSampleProjects() {
-        if (projectRepository.findByTitle("E-Commerce Platform").isEmpty()) {
+        if (projectRepository.findByTitle(ECOMMERCE_TITLE).isEmpty()) {
             log.info("Initializing E-Commerce Platform project");
             createProject(
-                    "E-Commerce Platform",
+                    ECOMMERCE_TITLE,
                     "A full-stack e-commerce application built with Angular and Spring Boot, featuring user authentication, product management, shopping cart, and payment integration.",
-                    List.of("Angular", "Spring Boot", "MySQL", "JWT", "Spring Data REST", "Bootstrap"),
+                    List.of(TECH_ANGULAR, TECH_SPRING_BOOT, "MySQL", "JWT", "Spring Data REST", "Bootstrap"),
                     null,
                     null,
                     "https://shop.clarkfoster.com"
@@ -114,7 +118,7 @@ public class DataInitializer implements CommandLineRunner {
             createProject(
                     "Applicant Tracking System",
                     "A full-stack ATS with Kanban pipeline boards to manage candidates through screening, interviews, offers, and onboarding.",
-                    List.of("Angular", "Spring Boot", "PostgreSQL", "JWT", "Kanban"),
+                    List.of(TECH_ANGULAR, TECH_SPRING_BOOT, "PostgreSQL", "JWT", "Kanban"),
                     null,
                     null,
                     "https://ats.clarkfoster.com"

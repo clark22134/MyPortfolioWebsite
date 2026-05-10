@@ -20,8 +20,8 @@ export class App implements AfterViewInit {
   showVideoIntro = signal(true);
   videoPaused = signal(false);
 
-  private platformId = inject(PLATFORM_ID);
-  private isMobile = signal(this.detectMobile());
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly isMobile = signal(this.detectMobile());
   videoSrc = computed(() => this.isMobile() ? 'grok-video.mp4' : 'desktop_intro_video.mp4');
 
   private detectMobile(): boolean {
@@ -29,7 +29,7 @@ export class App implements AfterViewInit {
     return window.innerWidth < 992;
   }
 
-  private introVideo = viewChild<ElementRef<HTMLVideoElement>>('introVideo');
+  private readonly introVideo = viewChild<ElementRef<HTMLVideoElement>>('introVideo');
 
   ngAfterViewInit(): void {
     this.tryAutoplay();

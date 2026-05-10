@@ -56,6 +56,11 @@ public class KnowledgeIngestionService {
 
     private static final Logger log = LoggerFactory.getLogger(KnowledgeIngestionService.class);
 
+    private static final String META_SOURCE   = "source";
+    private static final String META_SECTION  = "section";
+    private static final String META_CATEGORY = "category";
+    private static final String META_TITLE    = "title";
+
     private static final Pattern FRONT_MATTER =
             Pattern.compile("^---\\s*\\n(.*?)\\n---\\s*\\n", Pattern.DOTALL);
     private static final Pattern H1_OR_H2 =
@@ -107,12 +112,12 @@ public class KnowledgeIngestionService {
 
     private static void addUnique(List<Document> sink, List<Document> incoming, java.util.Set<String> seen) {
         for (Document d : incoming) {
-            Object src = d.getMetadata().get("source");
+            Object src = d.getMetadata().get(META_SOURCE);
             String key = src == null ? "" : src.toString();
             // Per-source de-dup at the *document* level (sections under one
             // source share the same key, but loaders only emit one source key
             // per file, so collisions only happen across loaders).
-            if (key.isEmpty() || seen.add(key + "#" + d.getMetadata().getOrDefault("section", ""))) {
+            if (key.isEmpty() || seen.add(key + "#" + d.getMetadata().getOrDefault(META_SECTION, ""))) {
                 sink.add(d);
             }
         }
@@ -163,8 +168,8 @@ public class KnowledgeIngestionService {
             String raw = new String(r.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             String filename = r.getFilename() == null ? "unknown.md" : r.getFilename();
             Map<String, Object> meta = new HashMap<>();
-            meta.put("category", "documentation");
-            meta.put("title", filename.replace(".md", ""));
+            meta.put(META_CATEGORY, "documentation");
+            meta.put(META_TITLE, filename.replace(".md", ""));
             docs.addAll(parseMarkdown(raw, "docs/" + filename, meta));
         }
         return docs;
@@ -181,8 +186,8 @@ public class KnowledgeIngestionService {
                 try {
                     String raw = Files.readString(p, StandardCharsets.UTF_8);
                     Map<String, Object> meta = new HashMap<>();
-                    meta.put("category", "documentation");
-                    meta.put("title", p.getFileName().toString().replace(".md", ""));
+                    meta.put(META_CATEGORY, "documentation");
+                    meta.put(META_TITLE, p.getFileName().toString().replace(".md", ""));
                     docs.addAll(parseMarkdown(raw, "docs/" + p.getFileName(), meta));
                 } catch (IOException e) {
                     log.warn("Failed to read {}: {}", p, e.getMessage());
@@ -217,10 +222,10 @@ public class KnowledgeIngestionService {
                     sb.append("Demo: ").append(p.getDemoUrl()).append("\n");
                 }
                 Map<String, Object> meta = new HashMap<>();
-                meta.put("category", "live-project");
-                meta.put("title", safe(p.getTitle()));
-                meta.put("source", "db:project:" + p.getId());
-                meta.put("section", safe(p.getTitle()));
+                meta.put(META_CATEGORY, "live-project");
+                meta.put(META_TITLE, safe(p.getTitle()));
+                meta.put(META_SOURCE, "db:project:" + p.getId());
+                meta.put(META_SECTION, safe(p.getTitle()));
                 out.add(new Document(sb.toString(), meta));
             }
         } catch (Exception e) {
@@ -233,7 +238,7 @@ public class KnowledgeIngestionService {
 
     private List<Document> parseMarkdown(String raw, String source, Map<String, Object> baseMeta) {
         Map<String, Object> meta = new HashMap<>(baseMeta);
-        meta.put("source", source);
+        meta.put(META_SOURCE, source);
 
         Matcher fm = FRONT_MATTER.matcher(raw);
         String body = raw;
@@ -269,7 +274,7 @@ public class KnowledgeIngestionService {
             String chunk = body.substring(start, end).trim();
             if (chunk.isEmpty()) continue;
             Map<String, Object> sectionMeta = new HashMap<>(meta);
-            sectionMeta.put("section", titles.get(i));
+            sectionMeta.put(META_SECTION, titles.get(i));
             sections.add(new Document(chunk, sectionMeta));
         }
         return sections;
@@ -277,7 +282,7 @@ public class KnowledgeIngestionService {
 
     private static Map<String, Object> defaultMeta(String filename) {
         Map<String, Object> m = new HashMap<>();
-        m.put("category", filename != null ? filename.replace(".md", "") : "knowledge");
+        m.put(META_CATEGORY, filename != null ? filename.replace(".md", "") : "knowledge");
         return m;
     }
 

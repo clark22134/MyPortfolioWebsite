@@ -16,11 +16,11 @@ import { State } from '../../common/state.model';
 })
 export class LoginComponent {
 
-  private fb = inject(FormBuilder);
-  private authService = inject(AuthService);
-  private cartService = inject(CartService);
-  private shopFormService = inject(ShopFormService);
-  private router = inject(Router);
+  private readonly fb = inject(FormBuilder);
+  private readonly authService = inject(AuthService);
+  private readonly cartService = inject(CartService);
+  private readonly shopFormService = inject(ShopFormService);
+  private readonly router = inject(Router);
 
   isRegisterMode = signal(false);
   errorMessage = signal<string | null>(null);

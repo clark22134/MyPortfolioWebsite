@@ -19,8 +19,8 @@ export class ProjectsComponent implements OnInit {
   isAuthenticated = false;
 
   constructor(
-    private projectService: ProjectService,
-    private authService: AuthService
+    private readonly projectService: ProjectService,
+    private readonly authService: AuthService
   ) {
     this.authService.currentUser$.subscribe(user => {
       this.isAuthenticated = !!user;

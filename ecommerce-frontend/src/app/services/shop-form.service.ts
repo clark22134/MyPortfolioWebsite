@@ -9,10 +9,10 @@ import { State } from '../common/state.model';
 })
 export class ShopFormService {
 
-  private countriesUrl = '/api/countries';
-  private statesUrl = '/api/states';
+  private readonly countriesUrl = '/api/countries';
+  private readonly statesUrl = '/api/states';
 
-  constructor(private httpClient: HttpClient) {}
+  constructor(private readonly httpClient: HttpClient) {}
 
   getCountries(): Observable<Country[]> {
     return this.httpClient.get<GetResponseCountries>(this.countriesUrl).pipe(

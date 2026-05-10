@@ -16,9 +16,9 @@ import { AuthService } from '../../services/auth.service';
 })
 export class ProductListComponent implements OnInit {
 
-  private productService = inject(ProductService);
-  private cartService = inject(CartService);
-  private route = inject(ActivatedRoute);
+  private readonly productService = inject(ProductService);
+  private readonly cartService = inject(CartService);
+  private readonly route = inject(ActivatedRoute);
   authService = inject(AuthService);
   products = signal<Product[]>([]);
   currentCategoryId = signal<number>(1);

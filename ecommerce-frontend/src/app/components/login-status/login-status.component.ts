@@ -11,8 +11,8 @@ import { CartService } from '../../services/cart.service';
 })
 export class LoginStatusComponent {
   authService = inject(AuthService);
-  private cartService = inject(CartService);
-  private router = inject(Router);
+  private readonly cartService = inject(CartService);
+  private readonly router = inject(Router);
 
   logout() {
     this.cartService.onLogout();

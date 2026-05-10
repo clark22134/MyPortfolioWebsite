@@ -11,7 +11,7 @@ import { ProductService } from '../../services/product.service';
 })
 export class ProductCategoryMenu implements OnInit {
 
-  private productService = inject(ProductService);
+  private readonly productService = inject(ProductService);
   productCategories = signal<ProductCategory[]>([]);
   categoriesExpanded = signal(true);
 

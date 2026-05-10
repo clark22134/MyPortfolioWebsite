@@ -15,7 +15,7 @@ export class AccessibilityToolbarComponent implements OnInit, OnDestroy {
   settings: AccessibilitySettings = {} as AccessibilitySettings;
   private subscription: Subscription | null = null;
 
-  constructor(private a11yService: AccessibilityService) {}
+  constructor(private readonly a11yService: AccessibilityService) {}
 
   ngOnInit(): void {
     this.subscription = this.a11yService.settings$.subscribe(s => {

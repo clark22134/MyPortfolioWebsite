@@ -20,9 +20,9 @@ export class NavComponent implements OnInit {
   @ViewChild('navContent') navContent!: ElementRef;
 
   constructor(
-    private authService: AuthService,
-    private router: Router,
-    private a11yService: AccessibilityService
+    private readonly authService: AuthService,
+    private readonly router: Router,
+    private readonly a11yService: AccessibilityService
   ) {}
 
   ngOnInit(): void {

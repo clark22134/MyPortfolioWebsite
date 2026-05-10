@@ -8,9 +8,9 @@ import { Observable } from 'rxjs';
 })
 export class CheckoutService {
 
-  private purchaseUrl = '/api/checkout/purchase';
+  private readonly purchaseUrl = '/api/checkout/purchase';
 
-  constructor(private httpClient: HttpClient) { }
+  constructor(private readonly httpClient: HttpClient) { }
 
   placeOrder(purchase: Purchase): Observable<any> {
     return this.httpClient.post<Purchase>(this.purchaseUrl, purchase);

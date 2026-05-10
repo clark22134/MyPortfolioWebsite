@@ -41,6 +41,7 @@ public class PortfolioAssistantController {
 
     private static final Logger log = LoggerFactory.getLogger(PortfolioAssistantController.class);
     private static final long STREAM_TIMEOUT_MS = 60_000L;
+    private static final String ERROR_KEY = "error";
 
     private final ObjectProvider<RagService> ragServiceProvider;
     private final int requestsPerMinute;
@@ -75,7 +76,7 @@ public class PortfolioAssistantController {
         }
         if (!allow(clientIp(http))) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(Map.of("error", "Too many requests. Please slow down."));
+                    .body(Map.of(ERROR_KEY, "Too many requests. Please slow down."));
         }
         try {
             RagService.ChatAnswer ans = rag.answer(request.message(), request.conversationId());
@@ -87,7 +88,7 @@ public class PortfolioAssistantController {
         } catch (Exception e) {
             log.error("Chatbot error", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Sorry, I hit an error. Please try again."));
+                    .body(Map.of(ERROR_KEY, "Sorry, I hit an error. Please try again."));
         }
     }
 
@@ -102,11 +103,11 @@ public class PortfolioAssistantController {
         RagService rag = ragServiceProvider.getIfAvailable();
 
         if (!enabled || rag == null) {
-            sendAndComplete(emitter, "error", "Chatbot is not configured.");
+            sendAndComplete(emitter, ERROR_KEY, "Chatbot is not configured.");
             return emitter;
         }
         if (!allow(clientIp(http))) {
-            sendAndComplete(emitter, "error", "Too many requests. Please slow down.");
+            sendAndComplete(emitter, ERROR_KEY, "Too many requests. Please slow down.");
             return emitter;
         }
 
@@ -116,7 +117,7 @@ public class PortfolioAssistantController {
             tokens = rag.stream(request.message(), request.conversationId(), citations);
         } catch (Exception e) {
             log.error("Chatbot stream init failed", e);
-            sendAndComplete(emitter, "error", "Sorry, I hit an error.");
+            sendAndComplete(emitter, ERROR_KEY, "Sorry, I hit an error.");
             return emitter;
         }
 
@@ -124,7 +125,7 @@ public class PortfolioAssistantController {
                 chunk -> safeSend(emitter, "token", chunk),
                 err -> {
                     log.warn("Chatbot stream error: {}", err.getMessage());
-                    sendAndComplete(emitter, "error", "Stream interrupted.");
+                    sendAndComplete(emitter, ERROR_KEY, "Stream interrupted.");
                 },
                 () -> {
                     safeSend(emitter, "citations", citations);
@@ -171,7 +172,7 @@ public class PortfolioAssistantController {
 
     private static ResponseEntity<Map<String, Object>> unavailable() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
-                "error", "Chatbot is not configured.",
+                ERROR_KEY, "Chatbot is not configured.",
                 "hint", "Set OPENAI_API_KEY and chatbot.enabled=true to enable."
         ));
     }

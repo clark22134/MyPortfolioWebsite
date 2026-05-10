@@ -25,10 +25,10 @@ const DEFAULT_SETTINGS: AccessibilitySettings = {
   providedIn: 'root'
 })
 export class AccessibilityService {
-  private renderer: Renderer2;
-  private settingsSubject = new BehaviorSubject<AccessibilitySettings>(this.loadSettings());
+  private readonly renderer: Renderer2;
+  private readonly settingsSubject = new BehaviorSubject<AccessibilitySettings>(this.loadSettings());
   settings$ = this.settingsSubject.asObservable();
-  private synth: SpeechSynthesis | null = null;
+  private readonly synth: SpeechSynthesis | null = null;
 
   constructor(rendererFactory: RendererFactory2) {
     this.renderer = rendererFactory.createRenderer(null, null);

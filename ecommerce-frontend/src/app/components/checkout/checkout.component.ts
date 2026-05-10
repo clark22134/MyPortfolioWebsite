@@ -40,11 +40,11 @@ export class CheckoutComponent implements OnInit {
   useSavedCard = signal(false);
 
   constructor(
-    private formBuilder: FormBuilder,
-    private cartService: CartService,
-    private checkoutService: CheckoutService,
-    private shopFormService: ShopFormService,
-    private router: Router,
+    private readonly formBuilder: FormBuilder,
+    private readonly cartService: CartService,
+    private readonly checkoutService: CheckoutService,
+    private readonly shopFormService: ShopFormService,
+    private readonly router: Router,
     public authService: AuthService
   ) {}
 
@@ -273,15 +273,15 @@ export class CheckoutComponent implements OnInit {
 
     // shipping address
     purchase.shippingAddress = this.checkoutFormGroup.controls['shippingAddress']?.value;
-    const shippingState: State = JSON.parse(JSON.stringify(purchase.shippingAddress.state));
-    const shippingCountry: Country = JSON.parse(JSON.stringify(purchase.shippingAddress.country));
+    const shippingState = structuredClone(purchase.shippingAddress.state as unknown as State);
+    const shippingCountry = structuredClone(purchase.shippingAddress.country as unknown as Country);
     purchase.shippingAddress.state = shippingState.name;
     purchase.shippingAddress.country = shippingCountry.name;
 
     // billing address
     purchase.billingAddress = this.checkoutFormGroup.controls['billingAddress']?.value;
-    const billingState: State = JSON.parse(JSON.stringify(purchase.billingAddress.state));
-    const billingCountry: Country = JSON.parse(JSON.stringify(purchase.billingAddress.country));
+    const billingState = structuredClone(purchase.billingAddress.state as unknown as State);
+    const billingCountry = structuredClone(purchase.billingAddress.country as unknown as Country);
     purchase.billingAddress.state = billingState.name;
     purchase.billingAddress.country = billingCountry.name;
 

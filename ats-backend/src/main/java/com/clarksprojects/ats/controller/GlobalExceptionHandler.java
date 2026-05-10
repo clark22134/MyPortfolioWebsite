@@ -16,22 +16,24 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final String ERROR_KEY = "error";
+
     @ExceptionHandler(ResourceNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Map<String, String> handleNotFound(ResourceNotFoundException ex) {
-        return Map.of("error", ex.getMessage());
+        return Map.of(ERROR_KEY, ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleBadRequest(IllegalArgumentException ex) {
-        return Map.of("error", ex.getMessage());
+        return Map.of(ERROR_KEY, ex.getMessage());
     }
 
     @ExceptionHandler(UnsupportedFileTypeException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleUnsupportedFileType(UnsupportedFileTypeException ex) {
-        return Map.of("error", ex.getMessage());
+        return Map.of(ERROR_KEY, ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -46,12 +48,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
-        return Map.of("error", "File is too large. Maximum upload size is 10 MB.");
+        return Map.of(ERROR_KEY, "File is too large. Maximum upload size is 10 MB.");
     }
 
     @ExceptionHandler(IOException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Map<String, String> handleIOException(IOException ex) {
-        return Map.of("error", "Failed to process the uploaded file. Please try again.");
+        return Map.of(ERROR_KEY, "Failed to process the uploaded file. Please try again.");
     }
 }

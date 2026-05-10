@@ -118,7 +118,7 @@ export class CredentialsComponent {
     { category: 'Practices', skills: 'CI/CD, DevSecOps, Microservices, TDD, REST APIs' }
   ];
 
-  constructor(private authService: AuthService) {
+  constructor(private readonly authService: AuthService) {
     this.authService.currentUser$.subscribe(user => {
       this.isAuthenticated = !!user;
     });

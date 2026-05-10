@@ -14,7 +14,7 @@ import { AuthService } from '../../services/auth.service';
 export class AccessibilityStatementComponent {
   isAuthenticated = false;
 
-  constructor(private authService: AuthService) {
+  constructor(private readonly authService: AuthService) {
     this.authService.currentUser$.subscribe(user => {
       this.isAuthenticated = !!user;
     });

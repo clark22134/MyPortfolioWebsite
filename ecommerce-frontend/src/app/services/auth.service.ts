@@ -45,10 +45,10 @@ export interface RegisterData {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
 
-  private currentUser = signal<AuthResponse | null>(null);
-  private http = inject(HttpClient);
-  private router = inject(Router);
-  private storage: Storage = localStorage;
+  private readonly currentUser = signal<AuthResponse | null>(null);
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
+  private readonly storage: Storage = localStorage;
 
   isAuthenticated = computed(() => this.currentUser() !== null);
   userEmail = computed(() => this.currentUser()?.email ?? null);

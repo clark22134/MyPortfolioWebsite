@@ -28,7 +28,7 @@
             <div class="vip-badge"><i class="fa fa-star"></i> VIP</div>
             }
 
-            <img [src]="product.imageUrl" class="img-responsive">
+            <img [src]="product.imageUrl" [alt]="product.name" class="img-responsive">
 
             <h1>{{ product.name }}</h1>
 
@@ -96,7 +96,7 @@
     </button>
     <div class="modal-body">
       <div class="modal-img-wrapper">
-        <img [src]="selectedProduct()!.imageUrl" class="modal-img">
+        <img [src]="selectedProduct()!.imageUrl" [alt]="selectedProduct()!.name" class="modal-img">
       </div>
       <div class="modal-info">
         <h3>{{ selectedProduct()!.name }}</h3>

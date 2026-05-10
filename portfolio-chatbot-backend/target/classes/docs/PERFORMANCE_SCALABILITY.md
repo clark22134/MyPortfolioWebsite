@@ -33,10 +33,10 @@ Every backend runs as a Lambda function. Lambda scales automatically from 0 to 1
 
 | Component | Current Config | Scaling Mechanism |
 |-----------|---------------|-------------------|
-| Portfolio Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
+| Portfolio Backend | Lambda (1024 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
 | E-Commerce Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
-| ATS Backend | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
-| Portfolio Assistant | Lambda (2048 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost; OpenAI API call is the latency bottleneck, not Lambda |
+| ATS Backend | Lambda (1024 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost |
+| Portfolio Assistant | Lambda (1024 MB, SnapStart enabled) | Lambda auto-scales concurrency on demand; 0 idle cost; OpenAI API call is the latency bottleneck, not Lambda |
 | Portfolio Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
 | E-Commerce Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
 | ATS Frontend | S3 + CloudFront | CloudFront edge cache scales with global CDN capacity |
@@ -76,7 +76,7 @@ The Aurora Serverless v2 max ACU setting (currently 4 ACU on the single shared c
 
 **E-Commerce:** Read-heavy catalog browsing (Spring Data REST auto-exposed endpoints with pagination) with write spikes during checkout. The cart merge logic (guest → authenticated) and order placement are the write-intensive paths. Aurora Serverless v2 scales to meet connection demand automatically. Product catalog reads are the prime candidate for caching since the inventory changes infrequently. Session consistency through stateless JWT makes horizontal Lambda scaling straightforward for the application tier.
 
-**ATS (HireFlow):** The most computationally intensive. Resume parsing (Apache Tika → PDFBox/POI → regex skill extraction) is CPU-bound and synchronous. The Haversine distance calculation for candidate-job scoring runs in application code across all eligible candidates. Lambda's default 2048 MB memory allocation handles the parsing workload for typical resumes; the function timeout is set to 30 seconds. At scale, the parsing pipeline should move off the synchronous Lambda invocation path (SQS queue), and the scoring algorithm benefits from pre-computed distance caches or spatial database indexes. The 12 MB upload limit in the Nginx local dev config already constrains per-request memory impact; API Gateway enforces a 10 MB payload limit in production.
+**ATS (HireFlow):** The most computationally intensive. Resume parsing (Apache Tika → PDFBox/POI → regex skill extraction) is CPU-bound and synchronous. The Haversine distance calculation for candidate-job scoring runs in application code across all eligible candidates. Lambda's 1024 MB memory allocation handles the parsing workload for typical resumes; the function timeout is set to 30 seconds. At scale, the parsing pipeline should move off the synchronous Lambda invocation path (SQS queue), and the scoring algorithm benefits from pre-computed distance caches or spatial database indexes. The 12 MB upload limit in the Nginx local dev config already constrains per-request memory impact; API Gateway enforces a 10 MB payload limit in production.
 
 **Portfolio Assistant:** The chatbot Lambda (`portfolio-chatbot-backend`) performs no database I/O — `DataSourceAutoConfiguration` is excluded. Its scaling characteristics differ from the three backend functions. At startup (`@PostConstruct`), the knowledge base is ingested via the OpenAI Embeddings API and stored in a `SimpleVectorStore` (in-process, memory-resident). SnapStart captures the initialized vector index in the JVM checkpoint, so warm invocations skip re-ingestion entirely. Per-query latency is dominated by the synchronous OpenAI API call to `gpt-4o-mini`. SSE token streaming keeps the *perceived* latency low — the browser receives the first token within ~800ms, and the full response streams in 2–5 seconds. The Lambda timeout is 30 seconds (well above the p99 LLM generation time). The in-process `SimpleVectorStore` cosine similarity search over a few hundred chunks completes in under 1ms. At higher traffic, the per-IP rate limiter (`ConcurrentHashMap`, 20 req/min) is instance-local; at multi-instance concurrency, Redis (ElastiCache) would be the correct replacement. OpenAI's own rate limits and latency become the primary bottleneck above moderate traffic.
 
@@ -453,9 +453,10 @@ The candidate's pipeline stage (`APPLIED`, `SCREENING`, `INTERVIEW`, etc.) is st
 
 | Service | Memory | SnapStart | Estimated Cost/Month |
 |---------|--------|-----------|---------------------|
-| Portfolio Backend (Lambda) | 2048 MB | Enabled | ~$0 (free tier) |
+| Portfolio Backend (Lambda) | 1024 MB | Enabled | ~$0 (free tier) |
 | E-Commerce Backend (Lambda) | 2048 MB | Enabled | ~$0 (free tier) |
-| ATS Backend (Lambda) | 2048 MB | Enabled | ~$0 (free tier) |
+| ATS Backend (Lambda) | 1024 MB | Enabled | ~$0 (free tier) |
+| Portfolio Assistant (Lambda) | 1024 MB | Enabled | ~$0 (free tier) |
 | Frontends (S3 + CloudFront) | N/A | N/A | ~$1–3 (S3 storage + CloudFront transfer) |
 | Aurora Serverless v2 (1 shared cluster, 3 DBs) | 0.5–4 ACU | N/A | ~$43 (0.5 ACU minimum × $0.12/ACU-hour) |
 | **Total** | — | — | **~$45–50** |
