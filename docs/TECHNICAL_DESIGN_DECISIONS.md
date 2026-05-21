@@ -81,7 +81,7 @@ Standalone components (no NgModules) keep the bundle lean and the dependency gra
 | Criterion | Choice | Alternatives Considered |
 |-----------|--------|------------------------|
 | AI abstraction | Spring AI 1.0.5 | LangChain4j, direct OpenAI SDK, Semantic Kernel |
-| Chat model | OpenAI gpt-5.5-instant (T=0.2) | GPT-5.5-instant, Claude 3 Haiku, Llama 3 (local) |
+| Chat model | OpenAI gpt-5.5-instant (T=0.2) | Claude 3 Haiku, Llama 3 (local) |
 | Embedding model | text-embedding-3-small (1536-dim) | text-embedding-3-large, ada-002 |
 | Vector store | Spring AI SimpleVectorStore | pgvector, ChromaDB, Pinecone |
 | Chat memory | MessageWindowChatMemory (max 20) | Redis-backed, PostgreSQL-backed |

@@ -779,7 +779,6 @@ SonarCloud analyzes every push to `main`, providing:
 | **TruffleHog** | Git history | Every PR + deploy | Verified secrets only |
 | **npm audit** | Frontend dependencies | PR validation | Moderate and above |
 | **OWASP Dependency-Check** | Backend Maven dependencies | PR validation | CVSS ≥ 7 |
-| **CodeRabbit** | Code changes | Every PR | AI-driven review comments |
 
 ---
 

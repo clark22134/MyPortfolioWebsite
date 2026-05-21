@@ -104,13 +104,20 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Override headings to add id attributes for in-page anchor navigation.
     // marked v5+ removed automatic heading IDs, so we generate them here using
     // the same slugification algorithm the markdown TOC links expect.
+    // Each whitespace character is replaced individually (not collapsed via \s+)
+    // so that punctuation removal preserving adjacent spaces produces the correct
+    // double-hyphens (e.g. "Rate & Limit" → "rate--limit", not "rate-limit").
+    const headingIds = new Map<string, number>();
     renderer.heading = ({ text, depth }: { text: string; depth: number }) => {
       const plainText = text.replace(/<[^>]+>/g, '');
-      const id = plainText
+      const baseId = plainText
         .toLowerCase()
         .replace(/[^\w\s-]/g, '')
-        .replace(/\s+/g, '-')
+        .replace(/\s/g, '-')
         .trim();
+      const count = headingIds.get(baseId) ?? 0;
+      headingIds.set(baseId, count + 1);
+      const id = count === 0 ? baseId : `${baseId}-${count}`;
       return `<h${depth} id="${id}">${text}</h${depth}>`;
     };
 
@@ -134,13 +141,24 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   onContentClick(event: MouseEvent): void {
-    const anchor = (event.target as HTMLElement).closest('a');
+    if (!(event.target instanceof Element)) return;
+    const anchor = event.target.closest('a');
     if (anchor) {
       const href = anchor.getAttribute('href');
       if (href?.startsWith('#')) {
         event.preventDefault();
-        const el = document.getElementById(href.slice(1));
-        el?.scrollIntoView({ behavior: 'smooth' });
+        const id = href.slice(1);
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+          // Update the URL fragment without triggering Angular's router
+          history.pushState(null, '', href);
+          // Move focus to the heading so screen readers announce the section
+          if (!el.hasAttribute('tabindex')) {
+            el.setAttribute('tabindex', '-1');
+          }
+          el.focus({ preventScroll: true });
+        }
       }
     }
   }

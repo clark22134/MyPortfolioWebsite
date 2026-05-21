@@ -57,7 +57,6 @@ Every pull request runs 10 parallel jobs before a merge is possible:
 | **Frontend Tests** (×3) | `npm ci` → lint → `ng test` → production build for portfolio, e-commerce, and ATS frontends |
 | **Accessibility Test** | Serves portfolio frontend build, runs axe-core WCAG 2.1 AA audit via Puppeteer (depends on frontend test artifact) |
 | **Dependency Audit** | `npm audit` (moderate+) on all 3 frontends + `mvn dependency-check:check` (CVSS ≥ 7) on all 4 backends |
-| **Automated Code Review** | CodeRabbit AI reviewer posts comments on non-trivial changes |
 
 **Concurrency:** `pr-${{ pull_request.number }}` — new pushes to the same PR cancel in-progress runs. Each PR gets one active validation at a time.
 
