@@ -81,7 +81,7 @@ Standalone components (no NgModules) keep the bundle lean and the dependency gra
 | Criterion | Choice | Alternatives Considered |
 |-----------|--------|------------------------|
 | AI abstraction | Spring AI 1.0.5 | LangChain4j, direct OpenAI SDK, Semantic Kernel |
-| Chat model | OpenAI gpt-4o-mini (T=0.2) | GPT-4o, Claude 3 Haiku, Llama 3 (local) |
+| Chat model | OpenAI gpt-5.5-instant (T=0.2) | GPT-5.5-instant, Claude 3 Haiku, Llama 3 (local) |
 | Embedding model | text-embedding-3-small (1536-dim) | text-embedding-3-large, ada-002 |
 | Vector store | Spring AI SimpleVectorStore | pgvector, ChromaDB, Pinecone |
 | Chat memory | MessageWindowChatMemory (max 20) | Redis-backed, PostgreSQL-backed |
@@ -91,10 +91,6 @@ Standalone components (no NgModules) keep the bundle lean and the dependency gra
 Spring AI provides provider-agnostic interfaces (`VectorStore`, `ChatModel`, `EmbeddingModel`) that abstract the underlying provider completely. The entire chatbot is coded against these interfaces — swapping from OpenAI to Anthropic, Mistral, or a local Ollama model is a single application property change with no code changes. LangChain4j is a solid library, but its programming model is less idiomatic for a Spring application; Spring AI integrates with Spring's `@Autowired` / `@Bean` patterns, `ObjectProvider`, and `@ConditionalOn*` annotations naturally.
 
 Spring AI was pinned to **1.0.5** (not the latest snapshot) specifically to exclude **CVE-2026-22738**, a vulnerability present in earlier 1.0.x builds affecting the `/actuator` Micrometer Observation endpoint. Version 1.0.5 carries no known CVEs.
-
-**Why gpt-4o-mini over GPT-4o:**
-
-GPT-4o-mini provides 90%+ of GPT-4o's reasoning quality at ~1/10 the cost for factual retrieval tasks. The chatbot's job is to retrieve information from a small, curated knowledge base and present it coherently — not to reason over novel problems. Setting temperature T=0.2 grounds the model to the provided context passages and reduces hallucination. At this retrieval task with high-quality context, gpt-4o-mini is the correct cost/quality tradeoff.
 
 **Why text-embedding-3-small:**
 

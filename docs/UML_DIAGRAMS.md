@@ -1089,7 +1089,7 @@ sequenceDiagram
     participant Embed as OpenAiEmbeddingModel
     participant VS as SimpleVectorStore
     participant Mem as MessageWindowChatMemory
-    participant OpenAI as OpenAI gpt-4o-mini
+    participant OpenAI as OpenAI gpt-5.5-instant
 
     Angular->>APIGW: POST /api/chatbot/stream {message, conversationId}
     APIGW->>Ctrl: Lambda proxy event
@@ -1144,7 +1144,7 @@ sequenceDiagram
 |---|---|---|---|
 | `PortfolioAssistantController` → `RagService` | Dependency (via `ObjectProvider`) | Constructor injection with `ObjectProvider<RagService>` | Allows controller to start even when `RagService` bean is absent (chatbot disabled). `ObjectProvider.getIfAvailable()` returns `null` safely; controller returns 503 instead. |
 | `RagService` → `VectorStore` | Dependency | Constructor injection | Retrieves the top-K most similar document chunks for a given query embedding. Decoupled from `SimpleVectorStore` implementation — any Spring AI `VectorStore` can be swapped in. |
-| `RagService` → `ChatClient` | Dependency | Constructor injection | Sends the assembled prompt (with retrieved context) to gpt-4o-mini and streams the response tokens. |
+| `RagService` → `ChatClient` | Dependency | Constructor injection | Sends the assembled prompt (with retrieved context) to gpt-5.5-instant and streams the response tokens. |
 | `RagService` → `ChatMemory` | Dependency | Constructor injection | Loads conversation history for multi-turn context and saves user + assistant messages after each turn. |
 | `KnowledgeIngestionService` → `VectorStore` | Dependency | Constructor injection | Adds embedded document chunks to the vector store at startup (`@PostConstruct`). |
 | `ChatbotConfig` → all AI beans | Creation | `@Bean` factory methods annotated with `@ConditionalOnExpression` | Creates `SimpleVectorStore`, `ChatClient`, `MessageWindowChatMemory`, `OpenAiEmbeddingModel`, and `OpenAiChatModel` only when `OPENAI_API_KEY` is present and `chatbot.enabled=true`. |

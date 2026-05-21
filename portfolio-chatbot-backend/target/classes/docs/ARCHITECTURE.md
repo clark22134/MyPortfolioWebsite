@@ -218,7 +218,7 @@ graph TB
     end
 
     subgraph External
-        OpenAI["OpenAI API<br/>gpt-4o-mini (chat)<br/>text-embedding-3-small (embed)"]
+        OpenAI["OpenAI API<br/>gpt-5.5-instant (chat)<br/>text-embedding-3-small (embed)"]
     end
 
     Browser -->|"POST /api/chatbot/stream"| CF
@@ -255,7 +255,7 @@ graph LR
     subgraph AI["Spring AI 1.0.5"]
         VectorStore["SimpleVectorStore<br/>In-process cosine similarity"]
         EmbedModel["OpenAiEmbeddingModel<br/>text-embedding-3-small<br/>1536 dimensions"]
-        ChatModel["OpenAiChatModel<br/>gpt-4o-mini · T=0.2"]
+        ChatModel["OpenAiChatModel<br/>gpt-5.5-instant · T=0.2"]
         Memory["MessageWindowChatMemory<br/>max 20 messages per conversationId"]
     end
 
@@ -285,7 +285,7 @@ sequenceDiagram
     participant R as RagService
     participant V as SimpleVectorStore
     participant E as OpenAI Embeddings
-    participant L as OpenAI gpt-4o-mini
+    participant L as OpenAI gpt-5.5-instant
 
     B->>C: POST /api/chatbot/stream {message, conversationId}
     C->>C: Rate limit check (per-IP sliding window)

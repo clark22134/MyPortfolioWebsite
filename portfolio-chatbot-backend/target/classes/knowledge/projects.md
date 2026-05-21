@@ -53,6 +53,7 @@ documentation, and an accessibility statement.
 
 - **Testing**: JUnit 5 + Mockito (backend), Vitest + @vitest/coverage-v8 + axe-core (frontend),
   JaCoCo XML coverage (backends), LCOV coverage (frontends), Spring Security Test for auth flows.
+  Combined code coverage across all six codebases: **81%** (tracked via SonarCloud and CodeCov on every CI run).
 - **Quality gates**: SonarCloud (`sonar-project.properties`), GitHub Actions
   build + test on every PR.
 - **Containerization**: Each app has its own Dockerfile. `docker-compose.yml`

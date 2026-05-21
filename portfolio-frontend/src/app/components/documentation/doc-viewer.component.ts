@@ -101,6 +101,19 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
   private parseMarkdown(md: string): void {
     const renderer = new marked.Renderer();
 
+    // Override headings to add id attributes for in-page anchor navigation.
+    // marked v5+ removed automatic heading IDs, so we generate them here using
+    // the same slugification algorithm the markdown TOC links expect.
+    renderer.heading = ({ text, depth }: { text: string; depth: number }) => {
+      const plainText = text.replace(/<[^>]+>/g, '');
+      const id = plainText
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .trim();
+      return `<h${depth} id="${id}">${text}</h${depth}>`;
+    };
+
     // Override code blocks to handle mermaid
     renderer.code = ({ text, lang }: { text: string; lang?: string }) => {
       if (lang === 'mermaid') {
@@ -118,6 +131,18 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
 
     this.renderedHtml = marked.parse(md) as string;
+  }
+
+  onContentClick(event: MouseEvent): void {
+    const anchor = (event.target as HTMLElement).closest('a');
+    if (anchor) {
+      const href = anchor.getAttribute('href');
+      if (href?.startsWith('#')) {
+        event.preventDefault();
+        const el = document.getElementById(href.slice(1));
+        el?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
   }
 
   private escapeHtml(text: string): string {
