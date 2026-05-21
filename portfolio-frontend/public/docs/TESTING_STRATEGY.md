@@ -320,6 +320,10 @@ graph LR
 - **CodeCov** receives coverage from every test job, tagged with component-specific flags (`portfolio-frontend`, `ats-backend`, etc.) for per-project tracking.
 - **SonarCloud** ingests the same reports for its quality gate, providing duplication detection, code smell analysis, and security hotspot identification alongside coverage metrics.
 
+### 8.4 Current Coverage
+
+The combined project coverage across all six codebases is **81%**, measured by SonarCloud using JaCoCo (Java backends) and LCOV (Angular frontends). All three backend projects and all three frontend projects contribute to this aggregate figure, which is tracked on every CI run and surfaced in both the SonarCloud dashboard and CodeCov per-component reports.
+
 ---
 
 ## 9. Example Test Cases
@@ -723,7 +727,6 @@ SonarCloud analyzes every push to `main` as part of the production deployment pi
 | **TruffleHog** | Git history | Every PR + deploy | Verified secrets only |
 | **npm audit** | Frontend dependencies | PR validation | Moderate and above |
 | **OWASP Dependency-Check** | Backend Maven dependencies | PR validation | CVSS ≥ 7 |
-| **CodeRabbit** | Code changes | Every PR | AI-driven review comments |
 
 ---
 

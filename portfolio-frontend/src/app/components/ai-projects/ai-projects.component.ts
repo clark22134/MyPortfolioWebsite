@@ -46,7 +46,7 @@ export class AiProjectsComponent {
       highlights: [
         'Retrieval-Augmented Generation pipeline embedded in the existing Spring Boot backend',
         'Spring AI + SimpleVectorStore (file-backed) — no extra infrastructure to operate',
-        'OpenAI text-embedding-3-small for retrieval, gpt-4.1 for streamed answers',
+        'OpenAI text-embedding-3-small for retrieval, gpt-5.5-instant for streamed answers',
         'Query expansion, semantic top-k retrieval, reranking, and inline citations',
         'WCAG 2.1 AA accessible: focus management, ARIA live regions, keyboard-first',
       ],

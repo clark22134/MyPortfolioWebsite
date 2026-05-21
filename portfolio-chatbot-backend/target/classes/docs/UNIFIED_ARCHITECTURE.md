@@ -194,7 +194,7 @@ The deliberate selection of three distinct business domains — content manageme
                     │                                      │
                     │  Scanning: Trivy, TruffleHog,        │
                     │  SonarCloud, npm audit,              │
-                    │  mvn dependency-check, CodeRabbit    │
+                    │  mvn dependency-check                │
                     │                                      │
                     │  IaC: Terraform (8 modules, ~2190 LOC)│
                     │  State: S3 + DynamoDB Locking        │

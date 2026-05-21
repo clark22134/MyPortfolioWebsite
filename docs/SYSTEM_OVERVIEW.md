@@ -34,7 +34,7 @@ Acts as a living technical portfolio, demonstrating full-stack development, secu
 |-------|-------|
 | Frontend | Angular 21, TypeScript 5.9, SCSS, standalone components |
 | Backend | Spring Boot 3.5.13, Java 21, Spring Security, Spring Mail |
-| AI Assistant | Spring Boot 3.5.13, Java 21, Spring AI 1.0.5, OpenAI (gpt-4o-mini + text-embedding-3-small) |
+| AI Assistant | Spring Boot 3.5.13, Java 21, Spring AI 1.0.5, OpenAI (gpt-5.5-instant + text-embedding-3-small) |
 | Database | Aurora Serverless v2 (PostgreSQL 15.17) |
 | Auth | JWT access tokens (15 min) + refresh tokens (7 days), BCrypt, CSRF via XSRF-TOKEN |
 | Infrastructure | AWS Lambda (Java 21), API Gateway, CloudFront, S3, Route53, ACM |
@@ -68,7 +68,7 @@ The portfolio includes a production **RAG (Retrieval-Augmented Generation) chatb
 | `KnowledgeIngestionService` | Startup ingestion from classpath markdown and filesystem docs |
 | `ChatbotConfig` | Spring AI beans — `SimpleVectorStore`, `MessageWindowChatMemory`, `ChatClient` |
 | OpenAI `text-embedding-3-small` | 1536-dimension embeddings for semantic search |
-| OpenAI `gpt-4o-mini` | LLM for answer generation (temperature 0.2 for factual grounding) |
+| OpenAI `gpt-5.5-instant` | LLM for answer generation (temperature 0.2 for factual grounding) |
 | `SimpleVectorStore` | In-process vector store; no external service required |
 
 ---

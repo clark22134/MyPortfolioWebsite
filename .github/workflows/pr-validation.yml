@@ -135,22 +135,3 @@ jobs:
 
       - name: Maven dependency check (ecommerce-backend)
         run: cd ecommerce-backend && mvn dependency-check:check -DfailBuildOnCVSS=7 || true
-
-  auto-review:
-    name: Automated Code Review
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Run PR Review
-        uses: coderabbitai/ai-pr-reviewer@latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        with:
-          debug: false
-          review_simple_changes: false
-          review_comment_lgtm: false

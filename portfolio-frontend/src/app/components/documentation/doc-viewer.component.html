@@ -62,7 +62,7 @@
             <span class="breadcrumb-current">{{ docTitle }}</span>
           </div>
         </header>
-        <div class="doc-body markdown-content" #docContent [innerHTML]="renderedHtml"></div>
+        <div class="doc-body markdown-content" #docContent [innerHTML]="renderedHtml" (click)="onContentClick($event)"></div>
       </article>
     }
   </main>
