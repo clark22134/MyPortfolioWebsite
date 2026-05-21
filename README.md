@@ -139,7 +139,7 @@ All three applications share a single serverless infrastructure layer with Cloud
 |-------|-----------|
 | **Frontend** | Angular 21, TypeScript 5.9, RxJS, Angular CDK, Bootstrap 5 (E-Commerce), SCSS |
 | **Backend** | Spring Boot 3.5.13, Java 21, Spring Security, Spring Data JPA, Spring Data REST |
-| **AI / RAG** | Spring AI 1.0.5, OpenAI gpt-5.5-instant (T=0.2), text-embedding-3-small (1536-dim), SimpleVectorStore |
+| **AI / RAG** | Spring AI 1.0.5, OpenAI gpt-5.4-mini, text-embedding-3-small (1536-dim), SimpleVectorStore |
 | **Databases** | Aurora Serverless v2 (1 shared cluster, 3 databases), PostgreSQL 15.17, H2 (local tests) |
 | **Auth** | JWT (JJWT), HTTP-only cookies, BCrypt, refresh token rotation |
 | **Parsing** | Apache Tika, PDFBox, Apache POI (ATS resume parsing) |
