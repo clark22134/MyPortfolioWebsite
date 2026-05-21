@@ -24,7 +24,7 @@ documentation by retrieving from a curated knowledge base.
   threshold where a dedicated server adds value. Swappable to Chroma /
   PGVector behind the `VectorStore` interface.
 - **Embeddings**: OpenAI `text-embedding-3-small` (1536-dim).
-- **LLM**: OpenAI `gpt-5.5-instant` for accurate, instruction-following responses.
+- **LLM**: OpenAI `gpt-5.4-mini` for accurate, instruction-following responses.
 - **Retrieval pipeline**: query expansion → semantic top-k=12 →
   cosine-similarity rerank + dedupe → top-6 context passages →
   synchronous SSE response with citations.

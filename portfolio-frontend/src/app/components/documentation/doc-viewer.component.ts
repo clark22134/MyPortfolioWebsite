@@ -52,6 +52,7 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
   error = false;
   private routeSub!: Subscription;
   private needsMermaidRender = false;
+  private needsHeadingIds = false;
   private mermaidInitialized = false;
 
   constructor(
@@ -68,6 +69,10 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   ngAfterViewChecked(): void {
+    if (this.needsHeadingIds && this.docContentRef) {
+      this.needsHeadingIds = false;
+      this.addHeadingIds();
+    }
     if (this.needsMermaidRender && this.docContentRef) {
       this.needsMermaidRender = false;
       this.renderMermaid();
@@ -89,6 +94,7 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
       next: (markdown) => {
         this.parseMarkdown(markdown);
         this.loading = false;
+        this.needsHeadingIds = true;
         this.needsMermaidRender = true;
       },
       error: () => {
@@ -98,28 +104,29 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
-  private parseMarkdown(md: string): void {
-    const renderer = new marked.Renderer();
+  // Set id attributes directly on heading elements after Angular has rendered
+  // the sanitized HTML. Angular's [innerHTML] sanitizer strips id attributes,
+  // so injecting them via the marked renderer has no effect. Manipulating the
+  // DOM directly (same pattern as renderMermaid) bypasses that limitation.
+  private addHeadingIds(): void {
+    const container = this.docContentRef?.nativeElement;
+    if (!container) return;
 
-    // Override headings to add id attributes for in-page anchor navigation.
-    // marked v5+ removed automatic heading IDs, so we generate them here using
-    // the same slugification algorithm the markdown TOC links expect.
-    // Each whitespace character is replaced individually (not collapsed via \s+)
-    // so that punctuation removal preserving adjacent spaces produces the correct
-    // double-hyphens (e.g. "Rate & Limit" → "rate--limit", not "rate-limit").
-    const headingIds = new Map<string, number>();
-    renderer.heading = ({ text, depth }: { text: string; depth: number }) => {
-      const plainText = text.replace(/<[^>]+>/g, '');
-      const baseId = plainText
+    const seen = new Map<string, number>();
+    container.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6').forEach(heading => {
+      const baseId = (heading.textContent ?? '')
         .toLowerCase()
         .replace(/[^\w\s-]/g, '')
         .replace(/\s/g, '-')
         .trim();
-      const count = headingIds.get(baseId) ?? 0;
-      headingIds.set(baseId, count + 1);
-      const id = count === 0 ? baseId : `${baseId}-${count}`;
-      return `<h${depth} id="${id}">${text}</h${depth}>`;
-    };
+      const count = seen.get(baseId) ?? 0;
+      seen.set(baseId, count + 1);
+      heading.id = count === 0 ? baseId : `${baseId}-${count}`;
+    });
+  }
+
+  private parseMarkdown(md: string): void {
+    const renderer = new marked.Renderer();
 
     // Override code blocks to handle mermaid
     renderer.code = ({ text, lang }: { text: string; lang?: string }) => {
