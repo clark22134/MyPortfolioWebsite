@@ -19,7 +19,6 @@ A production-grade, multi-application platform comprising three full-stack web a
   - [E-Commerce](#e-commerce--shopclarkfostercom)
   - [HireFlow ATS](#hireflow-ats--atsclarkfostercom)
   - [Cloud Infrastructure](#cloud-infrastructure)
-- [Screenshots](#screenshots)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Local Development with Docker](#local-development-with-docker)
@@ -272,18 +271,6 @@ ats-frontend/
 | **Total** | | **~$63** |
 
 **Cost decisions:** Serverless Lambda instead of ECS Fargate (~$120/mo saved), CloudFront CDN instead of ALB (~$16/mo saved), 1 shared Aurora cluster instead of 3 (~$50/mo saved). Migrated from ~$200/month Fargate architecture to ~$63/month serverless.
-
----
-
-## Screenshots
-
-> Replace these placeholders with actual screenshots.
-
-| Portfolio | E-Commerce | HireFlow ATS |
-|-----------|-----------|--------------|
-| ![Portfolio Home](docs/screenshots/portfolio-home.png) | ![Product Catalog](docs/screenshots/ecommerce-products.png) | ![Pipeline Board](docs/screenshots/ats-pipeline.png) |
-| ![Accessibility Toolbar](docs/screenshots/portfolio-a11y.png) | ![Checkout Flow](docs/screenshots/ecommerce-checkout.png) | ![Resume Upload](docs/screenshots/ats-resume.png) |
-| ![Admin Dashboard](docs/screenshots/portfolio-admin.png) | ![Order History](docs/screenshots/ecommerce-orders.png) | ![Dashboard](docs/screenshots/ats-dashboard.png) |
 
 ---
 
