@@ -1,6 +1,30 @@
 <app-nav></app-nav>
 
-<div class="home-container">
+<div class="home-container" [class.trail-cursor-enabled]="cursorEnabled">
+  @if (cursorEnabled) {
+    <div class="cursor-trail-layer" [class.visible]="cursorVisible" [class.pressed]="cursorPressed" aria-hidden="true">
+      <svg class="cursor-branch-layer" viewBox="0 0 100 100" preserveAspectRatio="none">
+        @for (branch of cursorBranches; track branch.id) {
+          <line
+            [attr.x1]="branch.x1"
+            [attr.y1]="branch.y1"
+            [attr.x2]="branch.x2"
+            [attr.y2]="branch.y2"
+            [attr.stroke-opacity]="branch.opacity"></line>
+        }
+      </svg>
+      @for (particle of cursorParticles; track particle.id) {
+        <div
+          class="cursor-particle"
+          [style.left.px]="particle.x"
+          [style.top.px]="particle.y"
+          [style.width.px]="particle.size"
+          [style.height.px]="particle.size"
+          [style.opacity]="particle.opacity"></div>
+      }
+    </div>
+  }
+
   <!-- Cyber Logo -->
   <div class="cyber-logo" role="img" aria-label="Clark Foster Portfolio Logo - Terminal icon">
     <div class="logo-icon">
@@ -25,9 +49,52 @@
 
   <!-- Animated Background (decorative) -->
   <div class="animated-bg" aria-hidden="true" role="presentation">
-    <div class="circle circle-1"></div>
-    <div class="circle circle-2"></div>
-    <div class="circle circle-3"></div>
+    <video
+      #videoA
+      class="background-video"
+      [class.active]="activeVideoIndex === 0"
+      [class.inactive]="activeVideoIndex !== 0"
+      autoplay
+      muted
+      [muted]="true"
+      playsinline
+      preload="auto">
+      <source src="/grok-hack.mp4" type="video/mp4" />
+    </video>
+    <video
+      #videoB
+      class="background-video"
+      [class.active]="activeVideoIndex === 1"
+      [class.inactive]="activeVideoIndex !== 1"
+      autoplay
+      muted
+      [muted]="true"
+      playsinline
+      preload="auto">
+      <source src="/grok-hack.mp4" type="video/mp4" />
+    </video>
+
+    <div class="bg-node-graph" aria-hidden="true">
+      <svg class="bg-node-edges" viewBox="0 0 100 100" preserveAspectRatio="none">
+        @for (edge of backgroundEdges; track edge.id) {
+          <line
+            [attr.x1]="backgroundNodes[edge.a]?.x ?? 0"
+            [attr.y1]="backgroundNodes[edge.a]?.y ?? 0"
+            [attr.x2]="backgroundNodes[edge.b]?.x ?? 0"
+            [attr.y2]="backgroundNodes[edge.b]?.y ?? 0"
+            [attr.stroke-opacity]="edge.opacity"></line>
+        }
+      </svg>
+      @for (node of backgroundNodes; track node.id) {
+        <div
+          class="bg-node"
+          [style.left.px]="node.x"
+          [style.top.px]="node.y"
+          [style.width.px]="node.size"
+          [style.height.px]="node.size"
+          [style.opacity]="node.opacity"></div>
+      }
+    </div>
   </div>
 
   <section class="hero" [class.scrolled]="scrolled" aria-label="Welcome banner">
@@ -82,83 +149,84 @@
         </div>
       </div>
     </div>
-    <div class="scroll-indicator" aria-hidden="true">
-      <div class="mouse"></div>
-    </div>
   </section>
 
-  <section class="about-me" #aboutMeSection [class.visible]="projectsVisible" aria-label="About Me">
-    <h2 class="section-title">About Me</h2>
-    <div class="about-me-content">
-      <p>
-        Clark is a passionate software developer with nine years of experience delivering secure, accessible, and scalable applications
-        in enterprise and federal environments. He specializes in full-stack development using Java/Spring Boot, .NET/C#, Python,
-        and modern frontend frameworks including Angular and React. His expertise includes RESTful API development, SQL-based data
-        systems, and implementation of automated CI/CD pipelines leveraging GitHub Actions, containerization, and modern DevSecOps
-        practices. Clark incorporates automated testing, continuous integration, and secure coding standards to ensure high reliability
-        and maintainability. He brings strong experience in system observability and performance monitoring using Splunk and the
-        ELK stack, enabling proactive system reliability and operational insight. Moreover, his capabilities further extend to cloud
-        architecture and IaC, utilizing Terraform to deploy AWS services like Lambda, Aurora Serverless, CloudFront, API Gateway, S3, WAF, and ACM.
-        He also leverages AI/ML technologies—including LangChain, HuggingFace, and LLMs—to build intelligent analytics tools and
-        automated workflows.
-      </p>
-      <p>
-        Complementing his technical background, Clark served more than 10 years in the U.S. Marine Corps, including 8 years in leadership
-        roles both as an enlisted NCO and commissioned officer. He led cross-functional teams and managed multi-million-dollar
-        operations in high-stakes environments, cultivating strong leadership, strategic planning, and problem-solving skills.
-        His military service instilled a deep commitment to integrity, accountability, and mission success—values he carries into
-        every project. Beyond software and leadership, Clark is an FAA-certified Commercial Pilot and flight instructor, holding
-        multiple pilot certificates and ratings. Clark thrives in collaborative, team-oriented settings and actively engages with
-        stakeholders across technical and business domains to align solutions with organizational goals. This combination of
-        technical depth, principled leadership, and stakeholder partnership drives his detail-oriented, mission-focused delivery
-        of high-quality software solutions.
-      </p>
-      <p class="credentials-cta">
-        For a detailed look at Clark's experience, certifications, and licenses, visit the
-        <a routerLink="/credentials">Credentials</a> page.
-      </p>
-    </div>
-  </section>
+  <div class="lower-cyber-region">
+    <app-cyber-network-background></app-cyber-network-background>
 
-  <section class="skills" #skillsSection [class.visible]="skillsVisible" aria-label="Skills and expertise">
-    <h2 class="section-title">Skills & Expertise</h2>
-    <div class="skills-grid" role="list" aria-label="Skill categories">
-      @for (category of skillCategories; track category.title; let i = $index) {
-        <div class="skill-category" [style.animation-delay]="i * 0.1 + 's'" role="listitem">
-          <div class="skill-icon" aria-hidden="true">{{ category.icon }}</div>
-          <h3>{{ category.title }}</h3>
-          <div class="skill-items">
-            @for (skill of category.skills; track skill) {
-              <span class="skill-tag">{{ skill }}</span>
-            }
+    <section class="about-me" #aboutMeSection [class.visible]="projectsVisible" aria-label="About Me">
+      <h2 class="section-title">About Me</h2>
+      <div class="about-me-content">
+        <p>
+          Clark is a passionate software developer with nine years of experience delivering secure, accessible, and scalable applications
+          in enterprise and federal environments. He specializes in full-stack development using Java/Spring Boot, .NET/C#, Python,
+          and modern frontend frameworks including Angular and React. His expertise includes RESTful API development, SQL-based data
+          systems, and implementation of automated CI/CD pipelines leveraging GitHub Actions, containerization, and modern DevSecOps
+          practices. Clark incorporates automated testing, continuous integration, and secure coding standards to ensure high reliability
+          and maintainability. He brings strong experience in system observability and performance monitoring using Splunk and the
+          ELK stack, enabling proactive system reliability and operational insight. Moreover, his capabilities further extend to cloud
+          architecture and IaC, utilizing Terraform to deploy AWS services like Lambda, Aurora Serverless, CloudFront, API Gateway, S3, WAF, and ACM.
+          He also leverages AI/ML technologies—including LangChain, HuggingFace, and LLMs—to build intelligent analytics tools and
+          automated workflows.
+        </p>
+        <p>
+          Complementing his technical background, Clark served more than 10 years in the U.S. Marine Corps, including 8 years in leadership
+          roles both as an enlisted NCO and commissioned officer. He led cross-functional teams and managed multi-million-dollar
+          operations in high-stakes environments, cultivating strong leadership, strategic planning, and problem-solving skills.
+          His military service instilled a deep commitment to integrity, accountability, and mission success—values he carries into
+          every project. Beyond software and leadership, Clark is an FAA-certified Commercial Pilot and flight instructor, holding
+          multiple pilot certificates and ratings. Clark thrives in collaborative, team-oriented settings and actively engages with
+          stakeholders across technical and business domains to align solutions with organizational goals. This combination of
+          technical depth, principled leadership, and stakeholder partnership drives his detail-oriented, mission-focused delivery
+          of high-quality software solutions.
+        </p>
+        <p class="credentials-cta">
+          For a detailed look at Clark's experience, certifications, and licenses, visit the
+          <a routerLink="/credentials">Credentials</a> page.
+        </p>
+      </div>
+    </section>
+
+    <section class="skills" #skillsSection [class.visible]="skillsVisible" aria-label="Skills and expertise">
+      <h2 class="section-title">Skills & Expertise</h2>
+      <div class="skills-grid" role="list" aria-label="Skill categories">
+        @for (category of skillCategories; track category.title; let i = $index) {
+          <div class="skill-category" [style.animation-delay]="i * 0.1 + 's'" role="listitem">
+            <div class="skill-icon" aria-hidden="true">{{ category.icon }}</div>
+            <h3>{{ category.title }}</h3>
+            <div class="skill-items">
+              @for (skill of category.skills; track skill) {
+                <span class="skill-tag">{{ skill }}</span>
+              }
+            </div>
           </div>
-        </div>
-      }
-    </div>
-  </section>
+        }
+      </div>
+    </section>
 
-  <section class="about" #aboutSection [class.visible]="aboutVisible" aria-label="About this portfolio">
-    <h2 class="section-title">About This Portfolio</h2>
-    <p>
-      This portfolio website was built using the following technologies:
-    </p>
-    <ul>
-      <li>Angular 21 with TypeScript 5.9</li>
-      <li>Spring Boot 3.5 with Java 21 (LTS)</li>
-      <li>RESTful API architecture</li>
-      <li>JWT Authentication & Spring Security</li>
-      <li>WCAG 2.1 AA Compliance & Section 508</li>
-      <li>WAI-ARIA 1.2 Landmarks, Roles & Live Regions</li>
-      <li>Automated Accessibility Testing (axe-core & Puppeteer)</li>
-      <li>Web Speech API (Text-to-Speech)</li>
-      <li>AWS Lambda with SnapStart</li>
-      <li>AWS Aurora Serverless v2 (PostgreSQL 15.17)</li>
-      <li>AWS CloudFront CDN & S3 Static Hosting</li>
-      <li>AWS API Gateway (HTTP API)</li>
-      <li>AWS WAF (Web Application Firewall)</li>
-      <li>AWS Route 53 & ACM (DNS & SSL/TLS)</li>
-      <li>Terraform Infrastructure as Code (~2,190 lines, 8 modules)</li>
-      <li>DevSecOps with GitHub Actions CI/CD</li>
-    </ul>
-  </section>
+    <section class="about" #aboutSection [class.visible]="aboutVisible" aria-label="About this portfolio">
+      <h2 class="section-title">About This Portfolio</h2>
+      <p>
+        This portfolio website was built using the following technologies:
+      </p>
+      <ul>
+        <li>Angular 21 with TypeScript 5.9</li>
+        <li>Spring Boot 3.5 with Java 21 (LTS)</li>
+        <li>RESTful API architecture</li>
+        <li>JWT Authentication & Spring Security</li>
+        <li>WCAG 2.1 AA Compliance & Section 508</li>
+        <li>WAI-ARIA 1.2 Landmarks, Roles & Live Regions</li>
+        <li>Automated Accessibility Testing (axe-core & Puppeteer)</li>
+        <li>Web Speech API (Text-to-Speech)</li>
+        <li>AWS Lambda with SnapStart</li>
+        <li>AWS Aurora Serverless v2 (PostgreSQL 15.17)</li>
+        <li>AWS CloudFront CDN & S3 Static Hosting</li>
+        <li>AWS API Gateway (HTTP API)</li>
+        <li>AWS WAF (Web Application Firewall)</li>
+        <li>AWS Route 53 & ACM (DNS & SSL/TLS)</li>
+        <li>Terraform Infrastructure as Code (~2,190 lines, 8 modules)</li>
+        <li>DevSecOps with GitHub Actions CI/CD</li>
+      </ul>
+    </section>
+  </div>
 </div>

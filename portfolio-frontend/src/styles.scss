@@ -248,3 +248,23 @@ html.screen-reader-mode {
 
 
 
+/* ============================================
+   SHARED CYBER BACKGROUND (NON-HOME ROUTES)
+   ============================================ */
+.shared-cyber-layout .contact-container,
+.shared-cyber-layout .credentials-container,
+.shared-cyber-layout .a11y-statement-container,
+.shared-cyber-layout .interactive-projects-container,
+.shared-cyber-layout .login-container,
+.shared-cyber-layout .docs-container,
+.shared-cyber-layout .doc-viewer-container {
+  background: transparent !important;
+}
+
+.shared-cyber-layout .contact-container::before,
+.shared-cyber-layout .credentials-container::before,
+.shared-cyber-layout .a11y-statement-container::before,
+.shared-cyber-layout .interactive-projects-container::before {
+  display: none !important;
+}
+

@@ -1,0 +1,40 @@
+<div class="cyber-network-surface" #surface aria-hidden="true">
+  <div class="cyber-base-layer"></div>
+  <div class="cyber-grid-overlay"></div>
+  <div class="cyber-scan-overlay"></div>
+
+  <svg class="cyber-edge-layer" [attr.viewBox]="'0 0 ' + viewWidth + ' ' + viewHeight" preserveAspectRatio="none">
+    @for (edge of edges; track edge.id) {
+      <line
+        [attr.x1]="nodes[edge.a]?.x ?? 0"
+        [attr.y1]="nodes[edge.a]?.y ?? 0"
+        [attr.x2]="nodes[edge.b]?.x ?? 0"
+        [attr.y2]="nodes[edge.b]?.y ?? 0"
+        [attr.stroke-opacity]="edge.opacity"></line>
+    }
+  </svg>
+
+  <div class="cyber-node-layer">
+    @for (node of nodes; track node.id) {
+      <span
+        class="cyber-node"
+        [style.left.px]="node.x"
+        [style.top.px]="node.y"
+        [style.width.px]="node.size"
+        [style.height.px]="node.size"
+        [style.opacity]="node.opacity"></span>
+    }
+  </div>
+
+  <div class="cyber-packet-layer">
+    @for (packet of packets; track packet.id) {
+      <span
+        class="cyber-packet"
+        [style.left.px]="packet.x"
+        [style.top.px]="packet.y"
+        [style.width.px]="packet.size"
+        [style.height.px]="packet.size"
+        [style.opacity]="packet.opacity"></span>
+    }
+  </div>
+</div>

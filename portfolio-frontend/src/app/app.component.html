@@ -1,6 +1,16 @@
 <app-kali-terminal-loader></app-kali-terminal-loader>
 
-<div [class.content-hidden]="!terminalComplete" [class.content-visible]="terminalComplete">
+<div
+  [class.content-hidden]="!terminalComplete"
+  [class.content-visible]="terminalComplete"
+  [class.shared-cyber-layout]="!isHomeRoute"
+>
+  @if (!isHomeRoute) {
+    <div class="shared-cyber-background" aria-hidden="true">
+      <app-cyber-network-background></app-cyber-network-background>
+    </div>
+  }
+
   <main id="main-content" role="main" tabindex="-1" aria-label="Main content">
     <router-outlet></router-outlet>
   </main>
