@@ -3,7 +3,10 @@
 <div class="home-container" [class.trail-cursor-enabled]="cursorEnabled">
   @if (cursorEnabled) {
     <div class="cursor-trail-layer" [class.visible]="cursorVisible" [class.pressed]="cursorPressed" aria-hidden="true">
-      <svg class="cursor-branch-layer" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <svg
+        class="cursor-branch-layer"
+        [attr.viewBox]="'0 0 ' + viewportWidth + ' ' + viewportHeight"
+        preserveAspectRatio="none">
         @for (branch of cursorBranches; track branch.id) {
           <line
             [attr.x1]="branch.x1"
@@ -75,7 +78,10 @@
     </video>
 
     <div class="bg-node-graph" aria-hidden="true">
-      <svg class="bg-node-edges" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <svg
+        class="bg-node-edges"
+        [attr.viewBox]="'0 0 ' + viewportWidth + ' ' + viewportHeight"
+        preserveAspectRatio="none">
         @for (edge of backgroundEdges; track edge.id) {
           <line
             [attr.x1]="backgroundNodes[edge.a]?.x ?? 0"

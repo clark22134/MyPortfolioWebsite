@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FooterComponent } from './components/footer/footer.component';
@@ -22,7 +22,7 @@ import { CyberNetworkBackgroundComponent } from './components/cyber-network-back
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
-export class AppComponent {
+export class AppComponent implements OnDestroy {
   title = 'Portfolio';
   terminalComplete = false;
   isHomeRoute = true;

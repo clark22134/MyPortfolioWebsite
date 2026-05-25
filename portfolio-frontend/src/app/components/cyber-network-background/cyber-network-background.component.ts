@@ -99,7 +99,6 @@ export class CyberNetworkBackgroundComponent implements AfterViewInit, OnDestroy
         y,
         drift: 2 + Math.random() * 4,
         size: 2.2 + Math.random() * 2.6,
-        delay: Math.random() * 2.8,
         opacity: 0.12 + Math.random() * 0.07
       });
     }
@@ -194,6 +193,9 @@ export class CyberNetworkBackgroundComponent implements AfterViewInit, OnDestroy
       this.spawnAccumulatorMs -= spawnIntervalMs;
       this.spawnPacket();
     }
+    if (this.packets.length >= maxPackets) {
+      this.spawnAccumulatorMs = Math.min(this.spawnAccumulatorMs, spawnIntervalMs);
+    }
 
     this.packets = this.packets
       .map((packet) => {
@@ -258,7 +260,6 @@ interface NetworkNode {
   y: number;
   drift: number;
   size: number;
-  delay: number;
   opacity: number;
 }
 

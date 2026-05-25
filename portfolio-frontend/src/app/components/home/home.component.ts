@@ -45,11 +45,12 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   private pointerY = 0;
   private smoothPointerX = 0;
   private smoothPointerY = 0;
-  private viewportWidth = 0;
-  private viewportHeight = 0;
+  viewportWidth = 100;
+  viewportHeight = 100;
   private nodeAnimationPhase = 0;
   private particleIdCounter = 0;
   private branchIdCounter = 0;
+  private readonly particleFrameMs = 16;
   private readonly maxParticles = 24;
   private readonly maxBranches = 16;
   private readonly particleLifeMs = 780;
@@ -305,8 +306,9 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.particleAnimationFrame !== null) return;
 
     const animate = (timestamp: number) => {
+      const dtMs = this.lastFrameTime ? Math.min(48, timestamp - this.lastFrameTime) : this.particleFrameMs;
       this.lastFrameTime = timestamp;
-      this.advanceTrailFrame();
+      this.advanceTrailFrame(dtMs);
       this.particleAnimationFrame = requestAnimationFrame(animate);
     };
 
@@ -336,7 +338,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cursorParticles = [...this.cursorParticles, particle].slice(-this.maxParticles);
   }
 
-  private advanceTrailFrame(): void {
+  private advanceTrailFrame(dtMs: number): void {
     this.advanceLaggedPointer();
     this.updateMagneticTarget();
 
@@ -349,7 +351,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
 
-    this.advanceParticlesAndBranches();
+    this.advanceParticlesAndBranches(dtMs);
     this.animateBackgroundGraph();
   }
 
@@ -405,8 +407,10 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cursorBranches = [...this.cursorBranches, branch].slice(-this.maxBranches);
   }
 
-  private advanceParticlesAndBranches(): void {
+  private advanceParticlesAndBranches(dtMs: number): void {
     const now = this.lastFrameTime || performance.now();
+    const frameScale = dtMs / this.particleFrameMs;
+    const damping = Math.pow(0.968, frameScale);
 
     this.cursorParticles = this.cursorParticles
       .map((particle) => {
@@ -416,10 +420,10 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
         return {
           ...particle,
-          x: particle.x + particle.vx * 16,
-          y: particle.y + particle.vy * 16,
-          vx: particle.vx * 0.968,
-          vy: particle.vy * 0.968,
+          x: particle.x + particle.vx * this.particleFrameMs * frameScale,
+          y: particle.y + particle.vy * this.particleFrameMs * frameScale,
+          vx: particle.vx * damping,
+          vy: particle.vy * damping,
           opacity: (1 - t) * 0.2,
           size: Math.max(1.2, particle.size * (1 - t * 0.45))
         };
