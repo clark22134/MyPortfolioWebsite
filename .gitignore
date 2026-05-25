@@ -11,6 +11,7 @@
 /.angular/
 .angular/
 
+
 # Node modules and dependency files
 /node_modules/
 /portfolio-frontend/node_modules/
