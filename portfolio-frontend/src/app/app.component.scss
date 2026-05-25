@@ -7,3 +7,23 @@
   opacity: 1;
   transition: opacity 400ms ease-in;
 }
+
+.shared-cyber-layout {
+  position: relative;
+  isolation: isolate;
+}
+
+.shared-cyber-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+#main-content,
+app-footer,
+app-accessibility-toolbar,
+app-chatbot-launcher {
+  position: relative;
+  z-index: 1;
+}
