@@ -254,6 +254,31 @@ describe('ProductListComponent', () => {
     expect(cartService.remove).not.toHaveBeenCalled();
   });
 
+  it('should calculate deal inventory progress from remaining units', () => {
+    component.dealRemainingUnits.set(24);
+    expect(component.dealUnitsSold()).toBe(component.dealInventoryTarget - 24);
+    expect(component.dealProgressPercent()).toBe(80);
+  });
+
+  it('should render mid-page promo after fourth product when list is long enough', () => {
+    component.products.set([
+      mockProduct,
+      new Product(2, 'BOOK-1001', 'Item 2', 'Desc', 10, '', true, 10, new Date(), new Date()),
+      new Product(3, 'BOOK-1002', 'Item 3', 'Desc', 10, '', true, 10, new Date(), new Date()),
+      new Product(4, 'BOOK-1003', 'Item 4', 'Desc', 10, '', true, 10, new Date(), new Date()),
+      new Product(5, 'BOOK-1004', 'Item 5', 'Desc', 10, '', true, 10, new Date(), new Date())
+    ]);
+
+    expect(component.shouldRenderMidPagePromo(3)).toBe(true);
+    expect(component.shouldRenderMidPagePromo(2)).toBe(false);
+    expect(component.shouldRenderMidPagePromo(4)).toBe(false);
+  });
+
+  it('should left-pad countdown values with zeroes', () => {
+    expect(component.formatCountdown(4)).toBe('04');
+    expect(component.formatCountdown(14)).toBe('14');
+  });
+
   it('should reset page when category changes', () => {
     fixture.detectChanges();
     httpMock.expectOne(req => req.url.includes('findByCategoryId')).flush(mockResponse);

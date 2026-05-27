@@ -1,20 +1,21 @@
-<div class="menu-sidebar-content js-scrollbar1">
-  <nav class="navbar-sidebar" aria-label="Product categories">
-    <button class="category-header" (click)="toggleCategories()" [attr.aria-expanded]="categoriesExpanded()" aria-controls="category-list" type="button">
-      <div class="category-header-label">
-        <i class="fa fa-th-large" aria-hidden="true"></i>
-        <span>Product Categories</span>
-      </div>
-      <i class="fa fa-chevron-down category-chevron" [class.collapsed]="!categoriesExpanded()" aria-hidden="true"></i>
-    </button>
-    <ul id="category-list" class="list-unstyled navbar-list" [class.expanded]="categoriesExpanded()" role="list">
-      @for (category of productCategories(); track category.id) {
-        <li role="listitem">
-          <a [routerLink]="['/category', category.id]" routerLinkActive="active-link">
-            {{ category.categoryName }}
-          </a>
-        </li>
-      }
-    </ul>
-  </nav>
-</div>
+<nav class="category-nav" aria-label="Product categories">
+  <div class="category-nav-label">
+    <i class="fa fa-th-large" aria-hidden="true"></i>
+    <span>Shop by category</span>
+  </div>
+
+  <ul id="category-list" class="list-unstyled category-list" role="list">
+    <li role="listitem">
+      <a routerLink="/products" routerLinkActive="active-link" [routerLinkActiveOptions]="{ exact: true }">
+        All Products
+      </a>
+    </li>
+    @for (category of productCategories(); track category.id) {
+      <li role="listitem">
+        <a [routerLink]="['/category', category.id]" routerLinkActive="active-link">
+          {{ category.categoryName }}
+        </a>
+      </li>
+    }
+  </ul>
+</nav>

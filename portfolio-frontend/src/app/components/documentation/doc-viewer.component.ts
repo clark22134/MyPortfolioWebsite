@@ -13,7 +13,6 @@ import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { marked } from 'marked';
 import mermaid from 'mermaid';
-import { NavComponent } from '../nav/nav.component';
 
 interface DocMeta {
   slug: string;
@@ -38,7 +37,7 @@ const DOC_MAP: Record<string, string> = {
 @Component({
   selector: 'app-doc-viewer',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavComponent],
+  imports: [CommonModule, RouterModule],
   templateUrl: './doc-viewer.component.html',
   styleUrl: './doc-viewer.component.css',
   encapsulation: ViewEncapsulation.None

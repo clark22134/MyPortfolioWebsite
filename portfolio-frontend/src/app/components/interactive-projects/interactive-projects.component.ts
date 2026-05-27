@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { NavComponent } from '../nav/nav.component';
 
 interface InteractiveProject {
   id: string;
@@ -16,7 +15,7 @@ interface InteractiveProject {
 @Component({
   selector: 'app-interactive-projects',
   standalone: true,
-  imports: [CommonModule, FormsModule, NavComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './interactive-projects.component.html',
   styleUrl: './interactive-projects.component.css'
 })

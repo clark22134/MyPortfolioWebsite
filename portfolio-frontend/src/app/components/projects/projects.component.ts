@@ -2,13 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
-import { NavComponent } from '../nav/nav.component';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-projects',
   standalone: true,
-  imports: [CommonModule, NavComponent],
+  imports: [CommonModule],
   templateUrl: './projects.component.html',
   styleUrl: './projects.component.css'
 })

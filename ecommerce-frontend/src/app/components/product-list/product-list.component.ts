@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { GetResponseProducts, ProductService } from '../../services/product.service';
 import { Product } from '../../common/product.model';
@@ -8,13 +8,21 @@ import { CartItem } from '../../common/cart-item.model';
 import { CartService } from '../../services/cart.service';
 import { AuthService } from '../../services/auth.service';
 
+interface PromoHighlight {
+  readonly tag: string;
+  readonly title: string;
+  readonly description: string;
+  readonly cta: string;
+  readonly iconClass: string;
+}
+
 @Component({
   selector: 'app-product-list',
   imports: [CurrencyPipe, NgbPagination],
   templateUrl: './product-list-grid.component.html',
   styleUrl: './product-list.component.css',
 })
-export class ProductListComponent implements OnInit {
+export class ProductListComponent implements OnInit, OnDestroy {
 
   private readonly productService = inject(ProductService);
   private readonly cartService = inject(CartService);
@@ -28,6 +36,49 @@ export class ProductListComponent implements OnInit {
   selectedProduct = signal<Product | null>(null);
   totalPrice = signal<number>(0);
   totalQuantity = signal<number>(0);
+  readonly promoHighlights: PromoHighlight[] = [
+    {
+      tag: 'Seasonal Pick',
+      title: 'Home Office Refresh',
+      description: 'Save up to 40% on desks, chairs, and productivity essentials.',
+      cta: 'Explore Refresh',
+      iconClass: 'fa-laptop'
+    },
+    {
+      tag: 'Lightning Savings',
+      title: 'Limited-Time Electronics',
+      description: 'Top-rated devices and accessories at this week\'s best prices.',
+      cta: 'See Deals',
+      iconClass: 'fa-bolt'
+    },
+    {
+      tag: 'Bundle Offer',
+      title: 'Buy More, Save More',
+      description: 'Stackable discounts on accessories and everyday essentials.',
+      cta: 'Bundle & Save',
+      iconClass: 'fa-tags'
+    }
+  ];
+  readonly dealInventoryTarget = 120;
+  readonly dealRemainingUnits = signal<number>(37);
+  readonly dealProduct = computed(() => this.products()[0] ?? null);
+  readonly dealUnitsSold = computed(() => {
+    const soldUnits = this.dealInventoryTarget - this.dealRemainingUnits();
+    return Math.min(this.dealInventoryTarget, Math.max(0, soldUnits));
+  });
+  readonly dealProgressPercent = computed(() => Math.round((this.dealUnitsSold() / this.dealInventoryTarget) * 100));
+
+  private readonly dealDurationMs = 1000 * 60 * 60 * 8;
+  private readonly dealEndsAtMs = signal<number>(Date.now() + this.dealDurationMs);
+  private readonly currentTimeMs = signal<number>(Date.now());
+  private dealCountdownTimer: ReturnType<typeof setInterval> | null = null;
+  readonly dealCountdown = computed(() => {
+    const remainingSeconds = Math.max(0, Math.floor((this.dealEndsAtMs() - this.currentTimeMs()) / 1000));
+    const hours = Math.floor(remainingSeconds / 3600);
+    const minutes = Math.floor((remainingSeconds % 3600) / 60);
+    const seconds = remainingSeconds % 60;
+    return { hours, minutes, seconds };
+  });
 
   // new properties for pagination
   thePageNumber = signal<number>(1);
@@ -37,12 +88,21 @@ export class ProductListComponent implements OnInit {
   previousKeyword = signal<string>(null!);
 
   ngOnInit(): void {
+    this.startDealCountdown();
     this.route.paramMap.subscribe(() => {
       this.listProducts();
     });
 
     this.cartService.totalPrice.subscribe(data => this.totalPrice.set(data));
     this.cartService.totalQuantity.subscribe(data => this.totalQuantity.set(data));
+  }
+
+  ngOnDestroy(): void {
+    if (this.dealCountdownTimer) {
+      clearInterval(this.dealCountdownTimer);
+      this.dealCountdownTimer = null;
+    }
+    document.body.style.overflow = '';
   }
 
   listProducts() {
@@ -167,5 +227,30 @@ export class ProductListComponent implements OnInit {
     if (item) {
       this.cartService.remove(item);
     }
+  }
+
+  shouldRenderMidPagePromo(index: number): boolean {
+    return this.products().length > 4 && index === 3;
+  }
+
+  viewDeal(product: Product) {
+    this.openProductModal(product);
+  }
+
+  formatCountdown(value: number): string {
+    return value.toString().padStart(2, '0');
+  }
+
+  private startDealCountdown() {
+    this.currentTimeMs.set(Date.now());
+    this.dealCountdownTimer = setInterval(() => {
+      const now = Date.now();
+      this.currentTimeMs.set(now);
+
+      if (now >= this.dealEndsAtMs()) {
+        this.dealEndsAtMs.set(now + this.dealDurationMs);
+        this.dealRemainingUnits.update(units => Math.max(8, units - 4));
+      }
+    }, 1000);
   }
 }

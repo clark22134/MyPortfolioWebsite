@@ -7,17 +7,21 @@ import { KaliTerminalLoaderComponent } from './components/kali-terminal-loader/k
 import { ChatbotLauncherComponent } from './components/chatbot-launcher/chatbot-launcher.component';
 import { TerminalLoaderService } from './services/terminal-loader.service';
 import { CyberNetworkBackgroundComponent } from './components/cyber-network-background/cyber-network-background.component';
+import { NavComponent } from './components/nav/nav.component';
+import { CursorTrailComponent } from './components/cursor-trail/cursor-trail.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [
     RouterOutlet,
+    NavComponent,
     FooterComponent,
     AccessibilityToolbarComponent,
     KaliTerminalLoaderComponent,
     ChatbotLauncherComponent,
-    CyberNetworkBackgroundComponent
+    CyberNetworkBackgroundComponent,
+    CursorTrailComponent
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'

@@ -2,6 +2,87 @@
   <div class="section-content section-content-p30">
     <div class="container-fluid">
 
+      <section class="hero-offer-zone" aria-label="Featured promotions">
+        <div class="hero-offer-main">
+          <span class="hero-offer-pill">Fresh Deals</span>
+          <h2 class="hero-offer-title">Discover Amazon-style savings curated for your next purchase</h2>
+          <p class="hero-offer-subtitle">
+            Spotlight offers, lightning discounts, and premium bundles are updated every few hours.
+          </p>
+          <div class="hero-offer-actions">
+            <button class="btn-add-to-cart hero-offer-btn" (click)="dealProduct() && viewDeal(dealProduct()!)" [disabled]="!dealProduct()">
+              <i class="fa fa-bolt" aria-hidden="true"></i> Shop Featured Deal
+            </button>
+            <span class="hero-offer-note">
+              <i class="fa fa-truck" aria-hidden="true"></i> Free delivery on eligible products
+            </span>
+          </div>
+        </div>
+
+        <div class="hero-highlight-grid" role="list">
+          @for (promo of promoHighlights; track promo.title) {
+          <article class="hero-highlight-card" role="listitem">
+            <p class="hero-highlight-tag">{{ promo.tag }}</p>
+            <h3>{{ promo.title }}</h3>
+            <p>{{ promo.description }}</p>
+            <button class="hero-highlight-cta" (click)="dealProduct() && viewDeal(dealProduct()!)" [disabled]="!dealProduct()">
+              <i class="fa hero-mini-icon"
+                [class.fa-laptop]="promo.iconClass === 'fa-laptop'"
+                [class.fa-bolt]="promo.iconClass === 'fa-bolt'"
+                [class.fa-tags]="promo.iconClass === 'fa-tags'"
+                aria-hidden="true"></i>
+              {{ promo.cta }}
+            </button>
+          </article>
+          }
+        </div>
+      </section>
+
+      @if (dealProduct()) {
+      <section class="deal-of-day" aria-label="Deal of the day">
+        <div class="deal-head">
+          <div>
+            <span class="deal-kicker">Deal of the Day</span>
+            <h3 class="deal-title">{{ dealProduct()!.name }}</h3>
+          </div>
+          <div class="deal-timer" role="timer" aria-live="polite">
+            <div class="deal-time-box">
+              <span>{{ formatCountdown(dealCountdown().hours) }}</span>
+              <small>HRS</small>
+            </div>
+            <div class="deal-time-box">
+              <span>{{ formatCountdown(dealCountdown().minutes) }}</span>
+              <small>MIN</small>
+            </div>
+            <div class="deal-time-box">
+              <span>{{ formatCountdown(dealCountdown().seconds) }}</span>
+              <small>SEC</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="deal-body">
+          <img [src]="dealProduct()!.imageUrl" [alt]="dealProduct()!.name" class="deal-image">
+          <div class="deal-copy">
+            <p class="deal-description">{{ dealProduct()!.description }}</p>
+            <div class="deal-pricing">
+              <span class="deal-price-original">{{ dealProduct()!.unitPrice | currency: 'USD' }}</span>
+              <span class="deal-price-current">{{ getMemberPrice(dealProduct()!.unitPrice) | currency: 'USD' }}</span>
+            </div>
+            <div class="deal-stock">
+              <div class="deal-stock-track" aria-hidden="true">
+                <span [style.width.%]="dealProgressPercent()"></span>
+              </div>
+              <p>{{ dealUnitsSold() }} sold · {{ dealRemainingUnits() }} left in stock</p>
+            </div>
+            <button class="btn-add-to-cart deal-cta" (click)="viewDeal(dealProduct()!)">
+              <i class="fa fa-fire" aria-hidden="true"></i> Claim This Deal
+            </button>
+          </div>
+        </div>
+      </section>
+      }
+
       <!-- VIP Member Banner -->
       @if (authService.isAuthenticated()) {
       <div class="vip-banner">
@@ -20,7 +101,7 @@
       <div class="row">
 
         <!--loop over the collection of products -->
-        @for (product of products(); track product.sku) {
+        @for (product of products(); track product.sku; let index = $index) {
         <div class="col-md-3">
           <div class="product-box" [class.product-box-vip]="authService.isAuthenticated()" (click)="openProductModal(product)">
 
@@ -47,6 +128,21 @@
           </div>
 
         </div>
+
+        @if (shouldRenderMidPagePromo(index)) {
+        <div class="col-12">
+          <article class="sponsored-strip" aria-label="Sponsored promotion">
+            <div class="sponsored-copy">
+              <span class="sponsored-tag">Sponsored</span>
+              <h3>Upgrade your workspace with top accessories</h3>
+              <p>Limited bundles include curated picks and extra discounts when you add two or more items.</p>
+            </div>
+            <button class="btn-add-to-cart sponsored-btn" (click)="viewDeal(product); $event.stopPropagation()">
+              <i class="fa fa-arrow-right" aria-hidden="true"></i> View Limited Offer
+            </button>
+          </article>
+        </div>
+        }
         }
 
         <!--if products are empty then display message to user-->

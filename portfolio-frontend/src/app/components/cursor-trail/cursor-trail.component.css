@@ -1,0 +1,58 @@
+:host {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-layer-cursor-trail, 70);
+}
+
+.cursor-trail-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  z-index: 1;
+  mix-blend-mode: screen;
+}
+
+.cursor-trail-layer.visible {
+  opacity: 1;
+}
+
+.cursor-trail-layer.pressed .cursor-particle {
+  filter: brightness(1.2);
+}
+
+.cursor-branch-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cursor-branch-layer line {
+  stroke: #00ff41;
+  stroke-width: 0.09;
+  filter: drop-shadow(0 0 1px rgba(0, 255, 65, 0.35));
+}
+
+.cursor-particle {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  background: #00ff41;
+  border-radius: 1px;
+  box-shadow:
+    0 0 6px rgba(0, 255, 65, 0.35),
+    0 0 12px rgba(0, 255, 65, 0.2);
+  will-change: transform, opacity, width, height;
+}
+
+html.reduced-motion .cursor-trail-layer {
+  display: none !important;
+}
+
+@media (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .cursor-trail-layer {
+    display: none;
+  }
+}

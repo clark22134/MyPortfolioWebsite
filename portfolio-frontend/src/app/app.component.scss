@@ -20,10 +20,32 @@
   pointer-events: none;
 }
 
-#main-content,
-app-footer,
-app-accessibility-toolbar,
+#main-content {
+  position: relative;
+  z-index: var(--z-layer-content, 1);
+}
+
+app-footer {
+  position: relative;
+  z-index: var(--z-layer-footer, 2);
+}
+
+app-nav {
+  position: relative;
+  z-index: var(--z-layer-nav, 40);
+}
+
+app-cursor-trail {
+  position: relative;
+  z-index: var(--z-layer-cursor-trail, 70);
+}
+
+app-accessibility-toolbar {
+  position: relative;
+  z-index: var(--z-layer-a11y, 60);
+}
+
 app-chatbot-launcher {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-layer-chatbot, 80);
 }

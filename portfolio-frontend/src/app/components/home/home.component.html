@@ -1,5 +1,3 @@
-<app-nav></app-nav>
-
 <div class="home-container" [class.trail-cursor-enabled]="cursorEnabled">
   @if (cursorEnabled) {
     <div class="cursor-trail-layer" [class.visible]="cursorVisible" [class.pressed]="cursorPressed" aria-hidden="true">
@@ -197,7 +195,7 @@
       <h2 class="section-title">Skills & Expertise</h2>
       <div class="skills-grid" role="list" aria-label="Skill categories">
         @for (category of skillCategories; track category.title; let i = $index) {
-          <div class="skill-category" [style.animation-delay]="i * 0.1 + 's'" role="listitem">
+          <div class="skill-category cyber-glass-card" [style.animation-delay]="i * 0.1 + 's'" role="listitem">
             <div class="skill-icon" aria-hidden="true">{{ category.icon }}</div>
             <h3>{{ category.title }}</h3>
             <div class="skill-items">
@@ -215,7 +213,7 @@
       <p>
         This portfolio website was built using the following technologies:
       </p>
-      <ul>
+      <ul class="cyber-glass-card">
         <li>Angular 21 with TypeScript 5.9</li>
         <li>Spring Boot 3.5 with Java 21 (LTS)</li>
         <li>RESTful API architecture</li>

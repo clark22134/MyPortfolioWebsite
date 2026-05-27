@@ -3,13 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ContactService } from '../../services/contact.service';
 import { ContactRequest } from '../../models/contact.model';
-import { NavComponent } from '../nav/nav.component';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-contact',
   standalone: true,
-  imports: [CommonModule, FormsModule, NavComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './contact.component.html',
   styleUrl: './contact.component.css'
 })
