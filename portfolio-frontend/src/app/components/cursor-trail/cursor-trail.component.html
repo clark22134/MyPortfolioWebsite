@@ -1,0 +1,26 @@
+@if (cursorEnabled) {
+  <div class="cursor-trail-layer" [class.visible]="cursorVisible" [class.pressed]="cursorPressed" aria-hidden="true">
+    <svg
+      class="cursor-branch-layer"
+      [attr.viewBox]="'0 0 ' + viewportWidth + ' ' + viewportHeight"
+      preserveAspectRatio="none">
+      @for (branch of cursorBranches; track branch.id) {
+        <line
+          [attr.x1]="branch.x1"
+          [attr.y1]="branch.y1"
+          [attr.x2]="branch.x2"
+          [attr.y2]="branch.y2"
+          [attr.stroke-opacity]="branch.opacity"></line>
+      }
+    </svg>
+    @for (particle of cursorParticles; track particle.id) {
+      <div
+        class="cursor-particle"
+        [style.left.px]="particle.x"
+        [style.top.px]="particle.y"
+        [style.width.px]="particle.size"
+        [style.height.px]="particle.size"
+        [style.opacity]="particle.opacity"></div>
+    }
+  </div>
+}

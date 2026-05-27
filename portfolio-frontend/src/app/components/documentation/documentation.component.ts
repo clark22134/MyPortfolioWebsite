@@ -1,7 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { NavComponent } from '../nav/nav.component';
 
 interface DocEntry {
   slug: string;
@@ -14,7 +13,7 @@ interface DocEntry {
 @Component({
   selector: 'app-documentation',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavComponent],
+  imports: [CommonModule, RouterModule],
   templateUrl: './documentation.component.html',
   styleUrl: './documentation.component.css'
 })

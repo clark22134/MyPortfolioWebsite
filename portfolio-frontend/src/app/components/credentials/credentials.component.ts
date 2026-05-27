@@ -1,12 +1,11 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { NavComponent } from '../nav/nav.component';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-credentials',
   standalone: true,
-  imports: [CommonModule, NavComponent],
+  imports: [CommonModule],
   templateUrl: './credentials.component.html',
   styleUrl: './credentials.component.css'
 })

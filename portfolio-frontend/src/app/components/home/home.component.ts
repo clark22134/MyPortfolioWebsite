@@ -5,7 +5,6 @@ import { Subscription } from 'rxjs';
 
 import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
-import { NavComponent } from '../nav/nav.component';
 import { AuthService } from '../../services/auth.service';
 import { TerminalLoaderService } from '../../services/terminal-loader.service';
 import { CyberNetworkBackgroundComponent } from '../cyber-network-background/cyber-network-background.component';
@@ -13,7 +12,7 @@ import { CyberNetworkBackgroundComponent } from '../cyber-network-background/cyb
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavComponent, CyberNetworkBackgroundComponent],
+  imports: [CommonModule, RouterModule, CyberNetworkBackgroundComponent],
 
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'

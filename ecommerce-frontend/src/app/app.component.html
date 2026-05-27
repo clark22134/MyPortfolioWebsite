@@ -38,6 +38,9 @@
 		<div class="mobile-search-bar">
 			<app-search></app-search>
 		</div>
+		<div class="mobile-category-strip" aria-label="Browse product categories">
+			<app-product-category-menu></app-product-category-menu>
+		</div>
 	</header>
 
 	<!-- MOBILE NAV OVERLAY -->
@@ -59,20 +62,7 @@
 		<nav class="mobile-drawer-links" aria-label="Mobile primary navigation">
 			<a routerLink="/about" class="mobile-drawer-link" (click)="closeMobileMenu()">About</a>
 		</nav>
-		<div class="mobile-drawer-categories">
-			<app-product-category-menu></app-product-category-menu>
-		</div>
 	</nav>
-
-	<!-- DESKTOP SIDEBAR -->
-	<aside class="menu-sidebar d-none d-lg-block" role="complementary" aria-label="Product categories">
-		<div class="logo">
-			<a routerLink="/products" aria-label="Fosterly home">
-				<img src="images/fosterly_final.png" alt="Fosterly - Home" class="img-responsive">
-			</a>
-		</div>
-		<app-product-category-menu></app-product-category-menu>
-	</aside>
 
     <!-- PAGE CONTAINER-->
     <div class="page-container">
@@ -81,20 +71,22 @@
         <div class="section-content section-content-p30">
           <div class="container-fluid">
             <div class="header-wrap">
-
-              <div class="header-left">
-                <app-search></app-search>
+              <div class="header-top-row">
+                <a routerLink="/products" class="desktop-logo-link" aria-label="Fosterly home">
+                  <img src="images/fosterly_final.png" alt="Fosterly" class="desktop-logo-img">
+                </a>
+                <div class="header-search-slot">
+                  <app-search></app-search>
+                </div>
+                <div class="header-actions">
+                  <a routerLink="/about" class="header-nav-link" aria-label="About Us">About</a>
+                  <app-login-status></app-login-status>
+                  <app-cart-status></app-cart-status>
+                </div>
               </div>
-
-              <div class="header-center">
-                <a routerLink="/about" class="header-nav-link" aria-label="About Us">About</a>
-                <app-login-status></app-login-status>
+              <div class="header-category-row" aria-label="Browse product categories">
+                <app-product-category-menu></app-product-category-menu>
               </div>
-
-              <div class="header-right">
-                <app-cart-status></app-cart-status>
-              </div>
-
             </div>
           </div>
         </div>

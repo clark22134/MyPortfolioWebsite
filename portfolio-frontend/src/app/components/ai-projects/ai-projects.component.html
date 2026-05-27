@@ -1,5 +1,3 @@
-<app-nav></app-nav>
-
 <div class="projects-container">
   <!-- Cyber Logo (matches Full-Stack Projects page) -->
   <div class="cyber-logo" role="img" aria-label="Clark Foster AI Projects">
@@ -29,7 +27,7 @@
 
   <div class="projects-grid" role="list" aria-label="AI and ML project cards">
     @for (project of projects; track trackById($index, project)) {
-      <article class="project-card" role="listitem">
+      <article class="project-card cyber-glass-card" role="listitem">
         <header class="card-header">
           <span class="project-icon" aria-hidden="true">{{ project.icon }}</span>
           <h2>{{ project.title }}</h2>

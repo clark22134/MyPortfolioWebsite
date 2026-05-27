@@ -36,6 +36,15 @@ describe('AppComponent', () => {
     expect(compiled.querySelector('router-outlet')).toBeTruthy();
   });
 
+  it('should render a single global nav outside routed templates', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const navs = compiled.querySelectorAll('app-nav');
+    expect(navs.length).toBe(1);
+    expect(compiled.querySelector('main > app-nav')).toBeNull();
+  });
+
   it('should classify only root paths as home route', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance as any;

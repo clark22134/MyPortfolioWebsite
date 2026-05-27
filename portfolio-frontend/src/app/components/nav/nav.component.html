@@ -17,6 +17,7 @@
        [class.open]="isMenuOpen"
        role="dialog"
        aria-label="Navigation menu"
+       [attr.aria-modal]="isMenuOpen ? 'true' : null"
        [attr.aria-hidden]="!isMenuOpen ? 'true' : null"
        [attr.inert]="!isMenuOpen ? '' : null">
     <div class="nav-overlay" (click)="closeMenu()" aria-hidden="true"></div>

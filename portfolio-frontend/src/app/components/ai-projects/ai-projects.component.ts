@@ -1,7 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { NavComponent } from '../nav/nav.component';
 
 interface AiProject {
   id: string;
@@ -29,7 +28,7 @@ interface AiProject {
 @Component({
   selector: 'app-ai-projects',
   standalone: true,
-  imports: [CommonModule, RouterLink, NavComponent],
+  imports: [CommonModule, RouterLink],
   templateUrl: './ai-projects.component.html',
   styleUrl: './ai-projects.component.css',
 })

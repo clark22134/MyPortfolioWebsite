@@ -55,19 +55,12 @@ describe('ProductCategoryMenu', () => {
     expect(el.textContent).toContain('Books');
   });
 
-  it('should start with categories expanded', () => {
-    expect(component.categoriesExpanded()).toBe(true);
+  it('should render the all products shortcut', () => {
     fixture.detectChanges();
     httpMock.expectOne('/api/product-category').flush({ _embedded: { productCategory: mockCategories } });
-  });
-
-  it('should toggle categories expanded state', () => {
     fixture.detectChanges();
-    httpMock.expectOne('/api/product-category').flush({ _embedded: { productCategory: mockCategories } });
-    component.toggleCategories();
-    expect(component.categoriesExpanded()).toBe(false);
-    component.toggleCategories();
-    expect(component.categoriesExpanded()).toBe(true);
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('All Products');
   });
 
   it('should handle error from product categories endpoint gracefully', () => {

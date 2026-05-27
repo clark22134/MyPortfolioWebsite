@@ -1,5 +1,3 @@
-<app-nav></app-nav>
-
 <div class="projects-container">
   <!-- Cyber Logo -->
   <div class="cyber-logo" role="img" aria-label="Clark Foster Portfolio Logo">
@@ -39,7 +37,7 @@
   @if (!loading && !error) {
     <div class="projects-grid" role="list" aria-label="Project cards">
       @for (project of projects; track project.id) {
-        <div class="project-card" role="listitem">
+        <div class="project-card cyber-glass-card" role="listitem">
           @if (project.featured) {
             <span class="featured-badge" aria-label="Featured project">Featured</span>
           }

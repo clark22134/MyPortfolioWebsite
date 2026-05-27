@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, HostListener, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -11,13 +11,15 @@ import { AccessibilityService } from '../../services/accessibility.service';
   templateUrl: './nav.component.html',
   styleUrl: './nav.component.css'
 })
-export class NavComponent implements OnInit {
+export class NavComponent implements OnInit, OnDestroy {
   isMenuOpen = false;
   isAuthenticated = false;
 
-  @ViewChild('menuToggleBtn') menuToggleBtn!: ElementRef;
-  @ViewChild('closeBtn') closeBtn!: ElementRef;
-  @ViewChild('navContent') navContent!: ElementRef;
+  @ViewChild('menuToggleBtn') menuToggleBtn!: ElementRef<HTMLElement>;
+  @ViewChild('closeBtn') closeBtn!: ElementRef<HTMLElement>;
+  @ViewChild('navContent') navContent!: ElementRef<HTMLElement>;
+  private previousBodyOverflow = '';
+  private bodyScrollLocked = false;
 
   constructor(
     private readonly authService: AuthService,
@@ -35,26 +37,16 @@ export class NavComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    this.unlockBodyScroll();
+  }
+
   toggleMenu(): void {
-    this.isMenuOpen = !this.isMenuOpen;
-    if (this.isMenuOpen) {
-      this.a11yService.announceToScreenReader('Navigation menu opened');
-      // Focus the close button after menu opens
-      setTimeout(() => {
-        this.closeBtn?.nativeElement?.focus();
-      }, 350);
-    } else {
-      this.a11yService.announceToScreenReader('Navigation menu closed');
-    }
+    this.setMenuState(!this.isMenuOpen);
   }
 
   closeMenu(): void {
-    this.isMenuOpen = false;
-    this.a11yService.announceToScreenReader('Navigation menu closed');
-    // Return focus to the toggle button
-    setTimeout(() => {
-      this.menuToggleBtn?.nativeElement?.focus();
-    }, 100);
+    this.setMenuState(false, true);
   }
 
   handleLogout(): void {
@@ -79,21 +71,78 @@ export class NavComponent implements OnInit {
   onKeyDown(event: KeyboardEvent): void {
     if (!this.isMenuOpen || !this.navContent) return;
 
-    if (event.key === 'Tab') {
-      // Focus trap within the navigation menu
-      const focusableElements = this.navContent.nativeElement.querySelectorAll(
-        'a[href], button, [tabindex]:not([tabindex="-1"])'
-      );
-      const firstFocusable = focusableElements[0] as HTMLElement;
-      const lastFocusable = focusableElements[focusableElements.length - 1] as HTMLElement;
+    if (event.key !== 'Tab') return;
 
-      if (event.shiftKey && document.activeElement === firstFocusable) {
-        event.preventDefault();
-        lastFocusable.focus();
-      } else if (!event.shiftKey && document.activeElement === lastFocusable) {
-        event.preventDefault();
-        firstFocusable.focus();
-      }
+    // Focus trap within the navigation menu
+    const focusableElements = this.getFocusableElements();
+    if (focusableElements.length === 0) {
+      event.preventDefault();
+      return;
     }
+
+    const firstFocusable = focusableElements[0];
+    const lastFocusable = focusableElements[focusableElements.length - 1];
+
+    if (event.shiftKey && document.activeElement === firstFocusable) {
+      event.preventDefault();
+      lastFocusable.focus();
+    } else if (!event.shiftKey && document.activeElement === lastFocusable) {
+      event.preventDefault();
+      firstFocusable.focus();
+    }
+  }
+
+  private setMenuState(open: boolean, restoreFocus = false): void {
+    if (this.isMenuOpen === open) {
+      if (!open) {
+        this.unlockBodyScroll();
+      }
+      return;
+    }
+
+    this.isMenuOpen = open;
+
+    if (open) {
+      this.lockBodyScroll();
+      this.a11yService.announceToScreenReader('Navigation menu opened');
+      setTimeout(() => {
+        this.closeBtn?.nativeElement?.focus();
+      }, 350);
+      return;
+    }
+
+    this.unlockBodyScroll();
+    this.a11yService.announceToScreenReader('Navigation menu closed');
+
+    if (restoreFocus) {
+      setTimeout(() => {
+        this.menuToggleBtn?.nativeElement?.focus();
+      }, 100);
+    }
+  }
+
+  private getFocusableElements(): HTMLElement[] {
+    const nodeList = this.navContent.nativeElement.querySelectorAll(
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+
+    return Array.from(nodeList).filter((element): element is HTMLElement => element instanceof HTMLElement);
+  }
+
+  private lockBodyScroll(): void {
+    if (this.bodyScrollLocked) return;
+
+    this.previousBodyOverflow = document.body.style.overflow;
+    document.body.classList.add('nav-menu-open');
+    document.body.style.overflow = 'hidden';
+    this.bodyScrollLocked = true;
+  }
+
+  private unlockBodyScroll(): void {
+    if (!this.bodyScrollLocked) return;
+
+    document.body.classList.remove('nav-menu-open');
+    document.body.style.overflow = this.previousBodyOverflow;
+    this.bodyScrollLocked = false;
   }
 }

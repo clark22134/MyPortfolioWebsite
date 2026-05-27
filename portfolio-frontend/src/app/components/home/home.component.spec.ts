@@ -137,11 +137,11 @@ describe('HomeComponent', () => {
     expect(component.scrolled).toBe(true);
   });
 
-  it('should render nav component', () => {
+  it('should not render route-local nav component', () => {
     fixture.detectChanges();
 
     const nav = fixture.nativeElement.querySelector('app-nav');
-    expect(nav).toBeTruthy();
+    expect(nav).toBeNull();
   });
 
   it('should bind cursor and graph SVG viewBox to viewport dimensions', () => {

@@ -13,14 +13,9 @@ export class ProductCategoryMenu implements OnInit {
 
   private readonly productService = inject(ProductService);
   productCategories = signal<ProductCategory[]>([]);
-  categoriesExpanded = signal(true);
 
   ngOnInit(): void {
     this.listProductCategories();
-  }
-
-  toggleCategories() {
-    this.categoriesExpanded.update(v => !v);
   }
 
   listProductCategories() {
