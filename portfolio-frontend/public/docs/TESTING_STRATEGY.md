@@ -44,7 +44,7 @@ graph TB
         direction TB
         E2E["🔺 E2E / Accessibility Tests<br/>Puppeteer + axe-core<br/>5 pages WCAG 2.1 AA"]
         INT["🔶 Integration Tests<br/>@SpringBootTest + MockMvc<br/>@DataJpaTest + H2"]
-        UNIT["🟩 Unit Tests — Largest Layer<br/>JUnit 5 + Mockito (backends)<br/>Jasmine/Karma + Vitest (frontends)"]
+        UNIT["🟩 Unit Tests — Largest Layer<br/>JUnit 5 + Mockito (backends)<br/>Vitest (frontends)"]
     end
 
     E2E --- INT --- UNIT
@@ -64,7 +64,7 @@ Unit tests verify individual classes and functions in isolation. External depend
 
 ### 3.1 Backend Unit Tests (Spring Boot / JUnit 5)
 
-All three backends use **JUnit 5** with **Mockito** for dependency injection mocking.
+All four backends use **JUnit 5** with **Mockito** for dependency injection mocking.
 
 #### Portfolio Backend (13 test classes)
 
@@ -111,24 +111,17 @@ All three backends use **JUnit 5** with **Mockito** for dependency injection moc
 | Service | `ResumeParserServiceTest` | PDF/DOCX parsing via Apache Tika, field extraction |
 | Service | `TalentPoolInitializerTest` | Seed data bootstrapping on startup |
 
-### 3.2 Frontend Unit Tests (Angular)
+### 3.2 Frontend Unit Tests (Angular + Vitest)
 
-#### Portfolio Frontend — Karma + Jasmine (12 spec files)
+All three frontends run unit tests through Angular 21's `@angular/build:unit-test` builder with Vitest.
 
-| Type | Spec File | What It Verifies |
+#### Portfolio Frontend — Vitest (17 spec files)
+
+| Scope | Examples | What It Verifies |
 |------|----------|------------------|
-| Component | `app.component.spec.ts` | Root component bootstraps, router outlet renders |
-| Component | `home.component.spec.ts` | Terminal loader animation, skills display, featured project cards |
-| Component | `navbar.component.spec.ts` | Navigation links render, active route highlighting, mobile menu toggle |
-| Component | `footer.component.spec.ts` | Footer links, copyright year, social media icons |
-| Component | `projects.component.spec.ts` | Project list rendering, filtering, card layout |
-| Component | `credentials.component.spec.ts` | Credential display and formatting |
-| Component | `interactive-projects.component.spec.ts` | Interactive demo embedding and routing |
-| Component | `login.component.spec.ts` | Form validation, error display, submit handling |
-| Component | `contact.component.spec.ts` | Form field validation, submission, success/error messages |
-| Service | `contact.service.spec.ts` | HTTP POST to contact API, error handling |
-| Service | `auth.service.spec.ts` | JWT storage, login/logout, token refresh calls |
-| Service | `project.service.spec.ts` | HTTP GET for project data, caching behavior |
+| Components | `home.component.spec.ts`, `projects.component.spec.ts`, `chatbot-launcher.component.spec.ts` | Rendering, accessibility behavior, interaction flows |
+| Services | `auth.service.spec.ts`, `contact.service.spec.ts`, `chatbot.service.spec.ts` | HTTP integration, token/session behavior, chatbot SSE client logic |
+| Guards/Utilities | `auth.guard.spec.ts`, helper specs | Route protection, shared frontend logic |
 
 #### E-Commerce Frontend — Vitest (28 spec files)
 
@@ -173,7 +166,7 @@ Integration tests verify that components work together with real (or in-memory) 
 
 ### 4.2 Frontend Integration Patterns
 
-Angular component tests use `TestBed` to wire components with their actual templates, directives, and pipes while mocking HTTP calls via `HttpClientTestingModule` (Karma) or `provideHttpClientTesting()` (Vitest). This validates:
+Angular component tests use `TestBed` to wire components with their actual templates, directives, and pipes while mocking HTTP calls via `provideHttpClientTesting()`. This validates:
 
 - Template binding and rendering logic
 - Reactive form validation pipelines
@@ -254,14 +247,14 @@ This enforces accessibility as a merge gate — no PR can be merged if it introd
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| **JUnit 5** | (via Spring Boot 3.5.13) | Test framework — assertions, lifecycle, parameterized tests |
-| **Mockito** | (via Spring Boot 3.5.13) | Mocking framework — `@Mock`, `@InjectMocks`, `when/verify` |
-| **AssertJ** | (via Spring Boot 3.5.13) | Fluent assertion library |
-| **Hamcrest** | (via Spring Boot 3.5.13) | Matcher-based assertions for MockMvc response validation |
-| **Spring Boot Test** | 3.3.5 | `@SpringBootTest`, `@AutoConfigureMockMvc`, `TestRestTemplate` |
-| **Spring Security Test** | (via Spring Boot 3.5.13) | `@WithMockUser`, CSRF helpers, OAuth2 test support |
-| **Spring WebMvc Test** | 3.3.5 | `@WebMvcTest`, `MockMvc` for controller slice testing |
-| **Spring Data JPA Test** | 3.3.5 | `@DataJpaTest`, `TestEntityManager` for repository testing |
+| **JUnit 5** | (via Spring Boot 3.5.14) | Test framework — assertions, lifecycle, parameterized tests |
+| **Mockito** | (via Spring Boot 3.5.14) | Mocking framework — `@Mock`, `@InjectMocks`, `when/verify` |
+| **AssertJ** | (via Spring Boot 3.5.14) | Fluent assertion library |
+| **Hamcrest** | (via Spring Boot 3.5.14) | Matcher-based assertions for MockMvc response validation |
+| **Spring Boot Test** | (via Spring Boot 3.5.14) | `@SpringBootTest`, `@AutoConfigureMockMvc`, `TestRestTemplate` |
+| **Spring Security Test** | (via Spring Boot 3.5.14) | `@WithMockUser`, CSRF helpers, OAuth2 test support |
+| **Spring WebMvc Test** | (via Spring Boot 3.5.14) | `@WebMvcTest`, `MockMvc` for controller slice testing |
+| **Spring Data JPA Test** | (via Spring Boot 3.5.14) | `@DataJpaTest`, `TestEntityManager` for repository testing |
 | **H2 Database** | (test scope) | In-memory database for integration tests (E-Commerce, ATS) |
 | **JaCoCo** | 0.8.14 | Code coverage — generates XML/HTML reports during `mvn test` |
 | **Maven Surefire** | (via Spring Boot) | Test execution plugin with Java 21 module compatibility flags |
@@ -270,18 +263,14 @@ This enforces accessibility as a merge gate — no PR can be merged if it introd
 
 | Tool | Used By | Purpose |
 |------|---------|---------|
-| **Karma** 6.4.0 | Portfolio | Test runner — orchestrates browser-based test execution |
-| **Jasmine** 5.6.0 | Portfolio | BDD testing framework — `describe`, `it`, `expect` |
-| **karma-chrome-launcher** 3.2.0 | Portfolio | Launches headless Chrome for CI test runs |
-| **karma-coverage** 2.2.0 | Portfolio | Istanbul-based code coverage in LCOV format |
-| **Vitest** 4.0.8 | E-Commerce, ATS | Modern, fast unit test runner (Vite-native) |
-| **jsdom** 28.x | E-Commerce, ATS | DOM simulation for Node-based test execution |
-| **Puppeteer** 24.0.0 | Portfolio | Headless Chrome automation for a11y tests |
-| **@axe-core/puppeteer** 4.10.0 | Portfolio | axe-core accessibility engine integration with Puppeteer |
+| **Vitest** 4.1.7 | Portfolio, E-Commerce, ATS | Unit test runner used by Angular 21 `@angular/build:unit-test` |
+| **jsdom** 29.1.1 | Portfolio, E-Commerce, ATS | DOM simulation for Node-based test execution |
+| **Puppeteer** 25.1.0 | Portfolio | Headless Chrome automation for a11y tests |
+| **@axe-core/puppeteer** 4.11.3 | Portfolio | axe-core accessibility engine integration with Puppeteer |
 
-### 7.3 Why Two Frontend Test Runners?
+### 7.3 Frontend Runner Standardization
 
-The Portfolio frontend uses **Karma + Jasmine** (the traditional Angular test runner), while the E-Commerce and ATS frontends use **Vitest** with Angular's newer `@angular/build:unit-test` builder. This reflects Angular's migration path: Karma was the default prior to Angular 19, and Vitest is the recommended successor. The Portfolio frontend may migrate to Vitest in a future iteration.
+All three frontends are now standardized on Vitest via Angular's `@angular/build:unit-test` builder, which removes the previous split between legacy Karma/Jasmine and newer Vitest-based test stacks.
 
 ---
 
@@ -347,7 +336,7 @@ graph LR
 
 **Flow:**
 1. Each test job (e.g., `test-backend`, `test-ats-frontend`) runs tests with coverage enabled and uploads its coverage file as a GitHub Actions artifact (`*-jacoco` or `*-lcov`).
-2. The `code-quality` job declares `needs` for all six test jobs, ensuring it starts only after all coverage files are produced.
+2. The `code-quality` job declares `needs` for all seven test jobs, ensuring it starts only after all coverage files are produced.
 3. The `code-quality` job downloads all coverage artifacts and restores them to the paths expected by `sonar-project.properties`.
 4. SonarCloud scans the codebase and reads the coverage reports at those paths.
 
@@ -355,7 +344,7 @@ graph LR
 
 ### 8.5 Current Coverage
 
-The combined project coverage across all six codebases is **81%**, measured by SonarCloud using JaCoCo (Java backends) and LCOV (Angular frontends). All three backend projects and all three frontend projects contribute to this aggregate figure, which is tracked on every CI run and surfaced in both the SonarCloud dashboard and CodeCov per-component reports.
+The combined project coverage across all seven codebases is **81%**, measured by SonarCloud using JaCoCo (Java backends) and LCOV (Angular frontends). All four backend projects (including `portfolio-chatbot-backend`) and all three frontend projects contribute to this aggregate figure, which is tracked on every CI run and surfaced in both the SonarCloud dashboard and CodeCov per-component reports.
 
 ---
 
@@ -690,7 +679,7 @@ Both pipelines call `reusable-test.yml` parameterized per component:
 
 **Node projects:**
 ```yaml
-- Setup Node 22 + npm cache
+- Setup Node 24 + npm cache
 - npm ci
 - npm run lint
 - npm test -- --watch=false --coverage   # generates coverage/lcov.info via @vitest/coverage-v8
@@ -712,12 +701,13 @@ Both pipelines call `reusable-test.yml` parameterized per component:
 Developers can run the full test suite locally before pushing:
 
 ```bash
-# Run all tests across all 6 projects
+# Run primary app tests across 6 projects (3 backends + 3 frontends)
 make test
 
 # ── Backend tests with JaCoCo coverage ─────────────────────────────
 # Coverage report written to: <component>/target/site/jacoco/jacoco.xml
 cd portfolio-backend  && mvn test    # JaCoCo runs automatically (phase=test)
+cd portfolio-chatbot-backend && mvn test
 cd ats-backend        && mvn test
 cd ecommerce-backend  && mvn test
 
@@ -755,13 +745,13 @@ Testing extends beyond functional correctness into code quality and security.
 |---------|-------|
 | Project Key | `clark22134_MyPortfolioWebsite` |
 | Organization | `clark22134` |
-| Source Paths | `*/src/main/java`, `*/src/app` (across all 3 projects) |
+| Source Paths | `*/src/main/java`, `*/src/app` (across all 7 codebases) |
 | Test Paths | `*/src/test/java`, `**/*.spec.ts` |
-| Java Coverage | `sonar.coverage.jacoco.xmlReportPaths` — all three `jacoco.xml` files |
+| Java Coverage | `sonar.coverage.jacoco.xmlReportPaths` — all four backend `jacoco.xml` files |
 | JS/TS Coverage | `sonar.javascript.lcov.reportPaths` — all three `lcov.info` files |
 | Coverage Exclusions | `*.spec.ts`, `**/test/**`, `environment*.ts`, `test-setup.ts`, `test-helpers.ts` |
 
-**CI behavior:** The `code-quality` job in `deploy-production.yml` declares `needs` for all six test jobs. After they complete, it downloads the coverage artifacts (GitHub Actions artifacts `*-jacoco` and `*-lcov`), restores them to their expected paths, compiles all backends for `sonar.java.binaries`, and runs `SonarSource/sonarqube-scan-action@v7`. The scan reads `sonar-project.properties` automatically.
+**CI behavior:** The `code-quality` job in `deploy-production.yml` declares `needs` for all seven test jobs. After they complete, it downloads the coverage artifacts (GitHub Actions artifacts `*-jacoco` and `*-lcov`), restores them to their expected paths, compiles all backends for `sonar.java.binaries`, and runs `SonarSource/sonarqube-scan-action@v7`. The scan reads `sonar-project.properties` automatically.
 
 SonarCloud analyzes every push to `main`, providing:
 - Accurate Java and TypeScript/JavaScript code coverage metrics

@@ -33,8 +33,8 @@ Acts as a living technical portfolio, demonstrating full-stack development, secu
 | Layer | Stack |
 |-------|-------|
 | Frontend | Angular 21, TypeScript 5.9, SCSS, standalone components |
-| Backend | Spring Boot 3.5.13, Java 21, Spring Security, Spring Mail |
-| AI Assistant | Spring Boot 3.5.13, Java 21, Spring AI 1.0.5, OpenAI (gpt-5.4-mini + text-embedding-3-small) |
+| Backend | Spring Boot 3.5.14, Java 21, Spring Security, Spring Mail |
+| AI Assistant | Spring Boot 3.5.14, Java 21, Spring AI 1.0.8, OpenAI (gpt-5.4-mini + text-embedding-3-small) |
 | Database | Aurora Serverless v2 (PostgreSQL 15.17) |
 | Auth | JWT access tokens (15 min) + refresh tokens (7 days), BCrypt, CSRF via XSRF-TOKEN |
 | Infrastructure | AWS Lambda (Java 21), API Gateway, CloudFront, S3, Route53, ACM |
@@ -105,7 +105,7 @@ Demonstrates a production-grade e-commerce implementation covering the full purc
 | Layer | Stack |
 |-------|-------|
 | Frontend | Angular 21, TypeScript 5.9, Bootstrap 5.3, FontAwesome 7, ng-bootstrap |
-| Backend | Spring Boot 3.5.13, Java 21, Spring Data REST, Spring Security |
+| Backend | Spring Boot 3.5.14, Java 21, Spring Data REST, Spring Security |
 | Database | Aurora Serverless v2 (PostgreSQL 15.17) |
 | Auth | JWT (1-hour expiration), HTTP-only cookies, BCrypt |
 | Infrastructure | AWS Lambda (Java 21), API Gateway, CloudFront, S3, Route53, ACM |
@@ -154,7 +154,7 @@ Covers the core workflow of applicant tracking: posting roles, collecting candid
 | Layer | Stack |
 |-------|-------|
 | Frontend | Angular 21, TypeScript 5.9, Angular CDK (drag-drop) |
-| Backend | Spring Boot 3.5.13, Java 21, Spring Data JPA, Apache Tika/PDFBox/POI |
+| Backend | Spring Boot 3.5.14, Java 21, Spring Data JPA, Apache Tika/PDFBox/POI |
 | Database | Aurora Serverless v2 (PostgreSQL 15.17) |
 | Auth | Stateless API, CORS configured (demo mode — no auth enforcement) |
 | Infrastructure | AWS Lambda (Java 21), API Gateway, CloudFront, S3, Route53, ACM |
@@ -175,7 +175,7 @@ All three systems run on a single AWS infrastructure stack, managed entirely thr
 
 ### Compute
 
-- **AWS Lambda** — 3 functions (one per backend), Java 21 runtime, 2048 MB memory, SnapStart enabled for sub-second cold starts, EventBridge warming every 4 minutes
+- **AWS Lambda** — 4 functions (portfolio, portfolio-chatbot, e-commerce, ATS), Java 21 runtime, memory sized per workload (1024 MB portfolio/chatbot/ATS; 2048 MB e-commerce), SnapStart enabled for sub-second cold starts, EventBridge warming every 2 minutes
 - **Aurora Serverless v2** — one shared PostgreSQL 15.17 cluster with three separate databases (portfolio, ecommerce, ats), auto-scaling from 0.5 to 4 ACU
 - **S3 + CloudFront** — 3 S3 buckets (static frontend hosting) behind 3 CloudFront distributions with global edge caching
 
@@ -197,7 +197,7 @@ All three systems run on a single AWS infrastructure stack, managed entirely thr
 
 - **GitHub Actions** with OIDC federation (no stored AWS credentials)
 - **Deployment pipeline** builds Maven JARs, uploads to Lambda via `update-function-code`, syncs Angular builds to S3, and invalidates CloudFront caches
-- **SonarCloud** configured for static analysis across all 6 codebases
+- **SonarCloud** configured for static analysis across all 7 codebases (4 backends + 3 frontends)
 
 ### Observability
 

@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KnowledgeIngestionService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Portfolio Chatbot Backend</a> &gt; <a href="index.source.html" class="el_package">com.portfolio.chatbot</a> &gt; <span class="el_source">KnowledgeIngestionService.java</span></div><h1>KnowledgeIngestionService.java</h1><pre class="source lang-java linenums">package com.portfolio.chatbot;
+
+import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.transformer.splitter.TokenTextSplitter;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Loads portfolio knowledge into the in-process vector store on startup.
+ *
+ * &lt;h2&gt;Sources (in order)&lt;/h2&gt;
+ * &lt;ol&gt;
+ *   &lt;li&gt;Curated markdown bundled in {@code src/main/resources/knowledge/}
+ *       (sourced from portfolio-backend at build time). Front-matter
+ *       between {@code ---} markers supplies metadata.&lt;/li&gt;
+ *   &lt;li&gt;{@code docs/*.md} bundled from the repo-level {@code /docs}
+ *       directory.&lt;/li&gt;
+ *   &lt;li&gt;Filesystem {@code chatbot.docs.path} (local dev only) — the
+ *       de-dup logic skips files already loaded above.&lt;/li&gt;
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;Live project data (originally pulled from the portfolio Aurora cluster)
+ * has been intentionally dropped. The bundled docs already describe every
+ * project; live refresh would require either VPC access or an extra HTTPS
+ * round-trip to the portfolio API on every cold start. Updates to project
+ * descriptions ship with the next deployment.&lt;/p&gt;
+ *
+ * &lt;h2&gt;Failure modes&lt;/h2&gt;
+ * Any failure in {@link #ingestAll()} (e.g. network blip on the very first
+ * embedding call) is logged at ERROR and swallowed. The Lambda still serves
+ * /api/chatbot/health, just returning empty results until the next cold
+ * start.
+ */
+@Service
+@ConditionalOnBean(VectorStore.class)
+@ConditionalOnExpression(
+        &quot;'${chatbot.enabled:true}' == 'true' and !'${spring.ai.openai.api-key:}'.isEmpty()&quot;)
+public class KnowledgeIngestionService {
+
+<span class="nc" id="L60">    private static final Logger log = LoggerFactory.getLogger(KnowledgeIngestionService.class);</span>
+
+<span class="nc" id="L62">    private static final Pattern FRONT_MATTER =</span>
+<span class="nc" id="L63">            Pattern.compile(&quot;^---\\s*\\n(.*?)\\n---\\s*\\n&quot;, Pattern.DOTALL);</span>
+<span class="nc" id="L64">    private static final Pattern H1_OR_H2 =</span>
+<span class="nc" id="L65">            Pattern.compile(&quot;(?m)^(#{1,2})\\s+(.+)$&quot;);</span>
+
+    private final VectorStore vectorStore;
+    private final TokenTextSplitter splitter;
+    private final String docsPath;
+
+<span class="nc" id="L71">    public KnowledgeIngestionService(</span>
+            VectorStore vectorStore,
+            @Value(&quot;${chatbot.docs.path:docs}&quot;) String docsPath) {
+<span class="nc" id="L74">        this.vectorStore = vectorStore;</span>
+<span class="nc" id="L75">        this.docsPath = docsPath;</span>
+<span class="nc" id="L76">        this.splitter = new TokenTextSplitter(600, 100, 5, 10000, true);</span>
+<span class="nc" id="L77">    }</span>
+
+    @PostConstruct
+    public void ingestAll() {
+        try {
+<span class="nc" id="L82">            List&lt;Document&gt; docs = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L83">            java.util.Set&lt;String&gt; seenSources = new java.util.HashSet&lt;&gt;();</span>
+
+<span class="nc" id="L85">            addUnique(docs, loadClasspathKnowledge(), seenSources);</span>
+<span class="nc" id="L86">            addUnique(docs, loadClasspathDocs(),     seenSources);</span>
+<span class="nc" id="L87">            addUnique(docs, loadFilesystemDocs(),    seenSources);</span>
+
+<span class="nc bnc" id="L89" title="All 2 branches missed.">            if (docs.isEmpty()) {</span>
+<span class="nc" id="L90">                log.warn(&quot;Chatbot knowledge ingestion produced no documents&quot;);</span>
+<span class="nc" id="L91">                return;</span>
+            }
+
+<span class="nc" id="L94">            List&lt;Document&gt; chunks = splitter.apply(docs);</span>
+<span class="nc" id="L95">            vectorStore.add(chunks);</span>
+<span class="nc" id="L96">            log.info(&quot;Chatbot KB ingested: {} source docs -&gt; {} chunks&quot;, docs.size(), chunks.size());</span>
+<span class="nc" id="L97">        } catch (Exception e) {</span>
+<span class="nc" id="L98">            log.error(&quot;Chatbot knowledge ingestion failed: {}&quot;, e.getMessage(), e);</span>
+        }
+<span class="nc" id="L100">    }</span>
+
+    private static void addUnique(List&lt;Document&gt; sink, List&lt;Document&gt; incoming, java.util.Set&lt;String&gt; seen) {
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        for (Document d : incoming) {</span>
+<span class="nc" id="L104">            Object src = d.getMetadata().get(&quot;source&quot;);</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">            String key = src == null ? &quot;&quot; : src.toString();</span>
+<span class="nc bnc" id="L106" title="All 4 branches missed.">            if (key.isEmpty() || seen.add(key + &quot;#&quot; + d.getMetadata().getOrDefault(&quot;section&quot;, &quot;&quot;))) {</span>
+<span class="nc" id="L107">                sink.add(d);</span>
+            }
+        }
+<span class="nc" id="L110">    }</span>
+
+    // ---------- loaders ----------
+
+    private List&lt;Document&gt; loadClasspathKnowledge() throws IOException {
+<span class="nc" id="L115">        Resource[] resources = new PathMatchingResourcePatternResolver()</span>
+<span class="nc" id="L116">                .getResources(&quot;classpath:knowledge/*.md&quot;);</span>
+<span class="nc" id="L117">        List&lt;Document&gt; docs = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">        for (Resource r : resources) {</span>
+<span class="nc" id="L119">            String raw = new String(r.getInputStream().readAllBytes(), StandardCharsets.UTF_8);</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">            String filename = r.getFilename() == null ? &quot;unknown.md&quot; : r.getFilename();</span>
+<span class="nc" id="L121">            docs.addAll(parseMarkdown(raw, &quot;knowledge/&quot; + filename, defaultMeta(filename)));</span>
+        }
+<span class="nc" id="L123">        return docs;</span>
+    }
+
+    private List&lt;Document&gt; loadClasspathDocs() throws IOException {
+<span class="nc" id="L127">        Resource[] resources = new PathMatchingResourcePatternResolver()</span>
+<span class="nc" id="L128">                .getResources(&quot;classpath:docs/*.md&quot;);</span>
+<span class="nc" id="L129">        List&lt;Document&gt; docs = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        for (Resource r : resources) {</span>
+<span class="nc" id="L131">            String raw = new String(r.getInputStream().readAllBytes(), StandardCharsets.UTF_8);</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">            String filename = r.getFilename() == null ? &quot;unknown.md&quot; : r.getFilename();</span>
+<span class="nc" id="L133">            Map&lt;String, Object&gt; meta = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L134">            meta.put(&quot;category&quot;, &quot;documentation&quot;);</span>
+<span class="nc" id="L135">            meta.put(&quot;title&quot;, filename.replace(&quot;.md&quot;, &quot;&quot;));</span>
+<span class="nc" id="L136">            docs.addAll(parseMarkdown(raw, &quot;docs/&quot; + filename, meta));</span>
+        }
+<span class="nc" id="L138">        return docs;</span>
+    }
+
+    private List&lt;Document&gt; loadFilesystemDocs() {
+<span class="nc" id="L142">        List&lt;Document&gt; docs = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L143">        Path dir = Paths.get(docsPath);</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (!Files.isDirectory(dir)) {</span>
+<span class="nc" id="L145">            return docs;</span>
+        }
+<span class="nc" id="L147">        try (var stream = Files.list(dir)) {</span>
+<span class="nc" id="L148">            stream.filter(p -&gt; p.toString().endsWith(&quot;.md&quot;)).forEach(p -&gt; {</span>
+                try {
+<span class="nc" id="L150">                    String raw = Files.readString(p, StandardCharsets.UTF_8);</span>
+<span class="nc" id="L151">                    Map&lt;String, Object&gt; meta = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L152">                    meta.put(&quot;category&quot;, &quot;documentation&quot;);</span>
+<span class="nc" id="L153">                    meta.put(&quot;title&quot;, p.getFileName().toString().replace(&quot;.md&quot;, &quot;&quot;));</span>
+<span class="nc" id="L154">                    docs.addAll(parseMarkdown(raw, &quot;docs/&quot; + p.getFileName(), meta));</span>
+<span class="nc" id="L155">                } catch (IOException e) {</span>
+<span class="nc" id="L156">                    log.warn(&quot;Failed to read {}: {}&quot;, p, e.getMessage());</span>
+                }
+<span class="nc" id="L158">            });</span>
+<span class="nc" id="L159">        } catch (IOException e) {</span>
+<span class="nc" id="L160">            log.warn(&quot;Failed to list {}: {}&quot;, dir, e.getMessage());</span>
+        }
+<span class="nc" id="L162">        return docs;</span>
+    }
+
+    // ---------- parsing ----------
+
+    private List&lt;Document&gt; parseMarkdown(String raw, String source, Map&lt;String, Object&gt; baseMeta) {
+<span class="nc" id="L168">        Map&lt;String, Object&gt; meta = new HashMap&lt;&gt;(baseMeta);</span>
+<span class="nc" id="L169">        meta.put(&quot;source&quot;, source);</span>
+
+<span class="nc" id="L171">        Matcher fm = FRONT_MATTER.matcher(raw);</span>
+<span class="nc" id="L172">        String body = raw;</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        if (fm.find()) {</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            for (String line : fm.group(1).split(&quot;\\r?\\n&quot;)) {</span>
+<span class="nc" id="L175">                int colon = line.indexOf(':');</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">                if (colon &gt; 0) {</span>
+<span class="nc" id="L177">                    String k = line.substring(0, colon).trim();</span>
+<span class="nc" id="L178">                    String v = line.substring(colon + 1).trim();</span>
+<span class="nc bnc" id="L179" title="All 4 branches missed.">                    if (!k.isEmpty() &amp;&amp; !v.isEmpty()) meta.put(k, v);</span>
+                }
+            }
+<span class="nc" id="L182">            body = raw.substring(fm.end());</span>
+        }
+
+<span class="nc" id="L185">        List&lt;Document&gt; sections = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L186">        Matcher m = H1_OR_H2.matcher(body);</span>
+<span class="nc" id="L187">        List&lt;int[]&gt; headings = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L188">        List&lt;String&gt; titles = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        while (m.find()) {</span>
+<span class="nc" id="L190">            headings.add(new int[]{m.start()});</span>
+<span class="nc" id="L191">            titles.add(m.group(2).trim());</span>
+        }
+<span class="nc bnc" id="L193" title="All 2 branches missed.">        if (headings.isEmpty()) {</span>
+<span class="nc" id="L194">            sections.add(new Document(body, new HashMap&lt;&gt;(meta)));</span>
+<span class="nc" id="L195">            return sections;</span>
+        }
+<span class="nc bnc" id="L197" title="All 2 branches missed.">        for (int i = 0; i &lt; headings.size(); i++) {</span>
+<span class="nc" id="L198">            int start = headings.get(i)[0];</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">            int end = (i + 1 &lt; headings.size()) ? headings.get(i + 1)[0] : body.length();</span>
+<span class="nc" id="L200">            String chunk = body.substring(start, end).trim();</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">            if (chunk.isEmpty()) continue;</span>
+<span class="nc" id="L202">            Map&lt;String, Object&gt; sectionMeta = new HashMap&lt;&gt;(meta);</span>
+<span class="nc" id="L203">            sectionMeta.put(&quot;section&quot;, titles.get(i));</span>
+<span class="nc" id="L204">            sections.add(new Document(chunk, sectionMeta));</span>
+        }
+<span class="nc" id="L206">        return sections;</span>
+    }
+
+    private static Map&lt;String, Object&gt; defaultMeta(String filename) {
+<span class="nc" id="L210">        Map&lt;String, Object&gt; m = new HashMap&lt;&gt;();</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">        m.put(&quot;category&quot;, filename != null ? filename.replace(&quot;.md&quot;, &quot;&quot;) : &quot;knowledge&quot;);</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">        m.put(&quot;title&quot;, filename != null ? filename.replace(&quot;.md&quot;, &quot;&quot;) : &quot;knowledge&quot;);</span>
+<span class="nc" id="L213">        return m;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

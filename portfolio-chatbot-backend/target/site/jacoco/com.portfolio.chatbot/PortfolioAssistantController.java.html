@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PortfolioAssistantController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Portfolio Chatbot Backend</a> &gt; <a href="index.source.html" class="el_package">com.portfolio.chatbot</a> &gt; <span class="el_source">PortfolioAssistantController.java</span></div><h1>PortfolioAssistantController.java</h1><pre class="source lang-java linenums"><span class="fc" id="L1">package com.portfolio.chatbot;</span>
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Public REST endpoint for the portfolio AI assistant.
+ *
+ * &lt;p&gt;Mounted at {@code /api/chatbot/**}. Per-IP rate limiting prevents abuse.
+ * If Spring AI is not configured (no API key, or {@code chatbot.enabled=false}),
+ * the {@link RagService} bean is absent and every endpoint returns
+ * {@code 503 Service Unavailable} with a friendly message — the Lambda
+ * still starts cleanly so {@code /health} can report status.&lt;/p&gt;
+ */
+@RestController
+@RequestMapping(&quot;/api/chatbot&quot;)
+public class PortfolioAssistantController {
+
+<span class="fc" id="L42">    private static final Logger log = LoggerFactory.getLogger(PortfolioAssistantController.class);</span>
+
+    private final ObjectProvider&lt;RagService&gt; ragServiceProvider;
+    private final int requestsPerMinute;
+    private final boolean enabled;
+    private final ObjectMapper objectMapper;
+<span class="fc" id="L48">    private final Map&lt;String, Window&gt; ipWindows = new ConcurrentHashMap&lt;&gt;();</span>
+
+<span class="fc" id="L50">    public PortfolioAssistantController(</span>
+            ObjectProvider&lt;RagService&gt; ragServiceProvider,
+            @Value(&quot;${chatbot.enabled:true}&quot;) boolean enabled,
+            @Value(&quot;${chatbot.rate-limit.per-minute:20}&quot;) int requestsPerMinute,
+            ObjectMapper objectMapper) {
+<span class="fc" id="L55">        this.ragServiceProvider = ragServiceProvider;</span>
+<span class="fc" id="L56">        this.enabled = enabled;</span>
+<span class="fc" id="L57">        this.requestsPerMinute = requestsPerMinute;</span>
+<span class="fc" id="L58">        this.objectMapper = objectMapper;</span>
+<span class="fc" id="L59">    }</span>
+
+    @GetMapping(&quot;/health&quot;)
+    public ResponseEntity&lt;Map&lt;String, Object&gt;&gt; health() {
+<span class="pc bpc" id="L63" title="1 of 4 branches missed.">        boolean available = enabled &amp;&amp; ragServiceProvider.getIfAvailable() != null;</span>
+<span class="fc" id="L64">        return ResponseEntity.ok(Map.of(</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">                &quot;status&quot;, available ? &quot;UP&quot; : &quot;DEGRADED&quot;,</span>
+<span class="fc" id="L66">                &quot;available&quot;, available,</span>
+<span class="fc" id="L67">                &quot;enabled&quot;, enabled,</span>
+<span class="fc" id="L68">                &quot;name&quot;, &quot;Portfolio Assistant&quot;</span>
+        ));
+    }
+
+    @PostMapping(value = &quot;/message&quot;, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity&lt;?&gt; message(@Valid @RequestBody ChatRequest request, HttpServletRequest http) {
+<span class="fc" id="L74">        RagService rag = ragServiceProvider.getIfAvailable();</span>
+<span class="pc bpc" id="L75" title="1 of 4 branches missed.">        if (!enabled || rag == null) {</span>
+<span class="fc" id="L76">            return unavailable();</span>
+        }
+<span class="fc bfc" id="L78" title="All 2 branches covered.">        if (!allow(clientIp(http))) {</span>
+<span class="fc" id="L79">            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)</span>
+<span class="fc" id="L80">                    .body(Map.of(&quot;error&quot;, &quot;Too many requests. Please slow down.&quot;));</span>
+        }
+        try {
+<span class="fc" id="L83">            RagService.ChatAnswer ans = rag.answer(request.message(), request.conversationId());</span>
+<span class="fc" id="L84">            return ResponseEntity.ok(Map.of(</span>
+<span class="fc" id="L85">                    &quot;content&quot;, ans.content(),</span>
+<span class="fc" id="L86">                    &quot;citations&quot;, ans.citations(),</span>
+<span class="fc bfc" id="L87" title="All 2 branches covered.">                    &quot;conversationId&quot;, request.conversationId() != null ? request.conversationId() : UUID.randomUUID().toString()</span>
+            ));
+<span class="fc" id="L89">        } catch (Exception e) {</span>
+<span class="fc" id="L90">            log.error(&quot;Chatbot error&quot;, e);</span>
+<span class="fc" id="L91">            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)</span>
+<span class="fc" id="L92">                    .body(Map.of(&quot;error&quot;, &quot;Sorry, I hit an error. Please try again.&quot;));</span>
+        }
+    }
+
+    /**
+     * SSE streaming endpoint — compatible with AWS Lambda proxy integration.
+     *
+     * &lt;p&gt;The {@code aws-serverless-java-container} library buffers the entire
+     * HTTP response before returning it to API Gateway; asynchronous
+     * {@link org.springframework.web.servlet.mvc.method.annotation.SseEmitter}
+     * callbacks run on a Reactor scheduler thread and race with the container's
+     * response capture, so only the first token (or none) reaches the client.
+     *
+     * &lt;p&gt;The fix: collect all tokens synchronously with
+     * {@code Flux.collectList().block()}, build the complete SSE body as a
+     * plain string, and return it as {@code ResponseEntity&lt;String&gt;}. The
+     * frontend's {@code consumeSse} reads from {@code response.body}
+     * (a {@code ReadableStream}) and processes all events correctly even when
+     * they arrive in a single buffered chunk.
+     */
+    @PostMapping(value = &quot;/stream&quot;, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity&lt;String&gt; stream(@Valid @RequestBody ChatRequest request, HttpServletRequest http) {
+<span class="fc" id="L114">        RagService rag = ragServiceProvider.getIfAvailable();</span>
+
+<span class="pc bpc" id="L116" title="1 of 4 branches missed.">        if (!enabled || rag == null) {</span>
+<span class="fc" id="L117">            return sseResponse(sseEvent(&quot;error&quot;, &quot;Chatbot is not configured.&quot;) + sseEvent(&quot;done&quot;, &quot;&quot;));</span>
+        }
+<span class="fc bfc" id="L119" title="All 2 branches covered.">        if (!allow(clientIp(http))) {</span>
+<span class="fc" id="L120">            return sseResponse(sseEvent(&quot;error&quot;, &quot;Too many requests. Please slow down.&quot;) + sseEvent(&quot;done&quot;, &quot;&quot;));</span>
+        }
+
+<span class="fc" id="L123">        List&lt;Citation&gt; citations = new ArrayList&lt;&gt;();</span>
+        List&lt;String&gt; tokenList;
+        try {
+<span class="fc" id="L126">            tokenList = rag.stream(request.message(), request.conversationId(), citations)</span>
+<span class="fc" id="L127">                    .collectList()</span>
+<span class="fc" id="L128">                    .block();</span>
+<span class="fc" id="L129">        } catch (Exception e) {</span>
+<span class="fc" id="L130">            log.error(&quot;Chatbot stream error&quot;, e);</span>
+<span class="fc" id="L131">            return sseResponse(sseEvent(&quot;error&quot;, &quot;Sorry, I hit an error.&quot;) + sseEvent(&quot;done&quot;, &quot;&quot;));</span>
+        }
+
+<span class="fc" id="L134">        StringBuilder body = new StringBuilder();</span>
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">        if (tokenList != null) {</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">            for (String chunk : tokenList) {</span>
+<span class="fc" id="L137">                body.append(sseEvent(&quot;token&quot;, chunk));</span>
+            }
+        }
+        try {
+<span class="fc" id="L141">            body.append(sseEvent(&quot;citations&quot;, objectMapper.writeValueAsString(citations)));</span>
+<span class="pc" id="L142">        } catch (Exception e) {</span>
+<span class="nc" id="L143">            log.warn(&quot;Could not serialize citations&quot;, e);</span>
+<span class="nc" id="L144">            body.append(sseEvent(&quot;citations&quot;, &quot;[]&quot;));</span>
+        }
+<span class="fc" id="L146">        body.append(sseEvent(&quot;done&quot;, &quot;&quot;));</span>
+
+<span class="fc" id="L148">        return sseResponse(body.toString());</span>
+    }
+
+    // ---------- helpers ----------
+
+    /**
+     * Format a single SSE event. Multi-line data values are split into
+     * multiple {@code data:} lines per the SSE spec.
+     */
+    private static String sseEvent(String name, String data) {
+<span class="fc" id="L158">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L159">        sb.append(&quot;event:&quot;).append(name).append(&quot;\n&quot;);</span>
+<span class="pc bpc" id="L160" title="1 of 4 branches missed.">        if (data != null &amp;&amp; !data.isEmpty()) {</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">            for (String line : data.split(&quot;\n&quot;, -1)) {</span>
+<span class="fc" id="L162">                sb.append(&quot;data:&quot;).append(line).append(&quot;\n&quot;);</span>
+            }
+<span class="fc" id="L164">        } else {</span>
+<span class="fc" id="L165">            sb.append(&quot;data:\n&quot;);</span>
+        }
+<span class="fc" id="L167">        sb.append(&quot;\n&quot;);</span>
+<span class="fc" id="L168">        return sb.toString();</span>
+    }
+
+    private static ResponseEntity&lt;String&gt; sseResponse(String body) {
+        // Explicitly declare UTF-8. Spring's StringHttpMessageConverter defaults
+        // to ISO-8859-1 for text/* types, which mangles multi-byte characters
+        // (em-dash, curly quotes, etc.) coming from the OpenAI token stream.
+<span class="fc" id="L175">        MediaType utf8Sse = new MediaType(MediaType.TEXT_EVENT_STREAM, StandardCharsets.UTF_8);</span>
+<span class="fc" id="L176">        return ResponseEntity.ok()</span>
+<span class="fc" id="L177">                .contentType(utf8Sse)</span>
+<span class="fc" id="L178">                .body(body);</span>
+    }
+
+    private boolean allow(String ip) {
+<span class="fc" id="L182">        Instant now = Instant.now();</span>
+<span class="fc" id="L183">        Window w = ipWindows.compute(ip, (k, existing) -&gt; {</span>
+<span class="pc bpc" id="L184" title="1 of 4 branches missed.">            if (existing == null || existing.windowStart.plusSeconds(60).isBefore(now)) {</span>
+<span class="fc" id="L185">                return new Window(now, 1);</span>
+            }
+<span class="fc" id="L187">            return new Window(existing.windowStart, existing.count + 1);</span>
+        });
+<span class="fc bfc" id="L189" title="All 2 branches covered.">        return w.count &lt;= requestsPerMinute;</span>
+    }
+
+    private static String clientIp(HttpServletRequest req) {
+<span class="fc" id="L193">        String xff = req.getHeader(&quot;X-Forwarded-For&quot;);</span>
+<span class="pc bpc" id="L194" title="2 of 4 branches missed.">        if (xff != null &amp;&amp; !xff.isBlank()) {</span>
+<span class="fc" id="L195">            int comma = xff.indexOf(',');</span>
+<span class="pc bpc" id="L196" title="1 of 2 branches missed.">            return (comma &gt; 0 ? xff.substring(0, comma) : xff).trim();</span>
+        }
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        return req.getRemoteAddr() == null ? &quot;unknown&quot; : req.getRemoteAddr();</span>
+    }
+
+    private static ResponseEntity&lt;Map&lt;String, Object&gt;&gt; unavailable() {
+<span class="fc" id="L202">        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(</span>
+<span class="fc" id="L203">                &quot;error&quot;, &quot;Chatbot is not configured.&quot;,</span>
+<span class="fc" id="L204">                &quot;hint&quot;, &quot;Set OPENAI_API_KEY and chatbot.enabled=true to enable.&quot;</span>
+        ));
+    }
+
+    public record ChatRequest(
+            @NotBlank @Size(max = 1000) String message,
+            @Size(max = 64) String conversationId) {
+    }
+
+    private record Window(Instant windowStart, int count) {
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

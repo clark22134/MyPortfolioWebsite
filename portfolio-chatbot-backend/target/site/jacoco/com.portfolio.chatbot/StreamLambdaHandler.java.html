@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StreamLambdaHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Portfolio Chatbot Backend</a> &gt; <a href="index.source.html" class="el_package">com.portfolio.chatbot</a> &gt; <span class="el_source">StreamLambdaHandler.java</span></div><h1>StreamLambdaHandler.java</h1><pre class="source lang-java linenums">package com.portfolio.chatbot;
+
+import com.amazonaws.serverless.exceptions.ContainerInitializationException;
+import com.amazonaws.serverless.proxy.InitializationWrapper;
+import com.amazonaws.serverless.proxy.model.AwsProxyRequest;
+import com.amazonaws.serverless.proxy.model.AwsProxyResponse;
+import com.amazonaws.serverless.proxy.spring.SpringBootLambdaContainerHandler;
+import com.amazonaws.serverless.proxy.spring.SpringBootProxyHandlerBuilder;
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+
+/**
+ * AWS Lambda entry point. Mirrors the portfolio-backend handler so the same
+ * EventBridge warmer pings ({@code {&quot;warmer&quot;: true}}) keep the JVM and
+ * SimpleVectorStore index hot between real chat requests.
+ */
+<span class="nc" id="L23">public class StreamLambdaHandler implements RequestStreamHandler {</span>
+
+    private static SpringBootLambdaContainerHandler&lt;AwsProxyRequest, AwsProxyResponse&gt; handler;
+
+    static {
+        try {
+            // Use the builder with .servletApplication() to force the servlet embedded-server
+            // factory regardless of whether spring-webflux is on the classpath.
+            // getAwsProxyHandler() defaults to WebApplicationType.REACTIVE, which causes
+            // ServerlessReactiveServletEmbeddedServerFactory to be used when HandlerAdapter
+            // is found on the classpath (via spring-ai-openai), skipping DispatcherServlet
+            // registration and producing empty HTTP responses.
+<span class="nc" id="L35">            handler = new SpringBootProxyHandlerBuilder&lt;AwsProxyRequest&gt;()</span>
+<span class="nc" id="L36">                    .defaultProxy()</span>
+<span class="nc" id="L37">                    .servletApplication()</span>
+<span class="nc" id="L38">                    .initializationWrapper(new InitializationWrapper())</span>
+<span class="nc" id="L39">                    .springBootApplication(PortfolioChatbotApplication.class)</span>
+<span class="nc" id="L40">                    .buildAndInitialize();</span>
+<span class="nc" id="L41">        } catch (ContainerInitializationException e) {</span>
+<span class="nc" id="L42">            e.printStackTrace();</span>
+<span class="nc" id="L43">            throw new RuntimeException(&quot;Could not initialize Spring Boot application&quot;, e);</span>
+        }
+<span class="nc" id="L45">    }</span>
+
+    @Override
+    public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
+            throws IOException {
+<span class="nc" id="L50">        byte[] payload = inputStream.readAllBytes();</span>
+
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (isWarmerEvent(payload)) {</span>
+<span class="nc" id="L53">            outputStream.write(&quot;{\&quot;warmed\&quot;:true}&quot;.getBytes(StandardCharsets.UTF_8));</span>
+<span class="nc" id="L54">            return;</span>
+        }
+
+<span class="nc" id="L57">        handler.proxyStream(new ByteArrayInputStream(payload), outputStream, context);</span>
+<span class="nc" id="L58">    }</span>
+
+    private static boolean isWarmerEvent(byte[] payload) {
+<span class="nc bnc" id="L61" title="All 4 branches missed.">        if (payload.length == 0 || payload.length &gt; 256) {</span>
+<span class="nc" id="L62">            return false;</span>
+        }
+<span class="nc" id="L64">        return new String(payload, StandardCharsets.UTF_8).contains(&quot;\&quot;warmer\&quot;&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

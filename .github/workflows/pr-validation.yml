@@ -40,6 +40,13 @@ jobs:
       component: portfolio-backend
       type: java
 
+  test-chatbot-backend:
+    name: Chatbot Backend Tests
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      component: portfolio-chatbot-backend
+      type: java
+
   test-frontend:
     name: Frontend Tests
     uses: ./.github/workflows/reusable-test.yml
@@ -84,7 +91,7 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: 'portfolio-frontend/package-lock.json'
 
@@ -135,3 +142,6 @@ jobs:
 
       - name: Maven dependency check (ecommerce-backend)
         run: cd ecommerce-backend && mvn dependency-check:check -DfailBuildOnCVSS=7 || true
+
+      - name: Maven dependency check (portfolio-chatbot-backend)
+        run: cd portfolio-chatbot-backend && mvn dependency-check:check -DfailBuildOnCVSS=7 || true

@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Frontend (npm) dependencies - grouped into single PR
+  # Frontend npm dependencies
   - package-ecosystem: "npm"
     directory: "/portfolio-frontend"
     schedule:
@@ -22,7 +22,49 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Backend (Maven) dependencies - grouped into single PR
+  - package-ecosystem: "npm"
+    directory: "/ats-frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "npm"
+    directory: "/ecommerce-frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Backend Maven dependencies
   - package-ecosystem: "maven"
     directory: "/portfolio-backend"
     schedule:
@@ -44,7 +86,70 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # GitHub Actions - grouped into single PR
+  - package-ecosystem: "maven"
+    directory: "/portfolio-chatbot-backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "maven"
+    directory: "/ats-backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "maven"
+    directory: "/ecommerce-backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -58,7 +163,7 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Terraform dependencies - grouped into single PR
+  # Terraform configurations
   - package-ecosystem: "terraform"
     directory: "/terraform"
     schedule:
@@ -72,18 +177,88 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Docker dependencies - grouped into single PR
-  - package-ecosystem: "docker"
-    directories:
-      - "/portfolio-backend"
-      - "/portfolio-frontend"
+  - package-ecosystem: "terraform"
+    directory: "/terraform/bootstrap"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
     groups:
-      all-docker:
+      all-terraform:
         patterns:
           - "*"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Docker image updates
+  - package-ecosystem: "docker"
+    directory: "/portfolio-backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/ats-backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/ecommerce-backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/portfolio-frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/ats-frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/ecommerce-frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/ats-db"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/ecommerce-db"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
