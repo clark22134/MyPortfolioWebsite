@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ChatbotConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Portfolio Chatbot Backend</a> &gt; <a href="index.source.html" class="el_package">com.portfolio.chatbot</a> &gt; <span class="el_source">ChatbotConfig.java</span></div><h1>ChatbotConfig.java</h1><pre class="source lang-java linenums">package com.portfolio.chatbot;
+
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.vectorstore.SimpleVectorStore;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * Spring AI wiring. Beans are created only when the chatbot is enabled
+ * &lt;b&gt;and&lt;/b&gt; an OpenAI API key is configured. When either is missing the
+ * Lambda starts cleanly and {@link PortfolioAssistantController} returns
+ * 503 for chat requests.
+ *
+ * &lt;p&gt;We use {@link SimpleVectorStore} (in-process) rather than a separate
+ * vector DB because the portfolio knowledge base is tiny (~hundreds of
+ * chunks) and adding ChromaDB/PGVector would add ops, latency, and cost
+ * without quality benefit. The {@link VectorStore} interface lets us swap
+ * implementations later with no controller changes.&lt;/p&gt;
+ */
+@Configuration
+@ConditionalOnExpression(&quot;'${chatbot.enabled:true}' == 'true' and !'${spring.ai.openai.api-key:}'.isEmpty()&quot;)
+<span class="nc" id="L28">public class ChatbotConfig {</span>
+
+    @Bean
+    public VectorStore portfolioVectorStore(EmbeddingModel embeddingModel) {
+<span class="nc" id="L32">        return SimpleVectorStore.builder(embeddingModel).build();</span>
+    }
+
+    @Bean
+    public ChatMemory portfolioChatMemory() {
+<span class="nc" id="L37">        return MessageWindowChatMemory.builder()</span>
+<span class="nc" id="L38">                .maxMessages(20)</span>
+<span class="nc" id="L39">                .build();</span>
+    }
+
+    @Bean
+    public ChatClient portfolioChatClient(ChatClient.Builder builder, ChatMemory portfolioChatMemory) {
+<span class="nc" id="L44">        return builder</span>
+<span class="nc" id="L45">                .defaultAdvisors(MessageChatMemoryAdvisor.builder(portfolioChatMemory).build())</span>
+<span class="nc" id="L46">                .build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

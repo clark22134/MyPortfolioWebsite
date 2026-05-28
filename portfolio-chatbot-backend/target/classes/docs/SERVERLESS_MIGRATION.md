@@ -39,7 +39,7 @@ This guide documents the migration from ECS Fargate to a serverless architecture
   - SnapStart enabled for sub-second cold starts
   - Auto-scaling from 0 to thousands of requests
   - Pay per request (no idle costs)
-  - Warmed every 4 minutes via EventBridge
+  - Warmed every 2 minutes via EventBridge
 
 ### Database
 - **Before**: PostgreSQL/MySQL in sidecar containers (ephemeral)
@@ -301,14 +301,15 @@ aws route53 change-resource-record-sets \
 
 ### 2. Keep Old Infrastructure
 
-The old Fargate configuration is backed up in `terraform/main.tf.fargate-backup`.
+The previous Fargate-era Terraform is no longer kept as `main.tf.fargate-backup` in the working tree.
+If you need to restore or review that configuration, use Git history:
 
-To restore:
 ```bash
-cd terraform
-cp main.tf main.tf.serverless
-cp main.tf.fargate-backup main.tf
-terraform apply
+# Inspect prior Terraform state in history
+git log -- terraform/main.tf
+
+# Check out a historical commit into a temporary branch for rollback analysis
+git checkout -b rollback-fargate <commit-sha>
 ```
 
 ### 3. Lambda Version Rollback

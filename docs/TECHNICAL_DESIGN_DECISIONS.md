@@ -20,12 +20,12 @@
 
 ## 1. Tech Stack Selection
 
-### 1.1 Backend — Spring Boot 3.5.13 / Java 21
+### 1.1 Backend — Spring Boot 3.5.14 / Java 21
 
 | Criterion | Choice | Alternatives Considered |
 |-----------|--------|------------------------|
 | Language | Java 21 | Kotlin, Go, Node.js (Express/NestJS) |
-| Framework | Spring Boot 3.5.13 | Quarkus, Micronaut, Django, FastAPI |
+| Framework | Spring Boot 3.5.14 | Quarkus, Micronaut, Django, FastAPI |
 | Build Tool | Maven 3 | Gradle |
 
 **Why Java + Spring Boot:**
@@ -46,7 +46,7 @@ Why Maven over Gradle: Maven is more verbose, but its build lifecycle is determi
 |-----------|--------|------------------------|
 | Framework | Angular 21 | React 19, Vue 3, Svelte 5 |
 | UI Libraries | Bootstrap 5.3, ng-bootstrap, Angular CDK | Tailwind, Material, PrimeNG |
-| Test Runner | Vitest / Karma+Jasmine | Jest, Playwright |
+| Test Runner | Vitest (`@angular/build:unit-test`) | Jest, Playwright |
 
 **Why Angular:**
 
@@ -76,11 +76,11 @@ Standalone components (no NgModules) keep the bundle lean and the dependency gra
 
 **Why not DynamoDB:** The e-commerce and ATS data models are inherently relational. Products belong to categories, orders contain order items referencing products and customers, candidates belong to jobs with stage progressions. DynamoDB would require denormalization patterns (single-table design) that add complexity without a clear performance benefit at this scale.
 
-### 1.4 AI & RAG Infrastructure — Spring AI 1.0.5
+### 1.4 AI & RAG Infrastructure — Spring AI 1.0.8
 
 | Criterion | Choice | Alternatives Considered |
 |-----------|--------|------------------------|
-| AI abstraction | Spring AI 1.0.5 | LangChain4j, direct OpenAI SDK, Semantic Kernel |
+| AI abstraction | Spring AI 1.0.8 | LangChain4j, direct OpenAI SDK, Semantic Kernel |
 | Chat model | OpenAI gpt-5.4-mini | Claude 3 Haiku, Llama 3 (local) |
 | Embedding model | text-embedding-3-small (1536-dim) | text-embedding-3-large, ada-002 |
 | Vector store | Spring AI SimpleVectorStore | pgvector, ChromaDB, Pinecone |
@@ -90,7 +90,7 @@ Standalone components (no NgModules) keep the bundle lean and the dependency gra
 
 Spring AI provides provider-agnostic interfaces (`VectorStore`, `ChatModel`, `EmbeddingModel`) that abstract the underlying provider completely. The entire chatbot is coded against these interfaces — swapping from OpenAI to Anthropic, Mistral, or a local Ollama model is a single application property change with no code changes. LangChain4j is a solid library, but its programming model is less idiomatic for a Spring application; Spring AI integrates with Spring's `@Autowired` / `@Bean` patterns, `ObjectProvider`, and `@ConditionalOn*` annotations naturally.
 
-Spring AI was pinned to **1.0.5** (not the latest snapshot) specifically to exclude **CVE-2026-22738**, a vulnerability present in earlier 1.0.x builds affecting the `/actuator` Micrometer Observation endpoint. Version 1.0.5 carries no known CVEs.
+Spring AI is pinned to **1.0.8**, the stable line currently used by both `portfolio-backend` and `portfolio-chatbot-backend`, to keep Lambda runtime behavior predictable while staying current on security and bug fixes.
 
 **Why text-embedding-3-small:**
 
@@ -98,7 +98,7 @@ Spring AI was pinned to **1.0.5** (not the latest snapshot) specifically to excl
 
 **Why SimpleVectorStore over pgvector / ChromaDB / Pinecone:**
 
-`SimpleVectorStore` is an in-process, file-backed vector store that performs cosine similarity search in memory. For the portfolio knowledge base (hundreds of chunks), the entire vector index fits comfortably in Lambda's 2048 MB heap. Search is sub-millisecond. No additional service to provision, no network round-trip, no authentication to configure, no VPC endpoint needed.
+`SimpleVectorStore` is an in-process, file-backed vector store that performs cosine similarity search in memory. For the portfolio knowledge base (hundreds of chunks), the entire vector index fits comfortably in the chatbot Lambda's 1024 MB memory footprint. Search is sub-millisecond. No additional service to provision, no network round-trip, no authentication to configure, no VPC endpoint needed.
 
 The key design principle: **everything is hidden behind the `VectorStore` interface.** Migrating from `SimpleVectorStore` to `PgVectorStore` (pgvector extension in the existing Aurora cluster), `ChromaVectorStore`, or `PineconeVectorStore` is a single bean definition change in `ChatbotConfig`. The retrieval logic in `RagService` remains untouched.
 
@@ -160,9 +160,9 @@ All three applications live in a single repository with independent build paths:
 └── docs/                  (Documentation)
 ```
 
-**Why a monorepo over separate repositories:** A single repository means one PR can update both the backend API and the frontend that consumes it. Cross-cutting infrastructure changes (Terraform, Dockerfiles, CI/CD) apply to all projects atomically. The Makefile provides `make build`, `make test`, and `make deploy-local` across all six codebases in one command.
+**Why a monorepo over separate repositories:** A single repository means one PR can update both the backend API and the frontend that consumes it. Cross-cutting infrastructure changes (Terraform, Dockerfiles, CI/CD) apply to all projects atomically. The Makefile provides one-command workflows across the six primary application codebases (3 backends + 3 frontends), while the dedicated chatbot backend is tested and deployed through its own Maven/CI steps.
 
-The applications don't share runtime code — no shared library, no common module. They share infrastructure configuration and deployment tooling. If the projects grew to have independent release cycles and separate teams, I'd split them into a polyrepo. At one developer, the monorepo avoids the coordination overhead of managing six repositories.
+The applications don't share runtime code — no shared library, no common module. They share infrastructure configuration and deployment tooling. If the projects grew to have independent release cycles and separate teams, I'd split them into a polyrepo. At one developer, the monorepo avoids the coordination overhead of managing seven repositories.
 
 ---
 
@@ -214,7 +214,7 @@ All three backends connect to a single shared Aurora Serverless v2 cluster over 
 | Scaling | Automatic, per-request | Change `desired_count` | Auto Scaling Groups |
 | Deployment | `aws lambda update-function-code` | Register new task def + `update-service` | CodeDeploy / custom |
 
-**Decision:** Lambda with API Gateway was chosen because this workload is a portfolio site with low and spiky traffic. Fargate tasks running 24/7 consumed ~$60–80/month for compute that sat idle >99% of the time. Lambda pays per request — the three backend functions cost ~$2–5/month with free tier. SnapStart (pre-initialized JVM snapshots) reduces Spring Boot cold starts from ~8s to 1–2s, eliminating the main Lambda drawback for Java workloads.
+**Decision:** Lambda with API Gateway was chosen because this workload is a portfolio site with low and spiky traffic. Fargate tasks running 24/7 consumed ~$60–80/month for compute that sat idle >99% of the time. Lambda pays per request — the four functions (portfolio, portfolio-chatbot, e-commerce, ATS) remain low-cost at portfolio traffic levels. SnapStart (pre-initialized JVM snapshots) reduces Spring Boot cold starts from ~8s to 1–2s, eliminating the main Lambda drawback for Java workloads.
 
 **Why not Fargate:** Fargate is the right tool at scale, but not at demo traffic levels. It was the previous architecture, and the overall migration from ECS Fargate to Lambda + Aurora Serverless v2 achieved ~68% total infrastructure cost reduction (~$200/month to ~$63/month).
 
@@ -379,7 +379,7 @@ All Lambda functions are deployed with `desired_concurrency = unreserved`. This 
 
 ### 6.4 Lambda Scaling Characteristics
 
-Lambda scales automatically to match incoming request volume. SnapStart pre-initializes execution environments (Spring context loaded), reducing cold start time from ~8s to 1–2s. EventBridge rules invoke each function every 4 minutes to maintain warm execution environments during low-traffic periods.
+Lambda scales automatically to match incoming request volume. SnapStart pre-initializes execution environments (Spring context loaded), reducing cold start time from ~8s to 1–2s. EventBridge rules invoke each function every 2 minutes to maintain warm execution environments during low-traffic periods.
 
 Concurrency limits can be set per-function if linear cost scaling becomes a concern.
 
@@ -397,7 +397,7 @@ Concurrency limits can be set per-function if linear cost scaling becomes a conc
 
 | Resource | Count | Unit Cost | Monthly Cost |
 |----------|-------|-----------|-------------|
-| **Lambda** | 3 functions, ~5K req/mo each | First 1M req free + $0.20/M | ~$2–5 |
+| **Lambda** | 4 functions, portfolio-level traffic | First 1M req free + $0.20/M | ~$6–8 |
 | **API Gateway** | 3 REST APIs | First 1M req free + $3.50/M | ~$1–2 |
 | **Aurora Serverless v2** | 1 shared cluster (3 DBs), ~0.5 ACU avg | $0.12/ACU-hr | ~$10–15 |
 | **CloudFront** | 3 distributions | First 1TB transfer free | ~$1–2 |
@@ -405,7 +405,7 @@ Concurrency limits can be set per-function if linear cost scaling becomes a conc
 | **S3** | 3 buckets, ~15MB each | $0.023/GB/month | ~$0.50 |
 | **Route53 Hosted Zone** | 1 zone | $0.50/month | ~$1 |
 | **ACM Certificate** | 1 cert | Free | $0 |
-| **CloudWatch Logs** | 3 log groups, 7-day retention | $0.50/GB ingested | ~$1–2 |
+| **CloudWatch Logs** | 7 log groups (4 Lambda + 3 API Gateway), 7-day retention | $0.50/GB ingested | ~$1–2 |
 | **Secrets Manager** | Aurora-managed DB credentials | $0.40/secret/month | ~$1 |
 | **NAT Gateway** | 1 (single AZ, Lambda VPC egress) | $0.045/hr + data | ~$33 |
 | **S3 + DynamoDB (Terraform State)** | <1MB | Negligible | <$1 |

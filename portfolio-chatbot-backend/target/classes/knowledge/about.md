@@ -65,7 +65,7 @@ This site is itself a production-grade application. It uses:
 - WCAG 2.1 AA compliance + Section 508 alignment + WAI-ARIA 1.2
 - Automated accessibility testing (axe-core + Puppeteer), Web Speech API (TTS)
 - AWS Lambda with SnapStart, Aurora Serverless v2 (PostgreSQL 15.17), CloudFront CDN,
-  API Gateway (HTTP API), WAF, S3, Route 53, ACM
+  API Gateway (REST APIs), WAF, S3, Route 53, ACM
 - Terraform Infrastructure as Code (~2,190 lines, 8 modules in `terraform/`)
 - GitHub Actions CI/CD (DevSecOps pipeline with Trivy, TruffleHog, SonarCloud, OWASP Dependency-Check)
 - Nginx-fronted Docker locally; fully serverless in production

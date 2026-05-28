@@ -137,8 +137,8 @@ All three applications share a single serverless infrastructure layer with Cloud
 | Layer | Technology |
 |-------|-----------|
 | **Frontend** | Angular 21, TypeScript 5.9, RxJS, Angular CDK, Bootstrap 5 (E-Commerce), SCSS |
-| **Backend** | Spring Boot 3.5.13, Java 21, Spring Security, Spring Data JPA, Spring Data REST |
-| **AI / RAG** | Spring AI 1.0.5, OpenAI gpt-5.4-mini, text-embedding-3-small (1536-dim), SimpleVectorStore |
+| **Backend** | Spring Boot 3.5.14, Java 21, Spring Security, Spring Data JPA, Spring Data REST |
+| **AI / RAG** | Spring AI 1.0.8, OpenAI gpt-5.4-mini, text-embedding-3-small (1536-dim), SimpleVectorStore |
 | **Databases** | Aurora Serverless v2 (1 shared cluster, 3 databases), PostgreSQL 15.17, H2 (local tests) |
 | **Auth** | JWT (JJWT), HTTP-only cookies, BCrypt, refresh token rotation |
 | **Parsing** | Apache Tika, PDFBox, Apache POI (ATS resume parsing) |
@@ -165,7 +165,7 @@ An authenticated admin portal for managing and showcasing projects, with a publi
 - SMTP-backed contact form (AWS SES in production; Gmail SMTP for local development)
 - Accessibility toolbar: font scaling (75%–200%), high contrast, reduced motion, text-to-speech, screen reader mode
 - Automated WCAG 2.1 AA testing (axe-core + Puppeteer) blocking merges on failure
-- **Portfolio Assistant** (RAG chatbot via dedicated Lambda outside VPC): Spring AI 1.0.5, query expansion, cosine similarity retrieval, reranking, streaming SSE citations
+- **Portfolio Assistant** (RAG chatbot via dedicated Lambda outside VPC): Spring AI 1.0.8, query expansion, cosine similarity retrieval, reranking, streaming SSE citations
 
 **Structure:**
 ```
@@ -259,7 +259,7 @@ ats-frontend/
 
 | Component | Configuration | Monthly Cost |
 |-----------|--------------|:------------:|
-| **Lambda** | 4 functions (Java 21, SnapStart, EventBridge warming every 4 min) — portfolio: 1024 MB, e-commerce: 2048 MB, ATS: 1024 MB, chatbot: 1024 MB | ~$6–8 |
+| **Lambda** | 4 functions (Java 21, SnapStart, EventBridge warming every 2 min) — portfolio: 1024 MB, e-commerce: 2048 MB, ATS: 1024 MB, chatbot: 1024 MB | ~$6–8 |
 | **Aurora Serverless v2** | 1 shared cluster (3 databases), PostgreSQL 15.17, 0.5–4 ACU | ~$25–30 |
 | **CloudFront** | 3 distributions, global edge caching, TLS termination | ~$3–5 |
 | **API Gateway** | 3 REST APIs (regional), Lambda proxy integration | ~$1–2 |
@@ -280,10 +280,10 @@ ats-frontend/
 
 - **Java 21** (Eclipse Temurin recommended)
 - **Maven 3.9+**
-- **Node.js 22+** and **npm 10+**
+- **Node.js 24 LTS** and **npm 10+** (Node 22+ also works locally)
 - **Docker** and **Docker Compose**
 - **AWS CLI v2** (for deployment only)
-- **Terraform 1.5+** (for infrastructure provisioning only)
+- **Terraform 1.10+** (for infrastructure provisioning only)
 
 ### Local Development with Docker
 
@@ -348,9 +348,13 @@ ats-frontend/
    make build
    ```
 
-4. **Start the portfolio backend + frontend:**
+4. **Start the full source-based preview stack (all 3 apps + DB containers):**
    ```bash
-   make deploy-local
+   make preview-all
+   ```
+   Stop it with:
+   ```bash
+   make preview-all-stop
    ```
 
 See `make help` for the full list of available commands.
@@ -430,6 +434,7 @@ See `make help` for the full list of available commands.
 ```bash
 # Backend — generates target/site/jacoco/jacoco.xml
 cd portfolio-backend  && mvn test
+cd portfolio-chatbot-backend && mvn test
 cd ats-backend        && mvn test
 cd ecommerce-backend  && mvn test
 
@@ -438,12 +443,15 @@ cd portfolio-frontend  && npm run test:ci
 cd ats-frontend        && npm run test:ci
 cd ecommerce-frontend  && npm run test:ci
 
-# All tests
+# Primary app test sweep (3 backends + 3 frontends)
 make test
+
+# Chatbot backend tests
+cd portfolio-chatbot-backend && mvn test
 ```
 
 **CI coverage flow:**  
-Each test job uploads its coverage file as a GitHub Actions artifact. The `code-quality` job waits for all six test jobs, downloads the artifacts, and restores them to the paths expected by `sonar-project.properties` before running the SonarCloud scan. This ensures SonarCloud always receives accurate, current coverage data. Combined project coverage across all six codebases is **81%**.
+Each test job uploads its coverage file as a GitHub Actions artifact. The `code-quality` job waits for all seven test jobs, downloads the artifacts, and restores them to the paths expected by `sonar-project.properties` before running the SonarCloud scan. This ensures SonarCloud always receives accurate, current coverage data. Combined project coverage across all seven codebases is **81%**.
 
 **Required secrets:** `SONAR_TOKEN` must be set in repository Settings → Secrets.
 

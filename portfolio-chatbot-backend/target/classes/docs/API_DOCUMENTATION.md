@@ -20,7 +20,7 @@
 
 | Component | Detail |
 |---|---|
-| **Compute** | AWS Lambda (Java 21, SnapStart) + Spring Boot 3.5.13 |
+| **Compute** | AWS Lambda (Java 21, SnapStart) + Spring Boot 3.5.14 |
 | **API Gateway** | REST API Gateway (regional) per application |
 | **CDN / Entry Point** | CloudFront distribution per application (with WAF) |
 | **TLS** | ACM certificate — `clarkfoster.com`, `www.`, `shop.`, `ats.` SANs |
@@ -35,6 +35,7 @@
 | Host | Path | Target | Integration |
 |---|---|---|---|
 | `clarkfoster.com` / `www.clarkfoster.com` | `/api/*` | Portfolio Backend | CloudFront → API Gateway → Lambda proxy |
+| `clarkfoster.com` / `www.clarkfoster.com` | `/api/chatbot/*` | Portfolio Chatbot Backend | CloudFront → Portfolio API Gateway (`/api/chatbot/{proxy+}`) → dedicated Lambda proxy |
 | `clarkfoster.com` / `www.clarkfoster.com` | `/*` | Portfolio Frontend | CloudFront → S3 origin |
 | `shop.clarkfoster.com` | `/api/*` | E-Commerce Backend | CloudFront → API Gateway → Lambda proxy |
 | `shop.clarkfoster.com` | `/*` | E-Commerce Frontend | CloudFront → S3 origin |
@@ -88,7 +89,7 @@ Content-Security-Policy: [strict per-app policy]
 ## 1 — Portfolio API
 
 **Base URL**: `https://clarkfoster.com/api`
-**Framework**: Spring Boot 3.5.13 · Java 21
+**Framework**: Spring Boot 3.5.14 · Java 21
 **Database**: PostgreSQL (prod) / H2 (dev)
 **Auth**: JWT via HTTP-only cookies (`access_token`, `refresh_token`)
 
@@ -421,7 +422,7 @@ These endpoints return `"status": "coming-soon"` and do not perform real operati
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `GET` | `/actuator/health` | No | Spring Boot health indicator (used by ALB target group) |
+| `GET` | `/actuator/health` | No | Spring Boot health indicator |
 
 **Response** `200 OK`
 
@@ -458,7 +459,10 @@ Returns whether the chatbot is currently available (i.e., API key present and fe
 
 ```json
 {
-  "available": true
+  "status": "UP",
+  "available": true,
+  "enabled": true,
+  "name": "Portfolio Assistant"
 }
 ```
 
@@ -466,7 +470,10 @@ Returns whether the chatbot is currently available (i.e., API key present and fe
 
 ```json
 {
-  "available": false
+  "status": "DEGRADED",
+  "available": false,
+  "enabled": false,
+  "name": "Portfolio Assistant"
 }
 ```
 
@@ -494,7 +501,7 @@ Sends a message and returns the full generated response in a single JSON payload
 
 ```json
 {
-  "response": "Clark has built three production applications...",
+  "content": "Clark has built three production applications...",
   "citations": [
     {
       "index": 1,
@@ -509,7 +516,7 @@ Sends a message and returns the full generated response in a single JSON payload
 
 | Field | Type | Description |
 |---|---|---|
-| `response` | `String` | Full generated answer |
+| `content` | `String` | Full generated answer |
 | `citations` | `Citation[]` | Source passages used to ground the response |
 | `conversationId` | `String` | Echo of the provided conversation ID (or generated if omitted) |
 
@@ -606,7 +613,7 @@ data:
 ## 2 — E-Commerce API
 
 **Base URL**: `https://shop.clarkfoster.com/api`
-**Framework**: Spring Boot 3.5.13 · Java 21
+**Framework**: Spring Boot 3.5.14 · Java 21
 **Database**: PostgreSQL 15.17 (Aurora Serverless v2)
 **Auth**: JWT via HTTP-only cookie (`ecommerce_jwt`)
 
@@ -1036,7 +1043,7 @@ All catalog endpoints are **auto-generated** by Spring Data REST. Write operatio
 ## 3 — ATS (Applicant Tracking System) API
 
 **Base URL**: `https://ats.clarkfoster.com/api`
-**Framework**: Spring Boot 3.5.13 · Java 21
+**Framework**: Spring Boot 3.5.14 · Java 21
 **Database**: PostgreSQL 15.17 (Aurora Serverless v2)
 **Auth**: **None** (demo application — all endpoints are public)
 

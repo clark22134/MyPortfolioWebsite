@@ -22,14 +22,14 @@ graph TB
         subgraph VPC["VPC — 10.0.0.0/16"]
             subgraph Private["Private Subnets"]
                 APIGW["API Gateway<br/>REST (Regional)"]
-                Lambda["portfolio-backend<br/>Lambda (Java 21, SnapStart)<br/>2048 MB"]
+                Lambda["portfolio-backend<br/>Lambda (Java 21, SnapStart)<br/>1024 MB"]
                 Aurora["Aurora Serverless v2<br/>PostgreSQL 15.17<br/>0.5–4 ACU"]
             end
         end
 
         SM["Secrets Manager<br/>DB Credentials (Aurora-managed)"]
         CW["CloudWatch Logs<br/>7-day retention"]
-        EB["EventBridge<br/>Warming rule (every 4 min)"]
+        EB["EventBridge<br/>Warming rule (every 2 min)"]
     end
 
     subgraph External
@@ -207,13 +207,9 @@ graph TB
         CF["CloudFront Distribution<br/>clarkfoster.com"]
         APIGW["API Gateway"]
 
-        subgraph VPC["VPC — 10.0.0.0/16"]
-            subgraph Private["Private Subnets"]
-                Lambda["portfolio-chatbot-backend<br/>Lambda (Java 21, SnapStart)<br/>2048 MB"]
-            end
-        end
+        Lambda["portfolio-chatbot-backend<br/>Lambda (Java 21, SnapStart)<br/>1024 MB<br/>No VPC attachment"]
 
-        EB["EventBridge<br/>Warming rule (every 4 min)"]
+        EB["EventBridge<br/>Warming rule (every 2 min)"]
         CW["CloudWatch Logs"]
     end
 
@@ -252,7 +248,7 @@ graph LR
         KBDocs["classpath:docs/*.md<br/>(repo documentation)"]
     end
 
-    subgraph AI["Spring AI 1.0.5"]
+    subgraph AI["Spring AI 1.0.8"]
         VectorStore["SimpleVectorStore<br/>In-process cosine similarity"]
         EmbedModel["OpenAiEmbeddingModel<br/>text-embedding-3-small<br/>1536 dimensions"]
         ChatModel["OpenAiChatModel<br/>gpt-5.4-mini"]
@@ -559,7 +555,7 @@ graph TB
         subgraph VPC["VPC — 10.0.0.0/16"]
             subgraph Private["Private Subnets"]
                 APIGW["API Gateway<br/>REST (Regional)"]
-                Lambda["ats-backend<br/>Lambda (Java 21, SnapStart)<br/>2048 MB / 2048 MB ephemeral"]
+                Lambda["ats-backend<br/>Lambda (Java 21, SnapStart)<br/>1024 MB"]
                 Aurora["Aurora Serverless v2<br/>PostgreSQL 15.17<br/>0.5–4 ACU"]
             end
         end
@@ -768,12 +764,13 @@ graph TB
                 end
             end
         end
+        L_C["Lambda — portfolio-chatbot<br/>(No VPC)"]
 
         subgraph Services["AWS Services"]
             SM["Secrets Manager<br/>DB Credentials (Aurora-managed)"]
-            CW["CloudWatch<br/>6 Log Groups"]
+            CW["CloudWatch<br/>7 Log Groups"]
             IAM["IAM<br/>OIDC Provider<br/>Lambda Execution Roles<br/>GH Actions Role"]
-            EB["EventBridge<br/>3 Warming Rules"]
+            EB["EventBridge<br/>4 Warming Rules"]
         end
 
         subgraph State["Terraform State — us-east-1"]
@@ -792,19 +789,20 @@ graph TB
     CF_P -->|/api/*| APIGW_P
     CF_E -->|/api/*| APIGW_E
     CF_A -->|/api/*| APIGW_A
-    APIGW_P --> L_P --> DB_P
+    APIGW_P -->|/api/*| L_P --> DB_P
+    APIGW_P -->|/api/chatbot/*| L_C
     APIGW_E --> L_E --> DB_E
     APIGW_A --> L_A --> DB_A
 
     GHA -->|OIDC AssumeRole| IAM
-    GHA -->|mvn package → upload JAR| L_P & L_E & L_A
+    GHA -->|mvn package → upload JAR| L_P & L_C & L_E & L_A
     GHA -->|npm build → S3 sync| S3_P & S3_E & S3_A
     GHA -->|Read/Write State| TF_S3
     GHA -->|Lock State| DDB
 
-    SM -.->|Inject Secrets| L_P & L_E & L_A
-    L_P & L_E & L_A -->|Logs| CW
-    EB -.->|Warm invocations| L_P & L_E & L_A
+    SM -.->|Inject Secrets| L_P & L_C & L_E & L_A
+    L_P & L_C & L_E & L_A -->|Logs| CW
+    EB -.->|Warm invocations| L_P & L_C & L_E & L_A
 ```
 
 ### 4.2 Component Diagram — Networking & Security
@@ -933,12 +931,12 @@ graph LR
 | **AWS WAF** | First line of defense attached to each CloudFront distribution. Five rules in priority order: general rate limiting, auth-specific rate limiting, and three AWS managed rule sets (OWASP common, known bad inputs, SQLi). All rules emit CloudWatch metrics. |
 | **ACM Certificate** | Single certificate with four SANs (clarkfoster.com, www, shop, ats). DNS-validated via Route 53 records. Must be issued in us-east-1 for CloudFront. Uses create-before-destroy lifecycle to avoid downtime during renewal. |
 | **CloudFront (3 distributions)** | CDN and TLS termination layer. Each distribution has two behaviors: `/*` → S3 static hosting, `/api/*` → API Gateway origin. Security headers (CSP, HSTS, X-Frame-Options) are injected via CloudFront response headers policy. |
-| **API Gateway (3 HTTP APIs)** | Serverless HTTP API acting as the Lambda proxy integration. Routes all `/api/*` requests to the corresponding Lambda function. Provides throttling and request validation. |
-| **Lambda (3 functions)** | Spring Boot 3.5.13 on Java 21 packaged as flat uber JARs via maven-shade-plugin. Uses `aws-serverless-java-container-springboot3` adapter (`StreamLambdaHandler`). SnapStart reduces cold start times. EventBridge warming rules invoke each function every 4 minutes. |
+| **API Gateway (3 REST APIs)** | Regional REST API Gateway acting as the Lambda proxy integration. Routes all `/api/*` requests to the corresponding Lambda function; the portfolio API also routes `/api/chatbot/*` to the dedicated chatbot Lambda. Provides throttling and request validation. |
+| **Lambda (4 functions)** | Spring Boot 3.5.14 on Java 21 packaged as flat uber JARs via maven-shade-plugin. Uses `aws-serverless-java-container-springboot3` adapter (`StreamLambdaHandler`). SnapStart reduces cold start times. EventBridge warming rules invoke each function every 2 minutes. |
 | **S3 (3 static hosting buckets)** | Hosts the compiled Angular SPA for each application. Versioned hashed filenames enable aggressive cache-control headers. Bucket policy restricts access to CloudFront origin access control only — no public direct access. |
 | **Aurora Serverless v2 (1 shared cluster, 3 databases)** | PostgreSQL 15.17, 0.5–4 ACU. Single shared cluster hosts three databases (portfolio, ecommerce, ats). Scales to near-zero when idle. Cluster is in private VPC subnets; Lambda functions connect via security group rules. |
 | **Secrets Manager** | Stores Aurora-managed database credentials only. JWT signing key, admin password, and SMTP credentials are now Terraform variables injected as Lambda environment variables. No long-lived application secrets stored in Secrets Manager. |
-| **EventBridge (3 rules)** | Scheduled rules invoke each Lambda function every 4 minutes to keep the JVM warm and prevent cold starts. |
+| **EventBridge (4 rules)** | Scheduled rules invoke each Lambda function every 2 minutes to keep the JVM warm and prevent cold starts. |
 | **CloudWatch** | Centralized logging for Lambda invocations and API Gateway access logs. 7-day retention balances troubleshooting access with storage cost. |
 | **GitHub Actions (OIDC)** | CI/CD pipeline with keyless AWS authentication. The OIDC provider trusts the GitHub repository and branch. No long-lived AWS access keys stored in GitHub. The IAM role grants permissions for Lambda updates, S3 sync, CloudFront invalidation, and Terraform state access. |
 | **Terraform Remote State** | S3 bucket in us-east-1 with versioning and AES256 encryption. DynamoDB table provides state locking to prevent concurrent Terraform runs. Bootstrap module creates these resources before the main configuration is applied. |
@@ -947,13 +945,13 @@ graph LR
 
 **Why this architecture:**
 
-Three independent Lambda functions replace a shared ECS cluster — isolating blast radius per application and eliminating always-on compute costs. CloudFront serves as the single entry point for each domain: static assets from S3 with aggressive caching, API traffic proxied to Lambda. Aurora Serverless v2 replaces sidecar database containers, providing managed backups, high availability, and near-zero idle costs. Terraform codifies the entire stack, and GitHub Actions OIDC removes the need for stored AWS credentials.
+Four independent Lambda functions replace a shared ECS cluster — three database-backed application backends plus one dedicated portfolio-chatbot backend — isolating blast radius and eliminating always-on compute costs. CloudFront serves as the single entry point for each domain: static assets from S3 with aggressive caching, API traffic proxied to Lambda. Aurora Serverless v2 replaces sidecar database containers, providing managed backups, high availability, and near-zero idle costs. Terraform codifies the entire stack, and GitHub Actions OIDC removes the need for stored AWS credentials.
 
 **Key tradeoffs:**
 
 | Decision | Benefit | Cost |
 |----------|---------|------|
-| Lambda per application vs. shared ECS cluster | Isolated blast radius — one Lambda's cold start or failure does not affect others. No always-on compute costs (~$63/month total vs. ~$200/month ECS Fargate). | Cold starts on first request after idle. Mitigated by EventBridge 4-minute warming rules. |
+| Lambda per application vs. shared ECS cluster | Isolated blast radius — one Lambda's cold start or failure does not affect others. No always-on compute costs (~$63/month total vs. ~$200/month ECS Fargate). | Cold starts on first request after idle. Mitigated by EventBridge 2-minute warming rules. |
 | Aurora Serverless v2 vs. sidecar database containers | Managed backups, automated patching, point-in-time recovery, multi-AZ failover. Near-zero idle cost (0.5 ACU minimum). | Cannot trivially inspect database without VPC bastion or tunneling. Initial connection cold start ~2–3s after long idle. |
 | CloudFront + S3 vs. Nginx on ECS | Zero server management for static content. Global CDN edge caching. Security headers via response headers policy. S3 costs far less than always-on Nginx containers. | Cache invalidation required on every frontend deploy. |
 | Lambda via API Gateway vs. ALB + ECS | No load balancer cost (~$16/month each, ~$48/month for 3). Lambda scales to zero when idle. | Lambda concurrency limits and 15-minute max duration apply. Streaming responses require response streaming configuration. |

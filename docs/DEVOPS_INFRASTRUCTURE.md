@@ -126,7 +126,7 @@ The pipeline avoids duplication through two reusable workflows that both PR vali
 | `node-test-args` | `--no-watch --code-coverage --browsers=ChromeHeadless` | Passed to `ng test` (Node only) |
 
 - Java path: `setup-java@v4` (JDK 21, Temurin) → `mvn clean test` → `mvn package -DskipTests` → `jacoco:report` → upload JAR artifact (1-day retention) → Codecov upload
-- Node path: `setup-node@v5` (Node 22) → `npm ci` → lint → `ng test` → production build → upload `dist/` artifact (1-day retention) → Codecov upload
+- Node path: `setup-node@v5` (Node 24) → `npm ci` → lint → `ng test` → production build → upload `dist/` artifact (1-day retention) → Codecov upload
 
 **`reusable-security.yml`** — Security scanning:
 - Trivy filesystem scan of the entire repo (CRITICAL/HIGH severity) → SARIF upload to GitHub Security tab
@@ -134,10 +134,11 @@ The pipeline avoids duplication through two reusable workflows that both PR vali
 
 ### 1.5 SonarCloud Integration
 
-Configured via [sonar-project.properties](../sonar-project.properties):
+Configured via [`sonar-project.properties`](https://github.com/clark22134/MyPortfolioWebsite/blob/main/sonar-project.properties):
 
 ```
 sonar.sources = portfolio-backend/src/main/java,
+                portfolio-chatbot-backend/src/main/java,
                 portfolio-frontend/src/app,
                 ats-backend/src/main/java,
                 ats-frontend/src/app,
@@ -145,11 +146,12 @@ sonar.sources = portfolio-backend/src/main/java,
                 ecommerce-frontend/src/app
 
 sonar.tests  = portfolio-backend/src/test/java,
+               portfolio-chatbot-backend/src/test/java,
                ats-backend/src/test/java,
                ecommerce-backend/src/test/java
 ```
 
-All 6 codebases are analyzed in a single SonarCloud project. Coverage comes from JaCoCo (Java backends) and lcov (frontend). Test files (`*.spec.ts`) are excluded from main source analysis. The combined project coverage is **81%**, tracked on every CI run.
+All 7 codebases are analyzed in a single SonarCloud project. Coverage comes from JaCoCo (Java backends) and LCOV (frontends). Test files (`*.spec.ts`) are excluded from main source analysis. The combined project coverage is **81%**, tracked on every CI run.
 
 ---
 
@@ -176,7 +178,7 @@ The serverless architecture eliminates Docker images in favor of direct Lambda d
 │   Upload JAR to Lambda function             │
 │   Runtime: Java 21 with SnapStart enabled  │
 │   Configuration: 1024–2048 MB memory (portfolio/ATS/chatbot: 1024 MB; e-commerce: 2048 MB) │
-│   Warm-up: EventBridge rule (4min interval) │
+│   Warm-up: EventBridge rule (2min interval) │
 │   Environment: OPENAI_API_KEY (chatbot)     │
 │                DB secrets (others)          │
 └─────────────────────────────────────────────┘
@@ -224,9 +226,9 @@ The serverless architecture eliminates Docker images in favor of direct Lambda d
 | **SnapStart** | Enabled | Enabled | Enabled | Enabled (captures vector index) |
 | **Memory** | 1024 MB | 2048 MB | 1024 MB | 1024 MB |
 | **Timeout** | 30 seconds | 30 seconds | 30 seconds | 30 seconds |
-| **/tmp storage** | 512 MB | 512 MB | 2048 MB | 2048 MB |
+| **/tmp storage** | 512 MB | 512 MB | 512 MB | 512 MB |
 | **VPC** | Private subnets | Private subnets | Private subnets | **None** (outside VPC — needs direct egress to api.openai.com; no DB access) |
-| **Warm-up** | EventBridge (4min) | EventBridge (4min) | EventBridge (4min) | EventBridge (4min) |
+| **Warm-up** | EventBridge (2min) | EventBridge (2min) | EventBridge (2min) | EventBridge (2min) |
 | **Database** | Aurora (portfolio) | Aurora (ecommerce) | Aurora (ats) | **None** (no JPA/JDBC) |
 | **Key env vars** | `SPRING_DATASOURCE_*`, `JWT_SECRET` | `SPRING_DATASOURCE_*`, `JWT_SECRET` | `SPRING_DATASOURCE_*` | `OPENAI_API_KEY`, `CHATBOT_ENABLED`, `CHATBOT_RATE_LIMIT_PER_MIN`, `CHATBOT_DOCS_PATH` |
 
@@ -236,26 +238,25 @@ The serverless architecture eliminates Docker images in favor of direct Lambda d
 |---------|-----------|---------|
 | GitHub Actions (production) | Git commit SHA in Lambda environment variable | `GIT_COMMIT=a1b2c3d4e5f6...` |
 | S3 Objects | Versioning enabled (automatic) | S3 manages version IDs |
-| Lambda Versions | $LATEST (continuous
-```
+| Lambda Versions | Immutable published versions + alias promotion (`current`) | `current → 42` |
 
 ### 2.4 Makefile
 
-The [Makefile](../Makefile) provides local development shortcuts across all 6 codebases:
+The [`Makefile`](https://github.com/clark22134/MyPortfolioWebsite/blob/main/Makefile) provides local development shortcuts across the 6 primary application codebases (3 backends + 3 frontends):
 
 | Command | Scope | Action |
 |---------|-------|--------|
-| `make install` | All 6 projects | `mvn clean install -DskipTests` (×3) + `npm install` (×3) |
-| `make build` | All 6 projects | `mvn clean package -DskipTests` (×3) + `npm run build` (×3) |
-| `make test` | All 6 projects | `mvn test` (×3) + `npm test` (×3) |
-| `make clean` | All 6 projects | `mvn clean` (×3) + `rm -rf dist node_modules` (×3) |
+| `make install` | All 6 primary projects | `mvn clean install -DskipTests` (×3) + `npm ci` (×3) |
+| `make build` | All 6 primary projects | `mvn clean package -DskipTests` (×3) + `npm run build` (×3) |
+| `make test` | All 6 primary projects | `mvn test` (×3) + `npm test` (×3) |
+| `make clean` | All 6 primary projects | `mvn clean` (×3) + `rm -rf dist` (×3) |
 | `make docker-build` | Docker Compose (local dev) | `docker build` for local testing only |
 | `make docker-up` | Compose stack (local dev) | `docker compose up -d` for local development |
 | `make docker-down` | Compose stack | `docker compose down` |
 | `make terraform-plan` | Infrastructure | `cd terraform && terraform plan` |
-| `make terraform-apply` | Infrastructure | `cd terraform && terraform apply -auto-approve` |
+| `make terraform-apply` | Infrastructure | `cd terraform && terraform apply` |
 
-**Note:** Docker commands are for local development only. Production uses serverless deployment (Lambda + S3 + CloudFront).
+**Note:** Docker commands are for local development only. Production uses serverless deployment (Lambda + S3 + CloudFront). The dedicated chatbot backend (`portfolio-chatbot-backend`) is not part of `make build/test` and is validated via its own Maven/CI jobs.
 
 ---
 
@@ -373,17 +374,16 @@ This reduces total deployment time from ~15 minutes (ECS Fargate) to ~3-5 minute
 
 ### 3.5 Manual Deployment
 
-The [scripts/deploy-serverless.sh](../scripts/deploy-serverless.sh) script provides a local deployment path when GitHub Actions is unavailable:
+The [`scripts/deploy-aws-serverless.sh`](https://github.com/clark22134/MyPortfolioWebsite/blob/main/scripts/deploy-aws-serverless.sh) script provides a local deployment path when GitHub Actions is unavailable:
 
 ```
-deploy-serverless.sh
+deploy-aws-serverless.sh
 ├── Check prerequisites (terraform, AWS CLI, maven, npm)
-├── Confirm backup exists (main.tf.fargate-backup)
 ├── Run terraform init + validate
 ├── Show terraform plan for review
 ├── Prompt for confirmation
 ├── Apply Terraform changes (infrastructure)
-├── For each backend:
+├── For each primary backend:
 │   ├── cd {backend-dir} && mvn clean package -DskipTests
 │   ├── aws lambda update-function-code --zip-file fileb://target/*.jar
 │   ├── aws lambda publish-version
@@ -396,7 +396,7 @@ deploy-serverless.sh
 └── Verify endpoints: GET /api/version via CloudFront
 ```
 
-The script mirrors the GitHub Actions workflow but uses timestamp-based tags instead of SHA tags and authenticates via local AWS CLI credentials instead of OIDC.
+The script mirrors the GitHub Actions workflow but uses local AWS CLI credentials instead of OIDC and currently deploys the three primary backends (portfolio/e-commerce/ATS). The production GitHub workflow additionally deploys the dedicated `portfolio-chatbot` Lambda.
 
 ### 3.5 Post-Deployment Verification
 
@@ -499,7 +499,7 @@ graph TB
 
 ### 4.2 Terraform Modules
 
-The serverless infrastructure is defined across 8 Terraform modules (~2190 lines, Terraform ≥ 1.0, AWS Provider ~> 6.38):
+The serverless infrastructure is defined across 8 Terraform modules (~2190 lines, Terraform >= 1.10, AWS Provider `~> 6.47`, Random Provider `~> 3.9`):
 
 | Module | Key Resources | Lines |
 |--------|--------------|-------|
@@ -521,11 +521,10 @@ The serverless infrastructure is defined across 8 Terraform modules (~2190 lines
 
 ```
 terraform/
-├── main.tf                          # Root module: 3 complete application stacks
+├── main.tf                          # Root module: 3 application stacks + dedicated chatbot lambda route
 ├── variables.tf                     # Input variables (domain, environment, region)
 ├── providers.tf                     # AWS provider (us-east-1) + alias (us-east-1)
 ├── outputs.tf                       # Outputs (CloudFront URLs, Lambda ARNs, DB endpoints)
-├── main.tf.fargate-backup           # Backup of original ECS/Fargate configuration
 ├── bootstrap/                       # S3 + DynamoDB for remote state (one-time setup)
 └── modules/
     ├── networking/                  # VPC, subnets, gateways
@@ -564,13 +563,13 @@ Most deployments exit 0 — infrastructure rarely changes between application de
 
 | Surface | Configuration Method | Profile |
 |---------|---------------------|---------|
-| **Local (bare metal)** | `make deploy-local` → Spring Boot defaults + `ng serve` with `proxy.conf.json` | `default` |
+| **Local (bare metal)** | `make preview-all` → Spring Boot defaults + `ng serve` with `proxy.conf.json` | `default` |
 | **Local (Docker Compose)** | `.env` file + `docker-compose.yml` environment variables + Nginx local config overrides | `prod` |
 | **Production (AWS)** | Terraform variables → Lambda environment variables + Secrets Manager (DB creds only) | `prod` |
 
 ### 5.2 Docker Compose (Local)
 
-The [docker-compose.yml](../docker-compose.yml) orchestrates all 8 containers on a single bridge network:
+The [`docker-compose.yml`](https://github.com/clark22134/MyPortfolioWebsite/blob/main/docker-compose.yml) orchestrates all 8 containers on a single bridge network:
 
 ```
 portfolio-network (bridge)
@@ -656,20 +655,15 @@ graph LR
 
 ### 6.3 Secret Rotation
 
-The [scripts/rotate-all-secrets.sh](../scripts/rotate-all-secrets.sh) script handles emergency rotation after a potential exposure:
+There is no one-shot `rotate-all-secrets.sh` script in the current repo. Rotation is performed through Terraform variables and AWS Secrets Manager:
 
-| Secret | Rotation Method |
-|--------|----------------|
-| `portfolio/jwt-secret` | Auto-generated: `openssl rand -base64 64` |
-| `portfolio/admin-password` | Auto-generated: `openssl rand -base64 24` (displayed once) |
-| `portfolio/admin-email` | Prompted (optional — press Enter to skip) |
-| `portfolio/admin-username` | Prompted (optional) |
-| `portfolio/admin-fullname` | Prompted (optional) |
-| `portfolio/contact-email` | Prompted (optional) |
-| `portfolio/mail-username` | Prompted (optional) |
-| `portfolio/mail-password` | Prompted (optional) |
+| Secret Category | Rotation Method |
+|----------------|-----------------|
+| JWT/admin/SMTP env vars | Update `TF_VAR_*` values (or CI secrets), run Terraform apply, then publish new Lambda versions/aliases |
+| Aurora DB credentials | Rotate the Aurora-managed secret in Secrets Manager, then verify application connectivity |
+| OpenAI API key (chatbot) | Update `TF_VAR_openai_api_key`, apply Terraform, and publish a new `portfolio-chatbot` Lambda version |
 
-After rotation, the script publishes new Lambda versions so functions pick up the new values on next invocation.
+After rotation, publish new Lambda versions (or run the production deployment workflow) so the updated environment variables and secret references are active on `current` aliases.
 
 ### 6.4 IAM Scoping
 
@@ -724,11 +718,11 @@ aws lambda update-alias \
 
 | Component | Health Check | Method |
 |-----------|-------------|--------|
-| Backend Lambda (×3) | `/api/version` | Post-deploy smoke test via CloudFront |
+| Backend Lambdas (×4) | `GET /api/health` (portfolio/e-commerce/ATS) + `GET /api/chatbot/health` (chatbot) | Post-deploy smoke tests via CloudFront |
 | Frontend S3 (×3) | `index.html` exists | S3 sync verification |
 | API Gateway (×3) | Stage deployment status | AWS CLI check |
 
-Lambda functions with SnapStart don't use traditional health checks. Instead, SnapStart pre-initializes the Spring Boot context during version publishing. The EventBridge warmer (every 4 minutes) ensures at least one warm execution environment is available, keeping response times under 500ms for most requests.
+Lambda functions with SnapStart don't use traditional health checks. Instead, SnapStart pre-initializes the Spring Boot context during version publishing. The EventBridge warmer (every 2 minutes) ensures at least one warm execution environment is available, keeping response times under 500ms for most requests.
 
 ### 7.4 Lambda Deployment Timeout
 
@@ -799,7 +793,7 @@ Previous Lambda versions are immutable and retained indefinitely. Manual rollbac
 
 ### 8.1 Dependabot Configuration
 
-[`.github/dependabot.yml`](../.github/dependabot.yml) monitors 5 ecosystems on a weekly schedule (every Monday):
+[`/.github/dependabot.yml`](https://github.com/clark22134/MyPortfolioWebsite/blob/main/.github/dependabot.yml) monitors 5 ecosystems on a weekly schedule (every Monday):
 
 | Ecosystem | Directories | Grouping |
 |-----------|-------------|----------|
@@ -841,7 +835,7 @@ All Trivy results upload to GitHub's Security tab as SARIF files — visible as 
 
 ### 9.2 Health Monitoring
 
-- **EventBridge warmers** — Every 4 minutes per Lambda function. Keeps at least one warm execution environment available.
+- **EventBridge warmers** — Every 2 minutes per Lambda function. Keeps at least one warm execution environment available.
 - **Lambda metrics** — CloudWatch tracks invocations, duration, errors, throttles, cold starts, and concurrent executions per function.
 - **API Gateway metrics** — Latency, 4xx/5xx error rates, and request counts per API stage.
 - **WAF metrics** — CloudWatch metrics enabled for all WAF rules with sampled request logging.

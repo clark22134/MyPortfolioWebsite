@@ -77,7 +77,7 @@ The deliberate selection of three distinct business domains — content manageme
 │ │  Spring Boot 3  │   │   │ │  Spring Boot 3        │  │   │ │  Spring Boot 3     │  │
 │ │  Java 21        │   │   │ │  Java 21              │  │   │ │  Java 21           │  │
 │ │  SnapStart      │   │   │ │  Spring Data REST     │  │   │ │  SnapStart         │  │
-│ │  2048 MB        │   │   │ │  SnapStart            │  │   │ │  2048 MB           │  │
+│ │  1024 MB        │   │   │ │  SnapStart            │  │   │ │  1024 MB           │  │
 │ │  30s timeout    │   │   │ │  2048 MB              │  │   │ │  30s timeout       │  │
 │ │  VPC-enabled    │   │   │ │                       │  │   │ │  VPC-enabled       │  │
 │ │                 │   │   │ │  Capabilities:        │  │   │ │                    │  │
@@ -154,7 +154,7 @@ The deliberate selection of three distinct business domains — content manageme
                     │                                      │
                     │  ┌──────────────────────────────┐    │
                     │  │  CloudWatch Logs               │    │
-                    │  │  6 Log Groups (7-day retention)│    │
+                    │  │  7 Log Groups (7-day retention)│    │
                     │  │  Lambda + API Gateway logs     │    │
                     │  └──────────────────────────────┘    │
                     │                                      │
@@ -229,9 +229,9 @@ The cost-optimized serverless infrastructure (~$63/month for three production ap
 
 - **Aurora Serverless v2**: A single shared PostgreSQL 15.17 cluster with 3 separate databases (portfolio, ecommerce, ats), auto-scaling from 0.5–4 ACU. Replaces the previous sidecar database containers. Provides managed backups, encryption at rest, and automatic scaling based on traffic.
 - **Single CloudFront WAF**: One CloudFront-compatible WAF WebACL (deployed in us-east-1) protects all three CloudFront distributions with rate limiting (2000 req/5min general, 20 req/5min for auth endpoints) and AWS managed rules (SQL injection, XSS, bad inputs).
-- **Lambda SnapStart**: All three Java backends use Lambda SnapStart to reduce cold starts from ~8s to 1-2s by creating snapshots of initialized Spring Boot contexts.
+- **Lambda SnapStart**: All four Java Lambda functions (portfolio, portfolio-chatbot, e-commerce, ATS) use SnapStart to reduce cold starts from ~8s to 1-2s by creating snapshots of initialized Spring Boot contexts.
 - **CloudFront global CDN**: Three distributions serve static frontends from S3 with edge caching and proxy `/api/*` requests to regional API Gateways. This eliminates the ALB (~$16/month) and reduces data transfer costs.
-- **EventBridge warming**: Each Lambda function has a scheduled rule that triggers every 4 minutes to maintain warm execution environments and prevent cold starts during low-traffic periods.
+- **EventBridge warming**: Each Lambda function has a scheduled rule that triggers every 2 minutes to maintain warm execution environments and prevent cold starts during low-traffic periods.
 - **Terraform modules** (networking, ACM, S3, CloudFront, CloudFront WAF, API Gateway, Lambda, Aurora, Route53) are reusable across all three apps with ~2190 lines of modular infrastructure code.
 
 ---
@@ -272,7 +272,7 @@ Each project builds on patterns established in the previous one. JWT handling, l
 ```
 FRONTEND          BACKEND              DATABASE               INFRASTRUCTURE
 ─────────         ───────              ────────               ──────────────
-Angular 21        Spring Boot 3.5.13    Aurora Serverless v2   AWS Lambda (Java 21)
+Angular 21        Spring Boot 3.5.14    Aurora Serverless v2   AWS Lambda (Java 21)
 TypeScript 5.9    Java 21              PostgreSQL 15.17        API Gateway (REST)
 RxJS 7.8          Spring Security      0.5–4 ACU scaling      CloudFront CDN
 S3 Static         Spring Data JPA                             S3 Buckets
@@ -295,13 +295,13 @@ Puppeteer         Apache PDFBox 3.0                           Secrets Manager
 
 | Resource | Monthly Cost | Shared By |
 |----------|-------------|-----------|
-| Lambda (3 functions, SnapStart + EventBridge warming) | ~$6–8 | All 3 apps |
+| Lambda (4 functions, SnapStart + EventBridge warming) | ~$6–8 | All 3 apps + chatbot route |
 | Aurora Serverless v2 (1 shared cluster, 3 DBs, 0.5–4 ACU) | ~$35–40 | All 3 apps |
 | CloudFront (3 distributions, global edge cache) | ~$3–5 | All 3 apps |
 | CloudFront WAF (5 rules, shared WebACL) | ~$5–6 | All 3 apps |
 | S3 (3 buckets, static hosting + versioning) | ~$1–2 | All 3 apps |
 | API Gateway (3 REST APIs, regional) | ~$1–2 | All 3 apps |
-| CloudWatch Logs (6 log groups) | ~$1–2 | All 3 apps |
+| CloudWatch Logs (7 log groups) | ~$1–2 | All 3 apps + chatbot route |
 | NAT Gateway (Lambda VPC) | ~$3–4 | All 3 apps |
 | Route 53 (hosted zone + queries) | ~$0.50 | All 3 apps |
 | S3 + DynamoDB (Terraform state) | <$1 | IaC state |

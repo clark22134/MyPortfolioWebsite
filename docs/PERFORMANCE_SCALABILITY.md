@@ -44,7 +44,7 @@ Every backend runs as a Lambda function. Lambda scales automatically from 0 to 1
 
 Lambda charges per request (first 1M requests/month free, then $0.20 per 1M). There is no always-on compute cost. Scaling to handle a traffic spike is automatic — Lambda provisions additional execution environments concurrently without operator intervention.
 
-**Cold start mitigation:** SnapStart (enabled on all three functions) reduces Java cold start time from 5–10s to under 2s by snapshotting the initialized JVM checkpoint. Additionally, EventBridge rules trigger a warming invocation every 4 minutes to keep execution environments alive during typical usage patterns.
+**Cold start mitigation:** SnapStart (enabled on all four functions) reduces Java cold start time from 5–10s to under 2s by snapshotting the initialized JVM checkpoint. Additionally, EventBridge rules trigger a warming invocation every 2 minutes to keep execution environments alive during typical usage patterns.
 
 ### 1.3 Vertically Managed Components
 
@@ -78,7 +78,7 @@ The Aurora Serverless v2 max ACU setting (currently 4 ACU on the single shared c
 
 **ATS (HireFlow):** The most computationally intensive. Resume parsing (Apache Tika → PDFBox/POI → regex skill extraction) is CPU-bound and synchronous. The Haversine distance calculation for candidate-job scoring runs in application code across all eligible candidates. Lambda's 1024 MB memory allocation handles the parsing workload for typical resumes; the function timeout is set to 30 seconds. At scale, the parsing pipeline should move off the synchronous Lambda invocation path (SQS queue), and the scoring algorithm benefits from pre-computed distance caches or spatial database indexes. The 12 MB upload limit in the Nginx local dev config already constrains per-request memory impact; API Gateway enforces a 10 MB payload limit in production.
 
-**Portfolio Assistant:** The chatbot Lambda (`portfolio-chatbot-backend`) performs no database I/O — `DataSourceAutoConfiguration` is excluded. Its scaling characteristics differ from the three backend functions. At startup (`@PostConstruct`), the knowledge base is ingested via the OpenAI Embeddings API and stored in a `SimpleVectorStore` (in-process, memory-resident). SnapStart captures the initialized vector index in the JVM checkpoint, so warm invocations skip re-ingestion entirely. Per-query latency is dominated by the synchronous OpenAI API call to `gpt-5.4-mini`. SSE token streaming keeps the *perceived* latency low — the browser receives the first token within ~800ms, and the full response streams in 2–5 seconds. The Lambda timeout is 30 seconds (well above the p99 LLM generation time). The in-process `SimpleVectorStore` cosine similarity search over a few hundred chunks completes in under 1ms. At higher traffic, the per-IP rate limiter (`ConcurrentHashMap`, 20 req/min) is instance-local; at multi-instance concurrency, Redis (ElastiCache) would be the correct replacement. OpenAI's own rate limits and latency become the primary bottleneck above moderate traffic.
+**Portfolio Assistant:** The chatbot Lambda (`portfolio-chatbot-backend`) performs no database I/O — `DataSourceAutoConfiguration` is excluded. Its scaling characteristics differ from the three database-backed backend functions. At startup (`@PostConstruct`), the knowledge base is ingested via the OpenAI Embeddings API and stored in a `SimpleVectorStore` (in-process, memory-resident). SnapStart captures the initialized vector index in the JVM checkpoint, so warm invocations skip re-ingestion entirely. Per-query latency is dominated by the synchronous OpenAI API call to `gpt-5.4-mini`. SSE token streaming keeps the *perceived* latency low — the browser receives the first token within ~800ms, and the full response streams in 2–5 seconds. The Lambda timeout is 30 seconds (well above the p99 LLM generation time). The in-process `SimpleVectorStore` cosine similarity search over a few hundred chunks completes in under 1ms. At higher traffic, the per-IP rate limiter (`ConcurrentHashMap`, 20 req/min) is instance-local; at multi-instance concurrency, Redis (ElastiCache) would be the correct replacement. OpenAI's own rate limits and latency become the primary bottleneck above moderate traffic.
 
 ---
 
@@ -91,7 +91,7 @@ The Aurora Serverless v2 max ACU setting (currently 4 ACU on the single shared c
 **Impact:** Aurora Serverless v2 may pause when a cluster has been idle for an extended period. The first database connection after a pause incurs a 1–2 second reconnection delay. Under normal portfolio traffic this is rarely observed; under zero-traffic overnight scenarios, the delay affects the first early-morning request.
 
 **Mitigation (current):**
-- EventBridge warming rules ping all three Lambda functions every 4 minutes, keeping both the Lambda execution environment and the Aurora connection pool alive during normal hours
+- EventBridge warming rules ping all four Lambda functions every 2 minutes; the three VPC data backends keep both the Lambda execution environment and Aurora connection pools warm
 - HikariCP connection pool with `connectionTimeout=30000` and `idleTimeout=600000` handles brief Aurora reconnection gracefully
 - SnapStart ensures the Lambda itself doesn't add cold start latency on top of any Aurora reconnection
 
@@ -379,7 +379,7 @@ All three backends use HikariCP (Spring Boot's default connection pool), but no 
 
 **At current scale (Lambda with demo traffic):** The default of 10 connections per Lambda execution environment is adequate — the single shared Aurora Serverless v2 cluster handles concurrent connections across all three databases, and request volume doesn’t approach pool exhaustion. SnapStart preserves the initialized HikariCP pool in the JVM checkpoint, so warm invocations reuse established connections.
 
-**At scale:** The pool size should be tuned relative to the Aurora cluster’s max connection limit. Aurora Serverless v2 max connections scale with ACU (approximately 90 connections per ACU). With N concurrent Lambda execution environments across all three functions, the formula is:
+**At scale:** The pool size should be tuned relative to the Aurora cluster’s max connection limit. Aurora Serverless v2 max connections scale with ACU (approximately 90 connections per ACU). With N concurrent Lambda execution environments across all four functions, the formula is:
 
 $$\text{maximumPoolSize} \leq \frac{\text{DB max connections} - \text{reserved connections}}{N}$$
 
@@ -461,7 +461,7 @@ The candidate's pipeline stage (`APPLIED`, `SCREENING`, `INTERVIEW`, etc.) is st
 | Aurora Serverless v2 (1 shared cluster, 3 DBs) | 0.5–4 ACU | N/A | ~$43 (0.5 ACU minimum × $0.12/ACU-hour) |
 | **Total** | — | — | **~$45–50** |
 
-Lambda pricing: first 1M requests/month free, then $0.20/1M requests. At portfolio-level traffic, all three backends remain within the free tier. Aurora Serverless v2 is the primary ongoing cost.
+Lambda pricing: first 1M requests/month free, then $0.20/1M requests. At portfolio-level traffic, all four Lambdas typically remain within the free request tier. Aurora Serverless v2 remains the primary ongoing AWS cost (OpenAI API usage is a separate variable cost for chatbot requests).
 
 ### Rate Limiting Configuration (Multi-Layer)
 

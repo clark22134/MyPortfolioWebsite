@@ -53,9 +53,9 @@ documentation, and an accessibility statement.
 
 - **Testing**: JUnit 5 + Mockito (backend), Vitest + @vitest/coverage-v8 + axe-core (frontend),
   JaCoCo XML coverage (backends), LCOV coverage (frontends), Spring Security Test for auth flows.
-  Combined code coverage across all six codebases: **81%** (tracked via SonarCloud and CodeCov on every CI run).
+  Combined code coverage across all seven codebases: **81%** (tracked via SonarCloud and CodeCov on every CI run, including the dedicated `portfolio-chatbot-backend` test job).
 - **Quality gates**: SonarCloud (`sonar-project.properties`), GitHub Actions
   build + test on every PR.
 - **Containerization**: Each app has its own Dockerfile. `docker-compose.yml`
-  spins up the entire stack locally; `scripts/deploy-local.sh` is the
-  one-shot dev bootstrap.
+  runs the full containerized local stack, while `make preview-all`
+  starts the source-based local preview workflow (apps + supporting DB containers).
