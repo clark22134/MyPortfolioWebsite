@@ -17,6 +17,7 @@ A personal portfolio website that presents professional work and technical skill
 - **JWT authentication** with refresh token rotation, HTTP-only cookies, and per-user session limits (max 5 devices)
 - **Accessibility toolkit:** screen reader support, font size adjustment, contrast options, WCAG compliance validated with axe-core and Puppeteer
 - **Animated terminal loader** on first visit (Kali-style typing effect)
+- **Portfolio Assistant** — embedded RAG chatbot (Spring AI + OpenAI) that answers questions about projects, skills, and documentation using a curated knowledge base with citation-backed streaming responses
 
 ### Target Users
 
@@ -33,15 +34,42 @@ Acts as a living technical portfolio, demonstrating full-stack development, secu
 |-------|-------|
 | Frontend | Angular 21, TypeScript 5.9, SCSS, standalone components |
 | Backend | Spring Boot 3.5.13, Java 21, Spring Security, Spring Mail |
+| AI Assistant | Spring Boot 3.5.13, Java 21, Spring AI 1.0.5, OpenAI (gpt-5.4-mini + text-embedding-3-small) |
 | Database | Aurora Serverless v2 (PostgreSQL 15.17) |
 | Auth | JWT access tokens (15 min) + refresh tokens (7 days), BCrypt, CSRF via XSRF-TOKEN |
 | Infrastructure | AWS Lambda (Java 21), API Gateway, CloudFront, S3, Route53, ACM |
 
 ```
 Browser → CloudFront (clarkfoster.com)
-             ├─ /api/* → API Gateway → Lambda (Spring Boot)
-             └─ /*     → S3 (Angular SPA)
+             ├─ /api/*         → API Gateway → Lambda (Spring Boot)
+             ├─ /api/chatbot/* → API Gateway → Lambda (Portfolio Assistant)
+             └─ /*             → S3 (Angular SPA)
 ```
+
+### 1.1 Portfolio Assistant
+
+The portfolio includes a production **RAG (Retrieval-Augmented Generation) chatbot** that answers visitor questions about Clark Foster's projects, skills, credentials, and documentation. It runs as a separate Lambda function (`portfolio-chatbot-backend`) co-deployed alongside the main portfolio backend.
+
+**Key Features:**
+
+- **Streaming answers** via Server-Sent Events — tokens are pushed incrementally as the LLM generates them; a structured `citations` event follows with numbered source references
+- **Retrieval-augmented generation** — answers are grounded in a curated knowledge base (bundled markdown + repo docs) rather than relying on model memory alone
+- **Per-query RAG pipeline** — query expansion → cosine similarity retrieval → category-aware reranking → prompt assembly → streaming response
+- **Graceful degradation** — if `OPENAI_API_KEY` is absent, `@ConditionalOnExpression` skips bean creation and `/api/chatbot/health` returns `{ "available": false }`; the Angular frontend hides the assistant without a code change
+- **Per-IP rate limiting** — sliding 60-second window (default 20 req/min) enforced at the application layer
+- **No authentication required** — public read-only knowledge retrieval; CSRF-exempt endpoints
+
+**Architecture:**
+
+| Component | Role |
+|-----------|------|
+| `PortfolioAssistantController` | REST endpoints (`/api/chatbot/health`, `/api/chatbot/message`, `/api/chatbot/stream`), per-IP rate limiting |
+| `RagService` | Retrieval, query expansion, reranking, prompt assembly, streaming |
+| `KnowledgeIngestionService` | Startup ingestion from classpath markdown and filesystem docs |
+| `ChatbotConfig` | Spring AI beans — `SimpleVectorStore`, `MessageWindowChatMemory`, `ChatClient` |
+| OpenAI `text-embedding-3-small` | 1536-dimension embeddings for semantic search |
+| OpenAI `gpt-5.4-mini` | LLM for answer generation |
+| `SimpleVectorStore` | In-process vector store; no external service required |
 
 ---
 

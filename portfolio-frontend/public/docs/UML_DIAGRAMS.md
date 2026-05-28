@@ -986,3 +986,175 @@ These patterns appear across all three projects and reflect shared architectural
 | **Global Exception Handler** | All three backends (`@RestControllerAdvice`) | Centralizes error response formatting. Maps `MethodArgumentNotValidException` → 400, `ResourceNotFoundException` → 404, `AuthenticationException` → 401, `IOException` → 500. Returns consistent `Map<String, String>` error shapes. |
 | **Lambda JAR Packaging (maven-shade-plugin)** | All three backends | maven-shade-plugin produces a flat uber JAR (all classes at the root, no BOOT-INF nesting) required by Lambda's `URLClassLoader`. The `StreamLambdaHandler` adapter (from `aws-serverless-java-container-springboot3`) translates Lambda's `InputStream`/`OutputStream` into a synthetic HTTP request handled by the Spring `DispatcherServlet`. |
 | **Aurora Serverless v2** | All three backends | Aurora Serverless v2 clusters replace sidecar database containers. Each cluster scales from 0.5 to 2 ACUs based on load, providing managed backups, automated patching, multi-AZ failover, and near-zero idle costs. Lambda connects to Aurora over private VPC subnets via security group rules. |
+
+---
+
+## 5. Portfolio Assistant (RAG Chatbot)
+
+### 5.1 Class Diagram — Components and Relationships
+
+```mermaid
+classDiagram
+    class PortfolioAssistantController {
+        -ObjectProvider~RagService~ ragServiceProvider
+        -ChatbotConfig chatbotConfig
+        +health() Map~String,Boolean~
+        +message(ChatRequest, HttpServletRequest) Mono~ChatResponse~
+        +stream(ChatRequest, HttpServletRequest) Flux~ServerSentEvent~
+        -checkRateLimit(String ip) void
+    }
+
+    class RagService {
+        -VectorStore vectorStore
+        -ChatClient chatClient
+        -ChatMemory chatMemory
+        -int contextPassages
+        +stream(String question, String conversationId) Flux~ServerSentEvent~
+        +message(String question, String conversationId) ChatResponse
+        -retrieve(String expandedQuery) List~Document~
+        -expand(String query) String
+        -rerank(List~Document~ docs) List~Document~
+        -buildPrompt(String question, List~Document~ context) String
+    }
+
+    class KnowledgeIngestionService {
+        -VectorStore vectorStore
+        -EmbeddingModel embeddingModel
+        +ingestAll() void
+        -ingestDirectory(Path dir) void
+        -parseDocument(Path file) List~Document~
+        -extractFrontMatter(String content) Map~String,String~
+        -splitByHeadings(String content) List~String~
+    }
+
+    class ChatbotConfig {
+        -String openAiApiKey
+        -boolean chatbotEnabled
+        -int rateLimitPerMinute
+        +vectorStore() SimpleVectorStore
+        +chatClient(ChatModel model) ChatClient
+        +chatMemory() MessageWindowChatMemory
+        +embeddingModel() OpenAiEmbeddingModel
+        +chatModel() OpenAiChatModel
+    }
+
+    class Citation {
+        <<record>>
+        +int index
+        +String title
+        +String section
+        +String source
+    }
+
+    class ChatRequest {
+        <<record>>
+        +String message
+        +String conversationId
+    }
+
+    class ChatResponse {
+        <<record>>
+        +String response
+        +List~Citation~ citations
+        +String conversationId
+    }
+
+    PortfolioAssistantController --> RagService : uses (via ObjectProvider)
+    PortfolioAssistantController --> ChatbotConfig : uses
+    RagService --> VectorStore : retrieve chunks
+    RagService --> ChatClient : stream/complete
+    RagService --> ChatMemory : load/save messages
+    RagService ..> Citation : creates
+    RagService ..> ChatResponse : creates
+    KnowledgeIngestionService --> VectorStore : add documents
+    KnowledgeIngestionService --> EmbeddingModel : embed chunks
+    ChatbotConfig --> VectorStore : creates (SimpleVectorStore)
+    ChatbotConfig --> ChatClient : creates
+    ChatbotConfig --> ChatMemory : creates (MessageWindowChatMemory)
+    ChatbotConfig --> EmbeddingModel : creates (OpenAiEmbeddingModel)
+    ChatbotConfig --> ChatModel : creates (OpenAiChatModel)
+    PortfolioAssistantController ..> ChatRequest : receives
+    PortfolioAssistantController ..> ChatResponse : returns
+```
+
+### 5.2 Sequence Diagram — Per-Query RAG Pipeline
+
+```mermaid
+sequenceDiagram
+    participant Angular as Angular (ChatbotService)
+    participant APIGW as API Gateway
+    participant Ctrl as PortfolioAssistantController
+    participant RateLim as Per-IP Rate Limiter
+    participant Rag as RagService
+    participant Embed as OpenAiEmbeddingModel
+    participant VS as SimpleVectorStore
+    participant Mem as MessageWindowChatMemory
+    participant OpenAI as OpenAI gpt-5.4-mini
+
+    Angular->>APIGW: POST /api/chatbot/stream {message, conversationId}
+    APIGW->>Ctrl: Lambda proxy event
+
+    Ctrl->>RateLim: check(clientIP)
+    alt rate limit exceeded
+        RateLim-->>Ctrl: throw RateLimitExceededException
+        Ctrl-->>Angular: 429 Too Many Requests
+    end
+
+    Ctrl->>Rag: stream(message, conversationId)
+
+    Note over Rag: 1. Query expansion
+    Rag->>Rag: expand acronyms (ATS, RAG, IaC, CI/CD, WCAG...)
+
+    Note over Rag: 2. Embedding + retrieval
+    Rag->>Embed: embed(expandedQuery)
+    Embed-->>Rag: float[] queryVector [1536-dim]
+    Rag->>VS: similaritySearch(queryVector, topK=8)
+    VS-->>Rag: List~Document~ top8
+
+    Note over Rag: 3. Reranking + dedup
+    Rag->>Rag: deduplicate by (source, section)
+    Rag->>Rag: apply category priority weights
+    Rag->>Rag: trim to CONTEXT_PASSAGES=4
+
+    Note over Rag: 4. Memory load
+    Rag->>Mem: getMessages(conversationId)
+    Mem-->>Rag: List~Message~ history
+
+    Note over Rag: 5. Prompt assembly
+    Rag->>Rag: build system prompt with numbered context passages
+
+    Note over Rag: 6. Streaming generation
+    Rag->>OpenAI: ChatClient.stream(messages)
+
+    loop SSE token stream
+        OpenAI-->>Angular: event: token  data: "fragment"
+    end
+
+    Rag->>Rag: collect citations from retrieved docs
+    OpenAI-->>Angular: event: citations  data: [{index,title,section,source}]
+    OpenAI-->>Angular: event: done
+
+    Note over Rag: 7. Memory save
+    Rag->>Mem: add(conversationId, userMessage + assistantMessage)
+```
+
+### 5.3 Relationships
+
+| Relationship | Type | Implementation | Purpose |
+|---|---|---|---|
+| `PortfolioAssistantController` → `RagService` | Dependency (via `ObjectProvider`) | Constructor injection with `ObjectProvider<RagService>` | Allows controller to start even when `RagService` bean is absent (chatbot disabled). `ObjectProvider.getIfAvailable()` returns `null` safely; controller returns 503 instead. |
+| `RagService` → `VectorStore` | Dependency | Constructor injection | Retrieves the top-K most similar document chunks for a given query embedding. Decoupled from `SimpleVectorStore` implementation — any Spring AI `VectorStore` can be swapped in. |
+| `RagService` → `ChatClient` | Dependency | Constructor injection | Sends the assembled prompt (with retrieved context) to gpt-5.4-mini and streams the response tokens. |
+| `RagService` → `ChatMemory` | Dependency | Constructor injection | Loads conversation history for multi-turn context and saves user + assistant messages after each turn. |
+| `KnowledgeIngestionService` → `VectorStore` | Dependency | Constructor injection | Adds embedded document chunks to the vector store at startup (`@PostConstruct`). |
+| `ChatbotConfig` → all AI beans | Creation | `@Bean` factory methods annotated with `@ConditionalOnExpression` | Creates `SimpleVectorStore`, `ChatClient`, `MessageWindowChatMemory`, `OpenAiEmbeddingModel`, and `OpenAiChatModel` only when `OPENAI_API_KEY` is present and `chatbot.enabled=true`. |
+
+### 5.4 Design Patterns
+
+| Pattern | Where | Purpose |
+|---------|-------|---------|
+| **`@ConditionalOnExpression` (Optional Feature)** | `ChatbotConfig` | The entire AI infrastructure is conditionally instantiated. If the API key is absent or the feature is disabled, no AI beans exist. The controller uses `ObjectProvider<RagService>` to handle the absent-bean case gracefully at runtime. This is a Spring-idiomatic implementation of the Null Object pattern for optional services. |
+| **Strategy (Vector Store)** | `VectorStore` interface (Spring AI) | All retrieval code in `RagService` calls `VectorStore.similaritySearch()`. The `SimpleVectorStore` implementation is swappable with `PgVectorStore`, `ChromaVectorStore`, or `PineconeVectorStore` via a single bean definition change in `ChatbotConfig`. |
+| **Template Method (RAG Pipeline)** | `RagService.stream()` / `RagService.message()` | Both methods share the same pipeline skeleton (expand → embed → retrieve → rerank → assemble → generate) but differ only in the final generation step (streaming SSE vs. blocking single response). |
+| **Factory (ChatClient)** | `ChatbotConfig.chatClient()` | The `ChatClient.Builder` provided by Spring AI is pre-configured with the system prompt template. `RagService` uses the built `ChatClient` without knowing the underlying model provider or prompt defaults. |
+| **Record DTOs** | `Citation`, `ChatRequest`, `ChatResponse` | Immutable Java records provide concise, null-safe data containers for the chatbot API contract. `Citation` captures source attribution; `ChatResponse` bundles response text + citations + conversation ID. |
