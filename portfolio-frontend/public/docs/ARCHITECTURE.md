@@ -191,6 +191,168 @@ The portfolio is a low-traffic, content-driven site. A single Spring Boot backen
 
 ---
 
+## 1.6 Portfolio Assistant (RAG Chatbot)
+
+The portfolio deploys a second Lambda function (`portfolio-chatbot-backend`) that provides a retrieval-augmented generation chatbot for visitor Q&A. It shares the same CloudFront distribution and API Gateway as the main portfolio backend, routed via the `/api/chatbot/*` path prefix.
+
+### 1.6.1 High-Level Architecture
+
+```mermaid
+graph TB
+    subgraph Internet
+        Browser[Browser]
+    end
+
+    subgraph AWS["AWS — us-east-1"]
+        CF["CloudFront Distribution<br/>clarkfoster.com"]
+        APIGW["API Gateway"]
+
+        subgraph VPC["VPC — 10.0.0.0/16"]
+            subgraph Private["Private Subnets"]
+                Lambda["portfolio-chatbot-backend<br/>Lambda (Java 21, SnapStart)<br/>2048 MB"]
+            end
+        end
+
+        EB["EventBridge<br/>Warming rule (every 4 min)"]
+        CW["CloudWatch Logs"]
+    end
+
+    subgraph External
+        OpenAI["OpenAI API<br/>gpt-5.4-mini (chat)<br/>text-embedding-3-small (embed)"]
+    end
+
+    Browser -->|"POST /api/chatbot/stream"| CF
+    CF -->|"/api/chatbot/* → API Gateway"| APIGW
+    APIGW -->|Lambda proxy integration| Lambda
+    Lambda -->|Embedding + completion calls| OpenAI
+    EB -.->|Warm invocation| Lambda
+    Lambda -->|Logs| CW
+```
+
+### 1.6.2 Component Diagram
+
+```mermaid
+graph LR
+    subgraph Frontend["Angular SPA (portfolio-frontend)"]
+        ChatbotLauncher["ChatbotLauncherComponent<br/>Floating launcher (bottom-right)<br/>role=dialog aria-modal=true"]
+        ChatbotSvc["ChatbotService<br/>Conversation state (Angular signals)<br/>SSE streaming consumer"]
+        HealthIndicator["Status indicator<br/>green/red dot (health endpoint)"]
+    end
+
+    subgraph Backend["Spring Boot (portfolio-chatbot-backend)"]
+        Controller["PortfolioAssistantController<br/>/api/chatbot/health<br/>/api/chatbot/message<br/>/api/chatbot/stream"]
+        RateLimiter["Per-IP sliding window<br/>60s window · 20 req/min default"]
+        RagSvc["RagService<br/>retrieve · rerank · prompt · stream"]
+        Ingestion["KnowledgeIngestionService<br/>@PostConstruct ingestAll()"]
+        Config["ChatbotConfig<br/>@ConditionalOnExpression<br/>SimpleVectorStore · ChatMemory · ChatClient"]
+    end
+
+    subgraph KnowledgeBase["Knowledge Base (ingested at startup)"]
+        KBMarkdown["classpath:knowledge/*.md<br/>(about, projects, skills, credentials,<br/>ai-projects, accessibility, contact)"]
+        KBDocs["classpath:docs/*.md<br/>(repo documentation)"]
+    end
+
+    subgraph AI["Spring AI 1.0.5"]
+        VectorStore["SimpleVectorStore<br/>In-process cosine similarity"]
+        EmbedModel["OpenAiEmbeddingModel<br/>text-embedding-3-small<br/>1536 dimensions"]
+        ChatModel["OpenAiChatModel<br/>gpt-5.4-mini"]
+        Memory["MessageWindowChatMemory<br/>max 20 messages per conversationId"]
+    end
+
+    ChatbotLauncher --> ChatbotSvc
+    ChatbotSvc -->|POST /api/chatbot/stream| Controller
+    HealthIndicator -->|GET /api/chatbot/health| Controller
+
+    Controller --> RateLimiter
+    Controller --> RagSvc
+    Config --> VectorStore & Memory & ChatModel
+
+    RagSvc --> VectorStore
+    RagSvc --> Memory
+    RagSvc --> ChatModel
+
+    Ingestion --> KBMarkdown & KBDocs
+    Ingestion --> EmbedModel
+    Ingestion --> VectorStore
+```
+
+### 1.6.3 Per-Query Data Flow
+
+```mermaid
+sequenceDiagram
+    participant B as Browser (Angular SSE)
+    participant C as PortfolioAssistantController
+    participant R as RagService
+    participant V as SimpleVectorStore
+    participant E as OpenAI Embeddings
+    participant L as OpenAI gpt-5.4-mini
+
+    B->>C: POST /api/chatbot/stream {message, conversationId}
+    C->>C: Rate limit check (per-IP sliding window)
+
+    C->>R: stream(question, conversationId)
+
+    Note over R: Query expansion
+    R->>R: Expand acronyms (ATS→Applicant Tracking System,<br/>RAG→Retrieval-Augmented Generation, etc.)
+
+    Note over R: Semantic retrieval
+    R->>E: embed(expandedQuery)
+    E-->>R: 1536-dim query vector
+    R->>V: similaritySearch(queryVector, topK=8)
+    V-->>R: Top-8 matching chunks
+
+    Note over R: Reranking + deduplication
+    R->>R: Deduplicate by (source, section)<br/>Category-aware priority weights<br/>Keep top CONTEXT_PASSAGES=4
+
+    Note over R: Prompt assembly
+    R->>R: Build system prompt + numbered context passages
+
+    Note over R: Streaming generation
+    R->>L: ChatClient.stream(messages)
+    loop Token stream
+        L-->>B: event: token  {data: "..."}
+    end
+    L-->>B: event: citations {data: [{index,title,section,source}]}
+    L-->>B: event: done
+```
+
+### 1.6.4 Knowledge Base & Ingestion
+
+Sources are loaded once at startup (`@PostConstruct`) and merged in this priority order:
+
+| Priority | Source | Location |
+|----------|--------|----------|
+| 1 | Curated markdown | `classpath:knowledge/*.md` — about, projects, skills, credentials, ai-projects, accessibility, contact |
+| 2 | Repo documentation | `classpath:docs/*.md` — all files from the `/docs` directory bundled into the JAR at build time |
+| 3 | Filesystem docs | Path from `chatbot.docs.path` env var (defaults to `../docs`) |
+
+Each document supports YAML front-matter for metadata:
+
+```markdown
+---
+title: AI Projects
+category: ai
+source: ai-projects
+---
+```
+
+Documents are split by `#`/`##` headings, then chunked by `TokenTextSplitter(600, 100)` for embedding. Chunks are deduplicated by `(source, section)` key before insertion.
+
+### 1.6.5 SimpleVectorStore vs. Managed Vector DB
+
+| Criterion | SimpleVectorStore | ChromaDB / Pinecone / pgvector |
+|-----------|-------------------|-------------------------------|
+| Corpus size | Hundreds of chunks (entire portfolio) | Designed for millions |
+| Ops surface | None — runs in-process | Separate service to host, monitor, secure |
+| Latency | Memory-resident; sub-ms search | Network hop |
+| Lambda story | Single fat JAR, no extra containers | Needs additional service or managed endpoint |
+| Cost | $0 | Adds infra |
+| Swap path | One-bean change in `ChatbotConfig` | One-bean change in `ChatbotConfig` |
+
+SimpleVectorStore gives equivalent retrieval quality for a bounded portfolio corpus with zero operational overhead. Swapping to `PgVectorStore`, `ChromaVectorStore`, or `PineconeVectorStore` is a single-bean change because everything is hidden behind Spring AI's `VectorStore` interface.
+
+---
+
 ## 2. E-Commerce Platform — shop.clarkfoster.com
 
 ### 2.1 High-Level Architecture

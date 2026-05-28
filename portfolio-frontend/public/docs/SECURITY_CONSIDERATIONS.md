@@ -51,6 +51,28 @@ Angular route guards (`authGuard`) protect client-side routes (`/admin/*` in Por
 
 All backends use explicit origin allowlists injected via environment variables. Credentials (`Access-Control-Allow-Credentials`) are enabled only for trusted origins. Wildcard origins are never used.
 
+### 1.6 Portfolio Assistant — Public Chatbot Endpoints
+
+The Portfolio Assistant (`portfolio-chatbot-backend`) exposes three public endpoints with no authentication requirement:
+
+| Endpoint | Auth | CSRF | Justification |
+|---|---|---|---|
+| `GET /api/chatbot/health` | None | Exempt | Read-only status check; no state change |
+| `POST /api/chatbot/message` | None | Exempt | No session state; per-IP rate limited; read-only retrieval |
+| `POST /api/chatbot/stream` | None | Exempt | SSE stream; no session state; per-IP rate limited; read-only retrieval |
+
+**Why no authentication:** The chatbot answers publicly available information about the portfolio. Requiring login would add friction with no security benefit — there is no private data to protect.
+
+**Why CSRF-exempt:** CSRF attacks require a victim with an active session who can be tricked into making a cross-site request. The chatbot endpoints have no session state. An attacker who tricks a user into sending a POST to `/api/chatbot/message` gains nothing — the response returns to the victim's browser, not the attacker. Per-IP rate limiting (`chatbot.rate-limit.per-minute`, default 20) prevents the only realistic abuse vector (using a victim's IP to exhaust rate limits).
+
+**Input validation:** `@NotBlank @Size(max=1000)` on `message`; `conversationId` truncated at 64 characters. Validated at the controller boundary before any AI processing.
+
+**API key isolation:** `OPENAI_API_KEY` is read exclusively from the Lambda environment variable. It is never logged, never returned in responses, and never accessible from the frontend.
+
+**Output escaping:** The Angular frontend renders chatbot responses using `marked` with its default HTML-escaping behaviour, preventing any `<script>` injection in generated text.
+
+**Graceful degradation:** `@ConditionalOnExpression` skips all AI beans if the API key is absent or `chatbot.enabled=false`. The `/api/chatbot/health` endpoint returns `{ "available": false }`. No `NullPointerException` surfaces; the Lambda starts normally.
+
 ---
 
 ## 2. Data Protection
@@ -188,11 +210,11 @@ Dedicated shell scripts (`rotate-all-secrets.sh`, `setup-jwt-secret.sh`) automat
 
 ## 6. Project-Specific Notes
 
-| Concern | Portfolio | E-Commerce | ATS |
-|---------|-----------|------------|-----|
-| Authentication | JWT + refresh token rotation | JWT (1-hour, single token) | None (public demo) |
-| CSRF protection | Cookie-based XSRF token | Disabled (stateless API) | N/A |
-| Rate limiting | Application + CloudFront WAF | CloudFront WAF only | CloudFront WAF only |
-| Input validation | Jakarta Bean Validation | Jakarta Bean Validation | Jakarta Bean Validation |
-| Secrets management | AWS Secrets Manager | AWS Secrets Manager | Environment variables |
-| Security scanning | Trivy + TruffleHog + SonarCloud | Trivy + TruffleHog + SonarCloud | Trivy + TruffleHog + SonarCloud |
+| Concern | Portfolio | Portfolio Assistant | E-Commerce | ATS |
+|---------|-----------|---------------------|------------|-----|
+| Authentication | JWT + refresh token rotation | None (public, read-only) | JWT (1-hour, single token) | None (public demo) |
+| CSRF protection | Cookie-based XSRF token | Disabled (no session state) | Disabled (stateless API) | N/A |
+| Rate limiting | Application + CloudFront WAF | Per-IP sliding window (20 req/min) + CloudFront WAF | CloudFront WAF only | CloudFront WAF only |
+| Input validation | Jakarta Bean Validation | `@NotBlank @Size(max=1000)` + 64-char conversationId cap | Jakarta Bean Validation | Jakarta Bean Validation |
+| Secrets management | AWS Secrets Manager | `OPENAI_API_KEY` via Lambda env var | AWS Secrets Manager | Environment variables |
+| Security scanning | Trivy + TruffleHog + SonarCloud | Trivy + TruffleHog + SonarCloud | Trivy + TruffleHog + SonarCloud | Trivy + TruffleHog + SonarCloud |

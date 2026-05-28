@@ -1,4 +1,4 @@
-.PHONY: help install build test clean docker-up docker-down docker-build deploy-backends deploy-frontends deploy terraform-init terraform-plan terraform-apply
+.PHONY: help install build test clean docker-up docker-down docker-build preview-all preview-all-stop preview-all-status deploy-backends deploy-frontends deploy terraform-init terraform-plan terraform-apply
 
 BACKENDS  := portfolio-backend ats-backend ecommerce-backend
 FRONTENDS := portfolio-frontend ats-frontend ecommerce-frontend
@@ -16,6 +16,11 @@ help:
 	@echo "docker-up        - Start all services"
 	@echo "docker-down      - Stop all services"
 	@echo "docker-build     - Rebuild and start all services"
+	@echo ""
+	@echo "Local Preview (Source + DB Containers):"
+	@echo "preview-all      - Start full local preview stack instantly"
+	@echo "preview-all-stop - Stop preview stack services and DB containers"
+	@echo "preview-all-status - Show service and endpoint status"
 	@echo ""
 	@echo "AWS Deployment (Lambda + S3 + CloudFront):"
 	@echo "deploy-backends  - Build and deploy backend JARs to Lambda"
@@ -88,6 +93,16 @@ docker-down:
 
 docker-build:
 	docker compose up --build -d
+
+# One-command local preview stack
+preview-all:
+	./scripts/preview-all.sh start
+
+preview-all-stop:
+	./scripts/preview-all.sh stop
+
+preview-all-status:
+	./scripts/preview-all.sh status
 
 # AWS Deployment
 LAMBDA_BUCKET = prod-lambda-deployments-$(shell aws sts get-caller-identity --query Account --output text)

@@ -76,6 +76,40 @@ Standalone components (no NgModules) keep the bundle lean and the dependency gra
 
 **Why not DynamoDB:** The e-commerce and ATS data models are inherently relational. Products belong to categories, orders contain order items referencing products and customers, candidates belong to jobs with stage progressions. DynamoDB would require denormalization patterns (single-table design) that add complexity without a clear performance benefit at this scale.
 
+### 1.4 AI & RAG Infrastructure — Spring AI 1.0.5
+
+| Criterion | Choice | Alternatives Considered |
+|-----------|--------|------------------------|
+| AI abstraction | Spring AI 1.0.5 | LangChain4j, direct OpenAI SDK, Semantic Kernel |
+| Chat model | OpenAI gpt-5.4-mini | Claude 3 Haiku, Llama 3 (local) |
+| Embedding model | text-embedding-3-small (1536-dim) | text-embedding-3-large, ada-002 |
+| Vector store | Spring AI SimpleVectorStore | pgvector, ChromaDB, Pinecone |
+| Chat memory | MessageWindowChatMemory (max 20) | Redis-backed, PostgreSQL-backed |
+
+**Why Spring AI over LangChain4j:**
+
+Spring AI provides provider-agnostic interfaces (`VectorStore`, `ChatModel`, `EmbeddingModel`) that abstract the underlying provider completely. The entire chatbot is coded against these interfaces — swapping from OpenAI to Anthropic, Mistral, or a local Ollama model is a single application property change with no code changes. LangChain4j is a solid library, but its programming model is less idiomatic for a Spring application; Spring AI integrates with Spring's `@Autowired` / `@Bean` patterns, `ObjectProvider`, and `@ConditionalOn*` annotations naturally.
+
+Spring AI was pinned to **1.0.5** (not the latest snapshot) specifically to exclude **CVE-2026-22738**, a vulnerability present in earlier 1.0.x builds affecting the `/actuator` Micrometer Observation endpoint. Version 1.0.5 carries no known CVEs.
+
+**Why text-embedding-3-small:**
+
+`text-embedding-3-small` costs approximately 1/5 the price of `text-embedding-3-large` while producing 1536-dimension vectors with comparable performance on factual retrieval benchmarks. The portfolio knowledge base is small (hundreds of chunks) — embedding quality differences between small and large models are negligible at this corpus size. Embeddings are generated only once at Lambda startup (`@PostConstruct`), so cost per query is $0; the pricing difference only matters if the knowledge base is rebuilt frequently.
+
+**Why SimpleVectorStore over pgvector / ChromaDB / Pinecone:**
+
+`SimpleVectorStore` is an in-process, file-backed vector store that performs cosine similarity search in memory. For the portfolio knowledge base (hundreds of chunks), the entire vector index fits comfortably in Lambda's 2048 MB heap. Search is sub-millisecond. No additional service to provision, no network round-trip, no authentication to configure, no VPC endpoint needed.
+
+The key design principle: **everything is hidden behind the `VectorStore` interface.** Migrating from `SimpleVectorStore` to `PgVectorStore` (pgvector extension in the existing Aurora cluster), `ChromaVectorStore`, or `PineconeVectorStore` is a single bean definition change in `ChatbotConfig`. The retrieval logic in `RagService` remains untouched.
+
+**Per-query reranking — why not a cross-encoder:**
+
+Cross-encoder rerankers (e.g., `ms-marco-MiniLM-L-6-v2`) improve retrieval precision by scoring each candidate passage against the query jointly, rather than independently. At portfolio scale (topK=8 candidates over a bounded corpus), the quality difference versus category-aware heuristic reranking is minimal — and cross-encoders require either an additional model download or an external inference endpoint. The implemented reranking strategy (deduplication by `(source, section)` key + category priority weights) eliminates the most common failure mode — duplicate passages from the same document — without adding infrastructure.
+
+**`@ConditionalOnExpression` graceful degradation:**
+
+The chatbot is an **optional feature**. If `OPENAI_API_KEY` is absent or `chatbot.enabled=false`, Spring should not create any AI beans (no `VectorStore`, no `ChatClient`, no `MessageWindowChatMemory`). `@ConditionalOnExpression` achieves this: the entire `ChatbotConfig` class is conditionally loaded, meaning the chatbot has zero startup overhead when disabled. The controller uses `ObjectProvider<RagService>` injection so it compiles and starts cleanly even when the `RagService` bean was never created. The `/api/chatbot/health` endpoint returns `{"available": false}`, and the Angular frontend hides the launcher without any code change.
+
 ---
 
 ## 2. Design Patterns & Architecture
@@ -420,3 +454,9 @@ Every architecture involves trade-offs. Here are the ones I made deliberately:
 **Trade-off:** All three applications share a single Aurora Serverless v2 cluster. A noisy-neighbor scenario (e.g., heavy ATS resume parsing queries) could impact portfolio or e-commerce database performance.
 
 **Why it's acceptable:** At portfolio-level traffic, the three applications collectively use a fraction of the minimum 0.5 ACU capacity. Contention is not a realistic concern. If any application grew to production scale, splitting it to a dedicated cluster is a Terraform variable change and a connection string update.
+
+### 8.5 SimpleVectorStore Embedding Regeneration on Cold Start — Simplicity Over Persistence
+
+**Trade-off:** `SimpleVectorStore` is in-process and non-persistent. Every cold start re-embeds the entire knowledge base via the OpenAI Embeddings API. On a knowledge base of a few hundred chunks, this takes a few seconds and costs fractions of a cent — but it is an outbound API call on the critical path of Lambda initialization.
+
+**Why it's acceptable:** SnapStart snapshots the JVM state after `@PostConstruct` completes, which means the vector index is captured in the snapshot. Subsequent warm invocations (including those restored from SnapStart) skip re-embedding entirely. The embedding cost only applies when a new Lambda version is published and SnapStart creates a fresh snapshot. At portfolio traffic levels, this is an acceptable cold-start cost. If embedding latency became a concern, `PgVectorStore` backed by the existing Aurora cluster would persist embeddings across cold starts — a single bean swap in `ChatbotConfig`.

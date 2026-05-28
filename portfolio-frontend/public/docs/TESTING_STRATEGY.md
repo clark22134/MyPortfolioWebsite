@@ -299,28 +299,61 @@ The Portfolio frontend uses **Karma + Jasmine** (the traditional Angular test ru
 
 ### 8.2 Coverage Tooling
 
+All three frontends use `@angular/build:unit-test` with Vitest as the test runner. Coverage is collected via `@vitest/coverage-v8` (V8's built-in coverage instrumentation, no Babel transform required).
+
 | Layer | Tool | Report Format | Report Path |
 |-------|------|:------------:|-------------|
-| Java backends | JaCoCo 0.8.14 | XML + HTML | `<project>/target/site/jacoco/jacoco.xml` |
-| Portfolio frontend | karma-coverage | LCOV | `portfolio-frontend/coverage/lcov.info` |
-| E-Commerce frontend | Vitest | LCOV | `ecommerce-frontend/coverage/lcov.info` |
-| ATS frontend | Vitest | LCOV | `ats-frontend/coverage/lcov.info` |
+| portfolio-backend | JaCoCo 0.8.14 | XML | `portfolio-backend/target/site/jacoco/jacoco.xml` |
+| ats-backend | JaCoCo 0.8.14 | XML | `ats-backend/target/site/jacoco/jacoco.xml` |
+| ecommerce-backend | JaCoCo 0.8.14 | XML | `ecommerce-backend/target/site/jacoco/jacoco.xml` |
+| portfolio-frontend | Vitest + @vitest/coverage-v8 | LCOV | `portfolio-frontend/coverage/lcov.info` |
+| ats-frontend | Vitest + @vitest/coverage-v8 | LCOV | `ats-frontend/coverage/lcov.info` |
+| ecommerce-frontend | Vitest + @vitest/coverage-v8 | LCOV | `ecommerce-frontend/coverage/lcov.info` |
 
-### 8.3 Coverage Reporting Pipeline
+**Backend:** JaCoCo's `prepare-agent` goal runs before the Surefire test phase, injecting the JaCoCo agent via `${argLine}`. The `report` goal is bound to the `test` phase so `mvn test` generates both XML and HTML reports automatically.
+
+**Frontend:** `coverageReporters: ["lcov", "text-summary"]` is configured in each frontend's `angular.json`. Running `ng test --coverage` (or `npm run test:ci`) enables the V8 coverage provider and writes LCOV to `coverage/lcov.info`.
+
+### 8.3 SonarCloud Coverage Integration
+
+SonarCloud receives coverage data via `sonar-project.properties`:
+
+```properties
+# Java backends
+sonar.coverage.jacoco.xmlReportPaths=\
+  portfolio-backend/target/site/jacoco/jacoco.xml,\
+  ats-backend/target/site/jacoco/jacoco.xml,\
+  ecommerce-backend/target/site/jacoco/jacoco.xml
+
+# Angular/TypeScript frontends
+sonar.javascript.lcov.reportPaths=\
+  portfolio-frontend/coverage/lcov.info,\
+  ats-frontend/coverage/lcov.info,\
+  ecommerce-frontend/coverage/lcov.info
+```
+
+### 8.4 Coverage Reporting Pipeline
 
 ```mermaid
 graph LR
-    Tests["Test Execution<br/>(CI)"] --> Reports["Coverage Reports<br/>(JaCoCo XML, LCOV)"]
+    Tests["Test Execution<br/>(CI — per-component jobs)"] --> Reports["Coverage Reports<br/>(JaCoCo XML, LCOV)"]
+    Reports --> GHA["GitHub Artifacts<br/>(*-jacoco, *-lcov)"]
+    GHA --> CQ["code-quality job<br/>(waits for all test jobs)"]
+    CQ --> SQ["SonarCloud Scan<br/>sonarqube-scan-action@v7"]
     Reports --> CC["CodeCov<br/>Upload"]
-    Reports --> SQ["SonarCloud<br/>Analysis"]
+    SQ --> Gate["SonarCloud Quality Gate"]
     CC --> Dashboard["CodeCov Dashboard<br/>Per-component flags"]
-    SQ --> Gate["SonarCloud<br/>Quality Gate"]
 ```
 
-- **CodeCov** receives coverage from every test job, tagged with component-specific flags (`portfolio-frontend`, `ats-backend`, etc.) for per-project tracking.
-- **SonarCloud** ingests the same reports for its quality gate, providing duplication detection, code smell analysis, and security hotspot identification alongside coverage metrics.
+**Flow:**
+1. Each test job (e.g., `test-backend`, `test-ats-frontend`) runs tests with coverage enabled and uploads its coverage file as a GitHub Actions artifact (`*-jacoco` or `*-lcov`).
+2. The `code-quality` job declares `needs` for all six test jobs, ensuring it starts only after all coverage files are produced.
+3. The `code-quality` job downloads all coverage artifacts and restores them to the paths expected by `sonar-project.properties`.
+4. SonarCloud scans the codebase and reads the coverage reports at those paths.
 
-### 8.4 Current Coverage
+**CodeCov** also receives coverage from every test job, tagged with component-specific flags (`portfolio-frontend`, `ats-backend`, etc.) for per-project tracking.
+
+### 8.5 Current Coverage
 
 The combined project coverage across all six codebases is **81%**, measured by SonarCloud using JaCoCo (Java backends) and LCOV (Angular frontends). All three backend projects and all three frontend projects contribute to this aggregate figure, which is tracked on every CI run and surfaced in both the SonarCloud dashboard and CodeCov per-component reports.
 
@@ -647,21 +680,23 @@ Both pipelines call `reusable-test.yml` parameterized per component:
 
 **Java projects:**
 ```yaml
-- Setup JDK 25 + Maven cache
-- mvn clean test
-- Generate JaCoCo coverage reports
+- Setup JDK 21 + Maven cache
+- mvn clean test          # runs JaCoCo prepare-agent + report (phase=test)
+- mvn jacoco:report       # explicit fallback in case phase binding missed
 - Upload JAR artifact
+- Upload jacoco.xml as GitHub artifact (*-jacoco)
 - Upload coverage to CodeCov (flagged per-component)
 ```
 
 **Node projects:**
 ```yaml
-- Setup Node 20 + npm cache
+- Setup Node 22 + npm cache
 - npm ci
 - npm run lint
-- npx ng test (with project-specific args)
+- npm test -- --watch=false --coverage   # generates coverage/lcov.info via @vitest/coverage-v8
 - npm run build
 - Upload dist artifact
+- Upload lcov.info as GitHub artifact (*-lcov)
 - Upload coverage to CodeCov (flagged per-component)
 ```
 
@@ -680,18 +715,31 @@ Developers can run the full test suite locally before pushing:
 # Run all tests across all 6 projects
 make test
 
-# Run a single backend's tests
-cd portfolio-backend && mvn test
+# ── Backend tests with JaCoCo coverage ─────────────────────────────
+# Coverage report written to: <component>/target/site/jacoco/jacoco.xml
+cd portfolio-backend  && mvn test    # JaCoCo runs automatically (phase=test)
+cd ats-backend        && mvn test
+cd ecommerce-backend  && mvn test
 
-# Run a single frontend's tests
+# ── Frontend tests with LCOV coverage ──────────────────────────────
+# Coverage report written to: <component>/coverage/lcov.info
+cd portfolio-frontend  && npm run test:ci      # ng test --watch=false --coverage
+cd ats-frontend        && npm run test:ci
+cd ecommerce-frontend  && npm run test:ci
+
+# Run a single frontend's tests in watch mode (no coverage)
 cd portfolio-frontend && npm test
 
 # Run accessibility tests (requires frontend running on :4200)
 cd portfolio-frontend && npm run test:a11y
-
-# Run frontend tests in CI mode (headless, coverage)
-cd portfolio-frontend && npm run test:ci
 ```
+
+**Required GitHub Secrets for CI:**
+
+| Secret | Purpose |
+|--------|---------|
+| `SONAR_TOKEN` | SonarCloud authentication token (generate at sonarcloud.io → My Account → Security) |
+| `GITHUB_TOKEN` | Auto-provided by GitHub Actions — no setup needed |
 
 ---
 
@@ -706,13 +754,17 @@ Testing extends beyond functional correctness into code quality and security.
 | Setting | Value |
 |---------|-------|
 | Project Key | `clark22134_MyPortfolioWebsite` |
+| Organization | `clark22134` |
 | Source Paths | `*/src/main/java`, `*/src/app` (across all 3 projects) |
 | Test Paths | `*/src/test/java`, `**/*.spec.ts` |
-| Coverage Reports | JaCoCo XML (backends) + LCOV (frontends) |
-| Exclusions | `node_modules`, `dist`, `target`, `*.jar`, `*.spec.ts` (from sources) |
+| Java Coverage | `sonar.coverage.jacoco.xmlReportPaths` — all three `jacoco.xml` files |
+| JS/TS Coverage | `sonar.javascript.lcov.reportPaths` — all three `lcov.info` files |
+| Coverage Exclusions | `*.spec.ts`, `**/test/**`, `environment*.ts`, `test-setup.ts`, `test-helpers.ts` |
 
-SonarCloud analyzes every push to `main` as part of the production deployment pipeline, providing:
-- Code coverage metrics
+**CI behavior:** The `code-quality` job in `deploy-production.yml` declares `needs` for all six test jobs. After they complete, it downloads the coverage artifacts (GitHub Actions artifacts `*-jacoco` and `*-lcov`), restores them to their expected paths, compiles all backends for `sonar.java.binaries`, and runs `SonarSource/sonarqube-scan-action@v7`. The scan reads `sonar-project.properties` automatically.
+
+SonarCloud analyzes every push to `main`, providing:
+- Accurate Java and TypeScript/JavaScript code coverage metrics
 - Duplicate code detection
 - Code smell identification
 - Security hotspot review
