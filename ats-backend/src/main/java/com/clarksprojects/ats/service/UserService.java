@@ -5,9 +5,9 @@ import com.clarksprojects.ats.dto.UpdateUserRequest;
 import com.clarksprojects.ats.dto.UserInfoResponse;
 import com.clarksprojects.ats.entity.Role;
 import com.clarksprojects.ats.entity.User;
-import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.repository.RefreshTokenRepository;
 import com.clarksprojects.ats.repository.UserRepository;
+import com.clarksprojects.ats.util.Entities;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -83,7 +83,6 @@ public class UserService {
     }
 
     private User findOrThrow(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        return Entities.findOrThrow(userRepository, id, "User");
     }
 }

@@ -9,8 +9,8 @@ import com.clarksprojects.ats.entity.ActivityType;
 import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.PipelineStage;
-import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.repository.CandidateRepository;
+import com.clarksprojects.ats.util.Entities;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -210,8 +210,7 @@ public class CandidateService {
     }
 
     private Candidate findCandidateOrThrow(Long id) {
-        return candidateRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Candidate not found: " + id));
+        return Entities.findOrThrow(candidateRepository, id, "Candidate");
     }
 
     private CandidateResponse toResponse(Candidate c) {
