@@ -48,9 +48,22 @@ public class DemoUserInitializer implements ApplicationRunner {
             log.info("Demo accounts disabled — skipping seed");
             return;
         }
-        seed("admin",     "admin@hireflow.dev",     "Avery Admin",    Role.ADMIN,          adminPassword);
-        seed("recruiter", "recruiter@hireflow.dev", "Riley Recruiter", Role.RECRUITER,      recruiterPassword);
-        seed("manager",   "manager@hireflow.dev",   "Morgan Manager",  Role.HIRING_MANAGER, managerPassword);
+        // Wrap each seed in its own try/catch so a single failure (duplicate
+        // email, transient DB error, etc.) doesn't fail the entire Spring
+        // startup. In SnapStart, ApplicationRunner exceptions surface as
+        // "init failed" and the published Lambda version is marked Failed.
+        trySeed("admin",     "admin@hireflow.dev",     "Avery Admin",     Role.ADMIN,          adminPassword);
+        trySeed("recruiter", "recruiter@hireflow.dev", "Riley Recruiter", Role.RECRUITER,      recruiterPassword);
+        trySeed("manager",   "manager@hireflow.dev",   "Morgan Manager",  Role.HIRING_MANAGER, managerPassword);
+    }
+
+    private void trySeed(String username, String email, String fullName, Role role, String rawPassword) {
+        try {
+            seed(username, email, fullName, role, rawPassword);
+        } catch (Exception e) {
+            log.error("Failed to seed demo user {} ({}). Continuing startup. Cause: {}",
+                    username, role, e.getMessage());
+        }
     }
 
     private void seed(String username, String email, String fullName, Role role, String rawPassword) {
