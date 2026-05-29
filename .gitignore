@@ -80,6 +80,11 @@ docker-compose.override.yml
 !ecommerce-db/init/*.sql
 !ecommerce-backend/sql_scripts/*.sql
 !ats-db/init/*.sql
+# Allow Flyway migrations to be committed for backend schema changes
+!portfolio-backend/src/main/resources/db/migration/*.sql
+!portfolio-chatbot-backend/src/main/resources/db/migration/*.sql
+!ecommerce-backend/src/main/resources/db/migration/*.sql
+!ats-backend/src/main/resources/db/migration/*.sql
 
 # Certificate files
 *.cer
