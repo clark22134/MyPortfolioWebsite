@@ -1,23 +1,22 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ApiClient } from './api-client';
 import { Activity } from '../models/activity.model';
 
 @Injectable({ providedIn: 'root' })
 export class ActivityService {
-  private readonly baseUrl = '/api/activities';
-
-  constructor(private readonly http: HttpClient) {}
+  private readonly api = ApiClient.of<Activity>('/api/activities');
 
   recent(limit = 20): Observable<Activity[]> {
-    return this.http.get<Activity[]>(this.baseUrl, { params: new HttpParams().set('limit', limit) });
+    return this.api.list(new HttpParams().set('limit', limit));
   }
 
   forCandidate(candidateId: number): Observable<Activity[]> {
-    return this.http.get<Activity[]>(this.baseUrl, { params: new HttpParams().set('candidateId', candidateId) });
+    return this.api.list(new HttpParams().set('candidateId', candidateId));
   }
 
   forJob(jobId: number): Observable<Activity[]> {
-    return this.http.get<Activity[]>(this.baseUrl, { params: new HttpParams().set('jobId', jobId) });
+    return this.api.list(new HttpParams().set('jobId', jobId));
   }
 }

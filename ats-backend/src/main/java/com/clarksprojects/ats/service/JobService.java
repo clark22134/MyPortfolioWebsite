@@ -8,9 +8,9 @@ import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.EmploymentType;
 import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.JobStatus;
-import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.repository.CandidateRepository;
 import com.clarksprojects.ats.repository.JobRepository;
+import com.clarksprojects.ats.util.Entities;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -224,8 +224,7 @@ public class JobService {
     }
 
     Job findJobOrThrow(Long id) {
-        return jobRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + id));
+        return Entities.findOrThrow(jobRepository, id, "Job");
     }
 
     private JobResponse toResponse(Job job) {

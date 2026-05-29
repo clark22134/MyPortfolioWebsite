@@ -1,33 +1,30 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ApiClient } from './api-client';
 import { CreateUserRequest, Role, UpdateUserRequest, UserInfo } from '../models/auth.model';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
-  private readonly baseUrl = '/api/users';
-
-  constructor(private readonly http: HttpClient) {}
+  private readonly api = ApiClient.of<UserInfo>('/api/users');
 
   list(role?: Role): Observable<UserInfo[]> {
-    let params = new HttpParams();
-    if (role) params = params.set('role', role);
-    return this.http.get<UserInfo[]>(this.baseUrl, { params });
+    return this.api.list(role ? new HttpParams().set('role', role) : undefined);
   }
 
   get(id: number): Observable<UserInfo> {
-    return this.http.get<UserInfo>(`${this.baseUrl}/${id}`);
+    return this.api.get(id);
   }
 
   create(request: CreateUserRequest): Observable<UserInfo> {
-    return this.http.post<UserInfo>(this.baseUrl, request);
+    return this.api.create(request);
   }
 
   update(id: number, request: UpdateUserRequest): Observable<UserInfo> {
-    return this.http.put<UserInfo>(`${this.baseUrl}/${id}`, request);
+    return this.api.update(id, request);
   }
 
   delete(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+    return this.api.delete(id);
   }
 }

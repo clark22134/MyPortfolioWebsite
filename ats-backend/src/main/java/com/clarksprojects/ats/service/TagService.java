@@ -5,9 +5,9 @@ import com.clarksprojects.ats.dto.TagResponse;
 import com.clarksprojects.ats.entity.ActivityType;
 import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.Tag;
-import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.repository.CandidateRepository;
 import com.clarksprojects.ats.repository.TagRepository;
+import com.clarksprojects.ats.util.Entities;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -89,13 +89,11 @@ public class TagService {
     }
 
     private Tag findOrThrow(Long id) {
-        return tagRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Tag not found: " + id));
+        return Entities.findOrThrow(tagRepository, id, "Tag");
     }
 
     private Candidate findCandidate(Long id) {
-        return candidateRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Candidate not found: " + id));
+        return Entities.findOrThrow(candidateRepository, id, "Candidate");
     }
 
     private static String blankToNull(String v) {

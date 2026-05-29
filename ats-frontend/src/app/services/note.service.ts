@@ -1,23 +1,22 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { ApiClient } from './api-client';
 import { Note, NoteRequest } from '../models/note.model';
 
 @Injectable({ providedIn: 'root' })
 export class NoteService {
-  private readonly baseUrl = '/api/notes';
-
-  constructor(private readonly http: HttpClient) {}
+  private readonly api = ApiClient.of<Note>('/api/notes');
 
   listForCandidate(candidateId: number): Observable<Note[]> {
-    return this.http.get<Note[]>(this.baseUrl, { params: new HttpParams().set('candidateId', candidateId) });
+    return this.api.list(new HttpParams().set('candidateId', candidateId));
   }
 
   create(request: NoteRequest): Observable<Note> {
-    return this.http.post<Note>(this.baseUrl, request);
+    return this.api.create(request);
   }
 
   delete(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+    return this.api.delete(id);
   }
 }

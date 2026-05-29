@@ -3,12 +3,12 @@ package com.clarksprojects.ats.service;
 import com.clarksprojects.ats.dto.TaskRequest;
 import com.clarksprojects.ats.dto.TaskResponse;
 import com.clarksprojects.ats.entity.*;
-import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.repository.CandidateRepository;
 import com.clarksprojects.ats.repository.FollowUpTaskRepository;
 import com.clarksprojects.ats.repository.JobRepository;
 import com.clarksprojects.ats.repository.UserRepository;
 import com.clarksprojects.ats.security.CurrentUserService;
+import com.clarksprojects.ats.util.Entities;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,8 +35,7 @@ public class TaskService {
                     .map(TaskResponse::from).toList();
         }
         if (assigneeId != null) {
-            User assignee = userRepository.findById(assigneeId)
-                    .orElseThrow(() -> new ResourceNotFoundException("User not found: " + assigneeId));
+            User assignee = Entities.findOrThrow(userRepository, assigneeId, "User");
             return taskRepository.findByAssigneeOrderByDueAtAscCreatedAtDesc(assignee).stream()
                     .map(TaskResponse::from).toList();
         }
@@ -129,25 +128,18 @@ public class TaskService {
     }
 
     private FollowUpTask findOrThrow(Long id) {
-        return taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found: " + id));
+        return Entities.findOrThrow(taskRepository, id, "Task");
     }
 
     private Candidate resolveCandidate(Long id) {
-        if (id == null) return null;
-        return candidateRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Candidate not found: " + id));
+        return id == null ? null : Entities.findOrThrow(candidateRepository, id, "Candidate");
     }
 
     private Job resolveJob(Long id) {
-        if (id == null) return null;
-        return jobRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + id));
+        return id == null ? null : Entities.findOrThrow(jobRepository, id, "Job");
     }
 
     private User resolveUser(Long id) {
-        if (id == null) return null;
-        return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        return id == null ? null : Entities.findOrThrow(userRepository, id, "User");
     }
 }

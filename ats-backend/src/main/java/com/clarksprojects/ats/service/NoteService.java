@@ -6,10 +6,10 @@ import com.clarksprojects.ats.entity.ActivityType;
 import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.CandidateNote;
 import com.clarksprojects.ats.entity.User;
-import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.repository.CandidateNoteRepository;
 import com.clarksprojects.ats.repository.CandidateRepository;
 import com.clarksprojects.ats.security.CurrentUserService;
+import com.clarksprojects.ats.util.Entities;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,8 +35,7 @@ public class NoteService {
 
     @Transactional
     public NoteResponse create(NoteRequest request) {
-        Candidate candidate = candidateRepository.findById(request.getCandidateId())
-                .orElseThrow(() -> new ResourceNotFoundException("Candidate not found: " + request.getCandidateId()));
+        Candidate candidate = Entities.findOrThrow(candidateRepository, request.getCandidateId(), "Candidate");
         User author = currentUserService.currentUser().orElse(null);
         CandidateNote note = noteRepository.save(CandidateNote.builder()
                 .candidate(candidate)
@@ -58,8 +57,7 @@ public class NoteService {
 
     @Transactional
     public void delete(Long noteId) {
-        CandidateNote note = noteRepository.findById(noteId)
-                .orElseThrow(() -> new ResourceNotFoundException("Note not found: " + noteId));
+        CandidateNote note = Entities.findOrThrow(noteRepository, noteId, "Note");
         noteRepository.delete(note);
     }
 }
