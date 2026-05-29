@@ -1,3 +1,4 @@
+declare const vi: typeof import('vitest').vi;
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -148,6 +149,63 @@ describe('TalentComponent', () => {
     expect(c.showUploadModal).toBe(true);
     c.closeUpload();
     expect(c.showUploadModal).toBe(false);
+  });
+
+  it('openCandidateDetail navigates to detail route', () => {
+    const fixture = TestBed.createComponent(TalentComponent);
+    fixture.detectChanges();
+    initialLoad();
+    const navSpy = vi.spyOn(fixture.componentInstance.router, 'navigate');
+    fixture.componentInstance.openCandidateDetail(mkCandidate({ id: 7 }));
+    expect(navSpy).toHaveBeenCalledWith(['/candidates', 7]);
+  });
+
+  it('saveAdd posts to API and reruns search', () => {
+    const fixture = TestBed.createComponent(TalentComponent);
+    fixture.detectChanges();
+    initialLoad();
+    const c = fixture.componentInstance;
+    c.addForm = { firstName: 'Z', lastName: 'Y', email: 'z@y.com', stage: 'APPLIED', jobId: 1 };
+    c.saveAdd();
+    httpMock.expectOne(r => r.method === 'POST' && r.url === '/api/candidates').flush(mkCandidate({ id: 99 }));
+    httpMock.expectOne(r => r.url === '/api/candidates/search').flush([mkCandidate({ id: 99 })]);
+    expect(c.showAddModal).toBe(false);
+  });
+
+  it('openEdit + saveEdit submit a PUT', () => {
+    const fixture = TestBed.createComponent(TalentComponent);
+    fixture.detectChanges();
+    initialLoad([mkCandidate()]);
+    const c = fixture.componentInstance;
+    c.openEdit(mkCandidate());
+    expect(c.editingCandidate).not.toBeNull();
+    c.saveEdit();
+    httpMock.expectOne(r => r.method === 'PUT' && r.url === '/api/candidates/10').flush(mkCandidate());
+    httpMock.expectOne(r => r.url === '/api/candidates/search').flush([]);
+    expect(c.editingCandidate).toBeNull();
+  });
+
+  it('deleteCandidate confirms and DELETEs', () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const fixture = TestBed.createComponent(TalentComponent);
+    fixture.detectChanges();
+    initialLoad();
+    fixture.componentInstance.deleteCandidate(10);
+    httpMock.expectOne(r => r.method === 'DELETE' && r.url === '/api/candidates/10').flush(null);
+    httpMock.expectOne(r => r.url === '/api/candidates/search').flush([]);
+  });
+
+  it('onDragOver prevents default; onDrop captures file', () => {
+    const fixture = TestBed.createComponent(TalentComponent);
+    fixture.detectChanges();
+    initialLoad();
+    const c = fixture.componentInstance;
+    const file = new File(['x'], 'r.pdf', { type: 'application/pdf' });
+    const evt = { preventDefault: vi.fn(), dataTransfer: { files: [file] } } as unknown as DragEvent;
+    c.onDragOver(evt);
+    expect((evt.preventDefault as any).mock.calls.length).toBe(1);
+    c.onDrop(evt);
+    expect(c.uploadFile).toBe(file);
   });
 
   it('opens detail modal then renders contents', () => {
