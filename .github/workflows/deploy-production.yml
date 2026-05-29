@@ -167,6 +167,9 @@ jobs:
       TF_VAR_ses_smtp_password: ${{ secrets.SES_SMTP_PASSWORD }}
       TF_VAR_ecommerce_jwt_secret: ${{ secrets.ECOMMERCE_JWT_SECRET }}
       TF_VAR_portfolio_jwt_secret: ${{ secrets.PORTFOLIO_JWT_SECRET }}
+      # Required — without this, the ATS Lambda's JwtUtil @PostConstruct
+      # cannot resolve ${JWT_SECRET} and SnapStart init fails.
+      TF_VAR_ats_jwt_secret: ${{ secrets.ATS_JWT_SECRET }}
       TF_VAR_admin_password: ${{ secrets.ADMIN_PASSWORD }}
       # If OPENAI_API_KEY is unset in repo secrets this evaluates to an empty
       # string and the chatbot stays disabled — but the secret resource will

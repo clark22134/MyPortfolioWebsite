@@ -508,6 +508,16 @@ module "ats_lambda" {
     DATABASE_SECRET_ARN    = module.shared_aurora.secret_arn
     DB_USERNAME            = module.shared_aurora.master_username
     DB_PASSWORD            = module.shared_aurora.master_password
+    # Required: JwtUtil @PostConstruct fails fast without this, which kills
+    # SnapStart pre-init and the Lambda waiter reports "Failed".
+    JWT_SECRET    = var.ats_jwt_secret
+    COOKIE_DOMAIN = ".clarkfoster.com"
+    # Seed admin/recruiter/manager demo accounts on first boot so the public
+    # demo site has known credentials. Flip to "false" to disable seeding.
+    ATS_DEMO_ACCOUNTS_ENABLED = "true"
+    ATS_ADMIN_PASSWORD        = var.ats_admin_password
+    ATS_RECRUITER_PASSWORD    = var.ats_recruiter_password
+    ATS_MANAGER_PASSWORD      = var.ats_manager_password
   }
 }
 
