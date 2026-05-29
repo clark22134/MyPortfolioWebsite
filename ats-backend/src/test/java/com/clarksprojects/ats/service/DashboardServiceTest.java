@@ -3,17 +3,22 @@ package com.clarksprojects.ats.service;
 import com.clarksprojects.ats.dto.DashboardStats;
 import com.clarksprojects.ats.entity.JobStatus;
 import com.clarksprojects.ats.entity.PipelineStage;
+import com.clarksprojects.ats.entity.TaskStatus;
 import com.clarksprojects.ats.repository.CandidateRepository;
+import com.clarksprojects.ats.repository.FollowUpTaskRepository;
 import com.clarksprojects.ats.repository.JobRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,8 +32,23 @@ class DashboardServiceTest {
     @Mock
     private CandidateRepository candidateRepository;
 
+    @Mock
+    private FollowUpTaskRepository taskRepository;
+
+    @Mock
+    private ActivityService activityService;
+
     @InjectMocks
     private DashboardService dashboardService;
+
+    @BeforeEach
+    void stubTasksAndActivity() {
+        when(taskRepository.countByStatus(TaskStatus.OPEN)).thenReturn(0L);
+        when(taskRepository.countByStatusAndDueAtBefore(any(TaskStatus.class), any(LocalDateTime.class))).thenReturn(0L);
+        when(taskRepository.findTop5ByStatusOrderByDueAtAscCreatedAtAsc(TaskStatus.OPEN)).thenReturn(List.of());
+        when(candidateRepository.countHiredSince(any(LocalDateTime.class))).thenReturn(0L);
+        when(activityService.recent(any(Integer.class))).thenReturn(List.of());
+    }
 
     @Test
     void getStats_returnsAggregatedCounts() {

@@ -27,8 +27,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(TalentPoolController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, ControllerTestSupport.class})
 @TestPropertySource(properties = "app.upload.resume-dir=${java.io.tmpdir}/ats-test-uploads")
+@org.springframework.security.test.context.support.WithMockUser(roles = "RECRUITER")
 class TalentPoolControllerTest {
 
     @Autowired

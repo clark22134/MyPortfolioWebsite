@@ -1,4 +1,5 @@
 import { PipelineStage } from './pipeline.model';
+import { Tag } from './tag.model';
 
 export interface Candidate {
   id: number;
@@ -18,6 +19,7 @@ export interface Candidate {
   jobId: number;
   jobTitle: string;
   talentPool: boolean;
+  tags: Tag[];
   appliedAt: string;
   updatedAt: string;
 }

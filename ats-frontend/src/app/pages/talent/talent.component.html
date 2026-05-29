@@ -5,8 +5,10 @@
       <p class="subtitle">{{ totalCount }} candidate{{ totalCount !== 1 ? 's' : '' }} across all jobs</p>
     </div>
     <div class="header-actions">
-      <button class="btn-outline" (click)="openUpload()">⬆ Upload Resume</button>
-      <button class="btn-primary" (click)="openAdd()">+ Add Candidate</button>
+      @if (canWrite) {
+        <button class="btn-outline" (click)="openUpload()">⬆ Upload Resume</button>
+        <button class="btn-primary" (click)="openAdd()">+ Add Candidate</button>
+      }
     </div>
   </div>
 
@@ -54,6 +56,12 @@
       }
     </select>
 
+    <select class="filter-select" [(ngModel)]="filters.sort" (ngModelChange)="runSearch()" aria-label="Sort candidates">
+      @for (opt of sortOptions; track opt.value) {
+        <option [value]="opt.value">{{ opt.label }}</option>
+      }
+    </select>
+
     <button class="btn-reset" (click)="resetFilters()" [disabled]="!hasActiveFilter()">
       Reset Filters
     </button>
@@ -93,10 +101,12 @@
             <span class="stage-badge" [style.background]="stageBg(c.stage)" [style.color]="stageColor(c.stage)">
               {{ stageLabel(c.stage) }}
             </span>
-            <div class="card-actions">
-              <button class="btn-card-edit" (click)="openEdit(c); $event.stopPropagation()" aria-label="Edit candidate">✏️</button>
-              <button class="btn-card-delete" (click)="deleteCandidate(c.id); $event.stopPropagation()" aria-label="Delete candidate">🗑️</button>
-            </div>
+            @if (canWrite) {
+              <div class="card-actions">
+                <button class="btn-card-edit" (click)="openEdit(c); $event.stopPropagation()" aria-label="Edit candidate">✏️</button>
+                <button class="btn-card-delete" (click)="deleteCandidate(c.id); $event.stopPropagation()" aria-label="Delete candidate">🗑️</button>
+              </div>
+            }
           </div>
 
           <div class="contact-row">

@@ -1,6 +1,7 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { JobService } from '../../services/job.service';
@@ -25,6 +26,14 @@ export class PipelineComponent implements OnInit {
 
   activeStages: PipelineStage[] = PIPELINE_STAGES.filter(s => s !== 'REJECTED');
   allStages: PipelineStage[] = PIPELINE_STAGES;
+
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  get canWrite(): boolean { return this.auth.canWrite(); }
+
+  openDetail(id: number): void {
+    this.router.navigate(['/candidates', id]);
+  }
 
   constructor(
     private readonly route: ActivatedRoute,

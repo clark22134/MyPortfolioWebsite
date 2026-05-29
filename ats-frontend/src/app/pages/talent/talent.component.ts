@@ -1,15 +1,18 @@
-import { Component, OnInit, ChangeDetectorRef, OnDestroy } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
-import { CandidateService } from '../../services/candidate.service';
+import { CandidateService, CandidateSort } from '../../services/candidate.service';
 import { JobService } from '../../services/job.service';
+import { AuthService } from '../../services/auth.service';
 import {
   Candidate, CandidateRequest, Job, PipelineStage,
   PIPELINE_STAGES, STAGE_LABELS, STAGE_COLORS
 } from '../../models/ats.models';
+
+const SORT_STORAGE_KEY = 'hireflow.talent.sort';
 
 @Component({
   selector: 'app-talent',
@@ -41,8 +44,29 @@ export class TalentComponent implements OnInit, OnDestroy {
     name: '',
     skills: '',
     stage: '' as PipelineStage | '',
-    jobId: null as number | null
+    jobId: null as number | null,
+    sort: (this.loadStoredSort()) as CandidateSort
   };
+
+  private loadStoredSort(): CandidateSort {
+    try {
+      const stored = localStorage?.getItem?.(SORT_STORAGE_KEY) as CandidateSort | null;
+      return stored ?? 'name';
+    } catch {
+      return 'name';
+    }
+  }
+
+  readonly sortOptions: { value: CandidateSort; label: string }[] = [
+    { value: 'name',         label: 'Name (A → Z)' },
+    { value: 'applied',      label: 'Recently applied' },
+    { value: 'applied:asc',  label: 'Oldest application' },
+    { value: 'updated',      label: 'Recently updated' }
+  ];
+
+  readonly authService = inject(AuthService);
+  readonly router = inject(Router);
+  get canWrite(): boolean { return this.authService.canWrite(); }
 
   allStages: PipelineStage[] = PIPELINE_STAGES;
 
@@ -79,11 +103,17 @@ export class TalentComponent implements OnInit, OnDestroy {
   runSearch(): void {
     this.loading = true;
     this.cdr.detectChanges();
+    try {
+      localStorage?.setItem?.(SORT_STORAGE_KEY, this.filters.sort);
+    } catch {
+      /* ignore — localStorage may be unavailable (e.g. SSR / private mode) */
+    }
     this.candidateService.search({
       name: this.filters.name || undefined,
       skills: this.filters.skills || undefined,
       stage: this.filters.stage || undefined,
-      jobId: this.filters.jobId ?? undefined
+      jobId: this.filters.jobId ?? undefined,
+      sort: this.filters.sort
     }).subscribe({
       next: (results) => {
         this.candidates = results;
@@ -97,7 +127,7 @@ export class TalentComponent implements OnInit, OnDestroy {
   }
 
   resetFilters(): void {
-    this.filters = { name: '', skills: '', stage: '', jobId: null };
+    this.filters = { name: '', skills: '', stage: '', jobId: null, sort: 'name' };
     this.runSearch();
   }
 
@@ -291,7 +321,7 @@ export class TalentComponent implements OnInit, OnDestroy {
   }
 
   openCandidateDetail(candidate: Candidate): void {
-    this.selectedCandidate = candidate;
+    this.router.navigate(['/candidates', candidate.id]);
   }
 
   closeCandidateDetail(): void {

@@ -4,11 +4,14 @@ import com.clarksprojects.ats.dto.CandidateRequest;
 import com.clarksprojects.ats.dto.CandidateResponse;
 import com.clarksprojects.ats.dto.ParsedResume;
 import com.clarksprojects.ats.dto.StageMoveRequest;
+import com.clarksprojects.ats.entity.ActivityType;
 import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.EmploymentType;
 import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.JobStatus;
-import com.clarksprojects.ats.entity.PipelineStage;import com.clarksprojects.ats.exception.ResourceNotFoundException;import com.clarksprojects.ats.repository.CandidateRepository;
+import com.clarksprojects.ats.entity.PipelineStage;
+import com.clarksprojects.ats.exception.ResourceNotFoundException;
+import com.clarksprojects.ats.repository.CandidateRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,11 +21,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,6 +40,9 @@ class CandidateServiceTest {
 
     @Mock
     private JobService jobService;
+
+    @Mock
+    private ActivityService activityService;
 
     @InjectMocks
     private CandidateService candidateService;
@@ -107,7 +117,7 @@ class CandidateServiceTest {
     }
 
     @Test
-    void createCandidate_savesFromRequest() {
+    void createCandidate_savesFromRequest_andLogsActivity() {
         CandidateRequest request = CandidateRequest.builder()
                 .firstName("Bob")
                 .lastName("Jones")
@@ -137,10 +147,12 @@ class CandidateServiceTest {
         assertThat(result.getFirstName()).isEqualTo("Bob");
         assertThat(result.getJobId()).isEqualTo(1L);
         verify(candidateRepository).save(any(Candidate.class));
+        verify(activityService).record(eq(ActivityType.CANDIDATE_CREATED), eq(saved), eq(sampleJob),
+                anyString(), anyMap());
     }
 
     @Test
-    void createCandidate_nonExistentJob_throwsIllegalArgumentException() {
+    void createCandidate_nonExistentJob_throwsResourceNotFoundException() {
         CandidateRequest request = CandidateRequest.builder()
                 .firstName("Bob").lastName("Jones")
                 .email("bob@example.com")
@@ -155,10 +167,11 @@ class CandidateServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Job not found: 99");
         verify(candidateRepository, never()).save(any());
+        verifyNoInteractions(activityService);
     }
 
     @Test
-    void updateCandidate_updatesFieldsAndReturns() {
+    void updateCandidate_stageChange_logsStageChangeActivity() {
         CandidateRequest request = CandidateRequest.builder()
                 .firstName("Alice")
                 .lastName("Updated")
@@ -176,6 +189,27 @@ class CandidateServiceTest {
         assertThat(result.getLastName()).isEqualTo("Updated");
         assertThat(result.getEmail()).isEqualTo("alice.updated@example.com");
         assertThat(result.getStage()).isEqualTo(PipelineStage.SCREENING);
+        verify(activityService).record(eq(ActivityType.STAGE_CHANGED), any(Candidate.class),
+                eq(sampleJob), anyString(), anyMap());
+    }
+
+    @Test
+    void updateCandidate_noStageChange_logsCandidateUpdated() {
+        CandidateRequest request = CandidateRequest.builder()
+                .firstName("Alice")
+                .lastName("Smith")
+                .email("alice@example.com")
+                .stage(PipelineStage.APPLIED)
+                .jobId(1L)
+                .build();
+
+        when(candidateRepository.findById(10L)).thenReturn(Optional.of(sampleCandidate));
+        when(candidateRepository.save(any(Candidate.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        candidateService.updateCandidate(10L, request);
+
+        verify(activityService).record(eq(ActivityType.CANDIDATE_UPDATED), any(Candidate.class),
+                eq(sampleJob), anyString(), anyMap());
     }
 
     @Test
@@ -206,7 +240,7 @@ class CandidateServiceTest {
     }
 
     @Test
-    void moveStage_updatesStageAndOrder() {
+    void moveStage_updatesStageAndOrder_andLogsActivity() {
         StageMoveRequest request = new StageMoveRequest(PipelineStage.INTERVIEW, 2);
 
         when(candidateRepository.findById(10L)).thenReturn(Optional.of(sampleCandidate));
@@ -216,6 +250,8 @@ class CandidateServiceTest {
 
         assertThat(result.getStage()).isEqualTo(PipelineStage.INTERVIEW);
         assertThat(result.getStageOrder()).isEqualTo(2);
+        verify(activityService).record(eq(ActivityType.STAGE_CHANGED), any(Candidate.class),
+                eq(sampleJob), anyString(), anyMap());
     }
 
     @Test
@@ -228,7 +264,19 @@ class CandidateServiceTest {
         CandidateResponse result = candidateService.moveStage(10L, request);
 
         assertThat(result.getStage()).isEqualTo(PipelineStage.OFFER);
-        assertThat(result.getStageOrder()).isEqualTo(0); // original stageOrder unchanged
+        assertThat(result.getStageOrder()).isEqualTo(0);
+    }
+
+    @Test
+    void moveStage_sameStage_doesNotLogActivity() {
+        StageMoveRequest request = new StageMoveRequest(PipelineStage.APPLIED, 1);
+
+        when(candidateRepository.findById(10L)).thenReturn(Optional.of(sampleCandidate));
+        when(candidateRepository.save(any(Candidate.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        candidateService.moveStage(10L, request);
+
+        verifyNoInteractions(activityService);
     }
 
     @Test
@@ -241,12 +289,14 @@ class CandidateServiceTest {
     }
 
     @Test
-    void deleteCandidate_existingId_deletesCandidate() {
+    void deleteCandidate_existingId_deletesCandidateAndLogsActivity() {
         when(candidateRepository.findById(10L)).thenReturn(Optional.of(sampleCandidate));
 
         candidateService.deleteCandidate(10L);
 
         verify(candidateRepository).delete(sampleCandidate);
+        verify(activityService).record(eq(ActivityType.CANDIDATE_DELETED), eq(null), eq(sampleJob),
+                anyString(), anyMap());
     }
 
     @Test
@@ -265,7 +315,7 @@ class CandidateServiceTest {
     void searchCandidates_noSkillsFilter_returnsAllRepoResults() {
         when(candidateRepository.search("Alice", null, null)).thenReturn(List.of(sampleCandidate));
 
-        List<CandidateResponse> result = candidateService.searchCandidates("Alice", null, null, null);
+        List<CandidateResponse> result = candidateService.searchCandidates("Alice", null, null, null, null);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getFirstName()).isEqualTo("Alice");
@@ -276,7 +326,7 @@ class CandidateServiceTest {
     void searchCandidates_blankName_passesNullToRepository() {
         when(candidateRepository.search(null, null, null)).thenReturn(List.of(sampleCandidate));
 
-        List<CandidateResponse> result = candidateService.searchCandidates("  ", null, null, null);
+        List<CandidateResponse> result = candidateService.searchCandidates("  ", null, null, null, null);
 
         assertThat(result).hasSize(1);
         verify(candidateRepository).search(null, null, null);
@@ -297,7 +347,7 @@ class CandidateServiceTest {
         when(candidateRepository.search(null, null, null))
                 .thenReturn(List.of(javaCandidate, pythonCandidate));
 
-        List<CandidateResponse> result = candidateService.searchCandidates(null, "java", null, null);
+        List<CandidateResponse> result = candidateService.searchCandidates(null, "java", null, null, null);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getId()).isEqualTo(10L);
@@ -307,7 +357,7 @@ class CandidateServiceTest {
     void searchCandidates_withStageFilter_passesStageNameToRepository() {
         when(candidateRepository.search(null, "APPLIED", null)).thenReturn(List.of(sampleCandidate));
 
-        List<CandidateResponse> result = candidateService.searchCandidates(null, null, PipelineStage.APPLIED, null);
+        List<CandidateResponse> result = candidateService.searchCandidates(null, null, PipelineStage.APPLIED, null, null);
 
         assertThat(result).hasSize(1);
         verify(candidateRepository).search(null, "APPLIED", null);
@@ -322,15 +372,32 @@ class CandidateServiceTest {
 
         when(candidateRepository.search(null, null, null)).thenReturn(List.of(noSkillsCandidate));
 
-        List<CandidateResponse> result = candidateService.searchCandidates(null, "java", null, null);
+        List<CandidateResponse> result = candidateService.searchCandidates(null, "java", null, null, null);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void searchCandidates_sortByApplied_descending() {
+        Candidate older = Candidate.builder()
+                .id(20L).firstName("Older").lastName("Person")
+                .email("o@e.com").stage(PipelineStage.APPLIED).stageOrder(0).job(sampleJob)
+                .appliedAt(java.time.LocalDateTime.of(2025, 1, 1, 0, 0)).build();
+        Candidate newer = Candidate.builder()
+                .id(21L).firstName("Newer").lastName("Person")
+                .email("n@e.com").stage(PipelineStage.APPLIED).stageOrder(0).job(sampleJob)
+                .appliedAt(java.time.LocalDateTime.of(2026, 1, 1, 0, 0)).build();
+        when(candidateRepository.search(null, null, null)).thenReturn(List.of(older, newer));
+
+        List<CandidateResponse> result = candidateService.searchCandidates(null, null, null, null, "applied");
+
+        assertThat(result).extracting(CandidateResponse::getId).containsExactly(21L, 20L);
     }
 
     // ── createFromParsedResume ────────────────────────────────────────────────
 
     @Test
-    void createFromParsedResume_savesAndReturnsTalentPoolCandidate() {
+    void createFromParsedResume_savesAndLogsResumeUploadActivity() {
         Job talentPoolJob = Job.builder()
                 .id(99L)
                 .employer(JobService.TALENT_POOL_EMPLOYER)
@@ -366,5 +433,7 @@ class CandidateServiceTest {
         assertThat(result.isTalentPool()).isTrue();
         assertThat(result.getJobTitle()).isEqualTo("Talent Pool");
         verify(candidateRepository).save(any(Candidate.class));
+        verify(activityService).record(eq(ActivityType.RESUME_UPLOADED), eq(saved), eq(talentPoolJob),
+                anyString(), any(Map.class));
     }
 }

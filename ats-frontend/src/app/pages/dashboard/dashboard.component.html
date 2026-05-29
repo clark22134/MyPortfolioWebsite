@@ -1,72 +1,189 @@
-<div class="dashboard">
-  <h1>Dashboard</h1>
-
-  @if (stats) {
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.totalJobs }}</div>
-        <div class="stat-label">Total Jobs</div>
-      </div>
-      <div class="stat-card accent">
-        <div class="stat-value">{{ stats.openJobs }}</div>
-        <div class="stat-label">Open Positions</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.totalCandidates }}</div>
-        <div class="stat-label">Total Candidates</div>
-      </div>
+<div class="page-shell">
+  <header class="page-header page-header-row">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="subtitle">A real-time snapshot of your pipeline, tasks, and recent activity.</p>
     </div>
+    <button type="button" class="btn btn-secondary btn-sm" (click)="load()">↻ Refresh</button>
+  </header>
 
-    <h2>Pipeline Overview</h2>
-    <div class="pipeline-grid">
-      @for (entry of stageEntries; track entry.stage) {
-        <div class="pipeline-card" [style.border-top-color]="getStageColor(entry.stage)">
-          <div class="pipeline-count">{{ entry.count }}</div>
-          <div class="pipeline-label">{{ getStageLabel(entry.stage) }}</div>
-        </div>
+  @if (loading()) {
+    <section class="kpi-row">
+      @for (i of [1,2,3,4,5,6]; track i) {
+        <div class="kpi-card skeleton skeleton-block"></div>
       }
+    </section>
+  } @else if (error()) {
+    <div class="error-state">
+      <span class="icon" aria-hidden="true">⚠️</span>
+      <p>{{ error() }}</p>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="load()">Try again</button>
     </div>
+  } @else if (stats(); as s) {
+    <section class="kpi-row" aria-label="Key metrics">
+      <article class="kpi-card">
+        <span class="kpi-label">Open positions</span>
+        <span class="kpi-value">{{ s.openJobs }}</span>
+        <span class="kpi-sub">of {{ s.totalJobs }} total</span>
+      </article>
+      <article class="kpi-card">
+        <span class="kpi-label">Total candidates</span>
+        <span class="kpi-value">{{ s.totalCandidates }}</span>
+        <span class="kpi-sub">across all jobs</span>
+      </article>
+      <article class="kpi-card">
+        <span class="kpi-label">Hired this month</span>
+        <span class="kpi-value">{{ s.hiredThisMonth }}</span>
+        <span class="kpi-sub">moved to Hired</span>
+      </article>
+      <article class="kpi-card">
+        <span class="kpi-label">Open tasks</span>
+        <span class="kpi-value">{{ s.openTasks }}</span>
+        <span class="kpi-sub">awaiting action</span>
+      </article>
+      <article class="kpi-card" [class.kpi-danger]="s.overdueTasks > 0">
+        <span class="kpi-label">Overdue tasks</span>
+        <span class="kpi-value">{{ s.overdueTasks }}</span>
+        <span class="kpi-sub">past their due date</span>
+      </article>
+      <article class="kpi-card">
+        <span class="kpi-label">Active employers</span>
+        <span class="kpi-value">{{ employerSlices().length }}</span>
+        <span class="kpi-sub">with open roles</span>
+      </article>
+    </section>
 
-    @if (employerChartData.length > 0) {
-      <h2>Jobs by Client</h2>
-      <div class="employer-chart-card">
-        <div class="donut-wrapper">
-          <svg viewBox="0 0 42 42" class="donut-svg" aria-hidden="true">
-            <circle cx="21" cy="21" r="15.9155" fill="none" stroke="var(--border)" stroke-width="3.5"/>
-            @for (slice of employerChartData; track slice.employer) {
-              <circle
-                cx="21" cy="21" r="15.9155"
-                fill="transparent"
-                [attr.stroke]="slice.color"
-                stroke-width="3.5"
-                [attr.stroke-dasharray]="slice.percentage + ' ' + (100 - slice.percentage)"
-                [attr.stroke-dashoffset]="slice.offset"
-                stroke-linecap="butt"
-              />
-            }
-            <text x="21" y="19.5" text-anchor="middle" class="donut-total">{{ stats!.totalJobs }}</text>
-            <text x="21" y="24.5" text-anchor="middle" class="donut-label">jobs</text>
-          </svg>
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Pipeline at a glance</h2>
+          <p class="muted">Candidates currently in each stage.</p>
         </div>
-        <div class="employer-legend">
-          @for (slice of employerChartData; track slice.employer) {
-            <div class="legend-item">
-              <span class="legend-swatch" [style.background]="slice.color"></span>
-              <span class="legend-employer">{{ slice.employer }}</span>
-              <span class="legend-count">{{ slice.count }}</span>
-              <span class="legend-pct">{{ slice.percentage | number:'1.0-0' }}%</span>
-            </div>
-          }
-        </div>
+        <a routerLink="/talent" class="btn btn-ghost btn-sm">Browse talent →</a>
       </div>
-    }
+      <div class="stage-list">
+        @for (entry of stageEntries(); track entry.stage) {
+          <div class="stage-row">
+            <span class="stage-name" [style.color]="entry.color">{{ entry.label }}</span>
+            <div class="stage-bar">
+              <span class="stage-bar-fill"
+                    [style.width.%]="(entry.count / maxStageCount()) * 100"
+                    [style.background]="entry.color"
+                    [attr.aria-label]="entry.label + ': ' + entry.count"></span>
+            </div>
+            <span class="stage-count">{{ entry.count }}</span>
+          </div>
+        }
+      </div>
+    </section>
 
-    <div class="quick-actions">
-      <a routerLink="/jobs" class="action-btn">View All Jobs →</a>
+    <div class="two-col">
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Recent activity</h2>
+            <p class="muted">The latest events across your pipeline.</p>
+          </div>
+        </div>
+        @if (s.recentActivity.length === 0) {
+          <div class="empty-state">
+            <span class="icon" aria-hidden="true">📭</span>
+            <p>No activity yet. Updates will appear here.</p>
+          </div>
+        } @else {
+          <ul class="activity-list">
+            @for (activity of s.recentActivity; track activity.id) {
+              <li class="activity-item">
+                <span class="activity-icon" aria-hidden="true">{{ activityIcon(activity.type) }}</span>
+                <div class="activity-body">
+                  <div class="activity-summary">
+                    {{ activity.summary }}
+                    @if (activity.candidateName) {
+                      <a class="activity-link" [routerLink]="['/candidates', activity.candidateId]">{{ activity.candidateName }}</a>
+                    }
+                  </div>
+                  <div class="activity-meta muted">
+                    {{ activity.actorName }} · {{ relativeTime(activity.createdAt) }}
+                  </div>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Upcoming tasks</h2>
+            <p class="muted">Sorted by next due date.</p>
+          </div>
+          <a routerLink="/tasks" class="btn btn-ghost btn-sm">All tasks →</a>
+        </div>
+        @if (s.upcomingTasks.length === 0) {
+          <div class="empty-state">
+            <span class="icon" aria-hidden="true">🎯</span>
+            <p>No upcoming tasks. Create one from any candidate page.</p>
+          </div>
+        } @else {
+          <ul class="task-list">
+            @for (task of s.upcomingTasks; track task.id) {
+              <li class="task-item">
+                <span class="task-priority" [style.background]="priorityColor(task.priority)" [title]="priorityLabel(task.priority) + ' priority'"></span>
+                <div class="task-body">
+                  <div class="task-subject">{{ task.subject }}</div>
+                  <div class="task-meta muted">
+                    {{ task.assigneeName }}
+                    @if (task.candidateName) {
+                      · <a [routerLink]="['/candidates', task.candidateId]">{{ task.candidateName }}</a>
+                    }
+                  </div>
+                </div>
+                <span class="task-due" [class.past]="dueLabel(task.dueAt).tone === 'past'"
+                      [class.today]="dueLabel(task.dueAt).tone === 'today'">
+                  {{ dueLabel(task.dueAt).text }}
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </section>
     </div>
-  } @else if (error) {
-    <div class="error">{{ error }}</div>
-  } @else {
-    <div class="loading">Loading dashboard...</div>
+
+    @if (employerSlices().length > 0) {
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Jobs by client</h2>
+            <p class="muted">How your open roles are distributed.</p>
+          </div>
+        </div>
+        <div class="donut-row">
+          <div class="donut-wrapper" aria-hidden="true">
+            <svg viewBox="0 0 42 42" class="donut-svg">
+              <circle cx="21" cy="21" r="15.9155" fill="none" stroke="var(--border)" stroke-width="3.5"/>
+              @for (slice of employerSlices(); track slice.employer) {
+                <circle cx="21" cy="21" r="15.9155" fill="transparent"
+                        [attr.stroke]="slice.color" stroke-width="3.5"
+                        [attr.stroke-dasharray]="slice.percentage + ' ' + (100 - slice.percentage)"
+                        [attr.stroke-dashoffset]="slice.offset"
+                        stroke-linecap="butt"/>
+              }
+              <text x="21" y="20" text-anchor="middle" class="donut-total">{{ s.totalJobs }}</text>
+              <text x="21" y="25" text-anchor="middle" class="donut-label">jobs</text>
+            </svg>
+          </div>
+          <div class="employer-legend">
+            @for (slice of employerSlices(); track slice.employer) {
+              <div class="legend-item">
+                <span class="legend-swatch" [style.background]="slice.color"></span>
+                <span class="legend-employer">{{ slice.employer }}</span>
+                <span class="legend-count muted">{{ slice.count }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+    }
   }
 </div>

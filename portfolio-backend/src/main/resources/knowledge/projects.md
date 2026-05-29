@@ -10,14 +10,28 @@ Live, production-grade applications hosted on this portfolio site. All three
 share the same DevSecOps pipeline (GitHub Actions → Lambda/S3 → AWS) and the same
 WCAG 2.1 AA accessibility baseline.
 
-## 1. Applicant Tracking System (ATS)
+## 1. Applicant Tracking System (HireFlow)
 
-A modern ATS with **Kanban pipeline boards** that move candidates through
-screening, interview, offer, and onboarding stages.
+A purpose-built ATS — Kanban pipeline, resume parsing, candidate scoring, notes,
+activity log, follow-up tasks, tags, and role-based access. The frontend is built
+on a refined custom design system tuned for non-technical recruiters and hiring
+managers.
 
-- **Frontend**: Angular 21, drag-and-drop boards, optimistic UI updates.
-- **Backend**: Spring Boot 3.5 (Java 21). No authentication — ATS is an intentionally open public demo showcasing the recruiting pipeline without access controls.
-- **Database**: PostgreSQL with Flyway-style schema in `ats-db/init/01-schema.sql`.
+- **Frontend**: Angular 21, drag-and-drop boards (Angular CDK), optimistic UI,
+  dedicated **Candidate Detail** page (`/candidates/:id`) with activity timeline,
+  threaded notes, per-candidate tasks, and tag toggles. **Tasks** page (`/tasks`)
+  for the "Mine / Open / Overdue / Done" follow-up queue. **Users** admin page.
+- **Backend**: Spring Boot 3.5 (Java 21) with **JWT auth via HTTP-only cookies**
+  (`AuthService`, `JwtUtil`, `CookieUtil`, `JwtRequestFilter`), three roles
+  (`ADMIN` / `RECRUITER` / `HIRING_MANAGER`), role-aware path authorization, and
+  refresh-token rotation. Append-only `Activity` log captures every stage move,
+  note, tag change, and task completion.
+- **Database**: PostgreSQL with **Flyway migrations** in
+  `ats-backend/src/main/resources/db/migration/` (`V1__initial_schema`,
+  `V2__auth_users`, `V3__notes_activities_tasks_tags`). Tests use H2 with
+  `MODE=PostgreSQL` and Flyway disabled.
+- **Demo accounts** (seeded on startup, configurable via `ATS_*_PASSWORD` env):
+  `admin` / `admin123`, `recruiter` / `recruiter123`, `manager` / `manager123`.
 - **URL on this site**: `/ats/`
 - **Source**: `ats-backend/`, `ats-frontend/`, `ats-db/`
 

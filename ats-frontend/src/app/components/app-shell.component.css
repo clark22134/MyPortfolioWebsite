@@ -1,0 +1,138 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-6);
+  height: var(--topbar-height);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-primary);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.brand:hover { color: var(--text-primary); }
+.brand-mark {
+  width: 32px; height: 32px;
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent-fg-on); font-weight: var(--fw-bold);
+}
+.brand-text {
+  display: flex; flex-direction: column; line-height: 1.1;
+  font-weight: var(--fw-bold); letter-spacing: -0.02em;
+}
+.brand-sub {
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 1;
+}
+.topnav a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  transition: background var(--duration) var(--easing), color var(--duration) var(--easing);
+}
+.topnav a:hover { color: var(--text-primary); background: var(--bg-elevated); }
+.topnav a.active { color: var(--accent-hover); background: var(--accent-soft); }
+.nav-icon { font-size: 1rem; }
+
+.user-area { position: relative; flex-shrink: 0; }
+.user-trigger {
+  display: inline-flex; align-items: center; gap: var(--space-3);
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--radius); padding: 0.35rem 0.6rem 0.35rem 0.45rem;
+  cursor: pointer; color: var(--text-primary);
+  transition: background var(--duration) var(--easing);
+}
+.user-trigger:hover { background: var(--bg-elevated); }
+.user-trigger[aria-expanded="true"] { background: var(--bg-elevated); }
+
+.avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--info));
+  color: var(--accent-fg-on);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: 0.04em;
+}
+
+.user-meta { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
+.user-name { font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.user-role { font-size: 0.7rem; color: var(--text-secondary); }
+.caret { color: var(--text-tertiary); font-size: 0.75rem; }
+
+.user-menu {
+  position: absolute; right: 0; top: calc(100% + 6px);
+  min-width: 240px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+  z-index: 100;
+}
+.user-menu-header {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: var(--space-1);
+}
+.user-menu-header .user-name { font-size: var(--fs-sm); }
+.user-menu-header .user-email { font-size: var(--fs-xs); }
+.user-role-pill { align-self: flex-start; margin-top: var(--space-1); }
+
+.menu-item {
+  display: flex; align-items: center;
+  width: 100%; padding: var(--space-3) var(--space-4);
+  background: transparent; border: none;
+  color: var(--text-primary); font-size: var(--fs-sm);
+  text-align: left; cursor: pointer;
+  transition: background var(--duration) var(--easing);
+}
+.menu-item:hover { background: var(--bg-card-hover); }
+
+.main-content {
+  flex: 1;
+  background: var(--bg-app);
+}
+
+@media (max-width: 900px) {
+  .topbar { gap: var(--space-3); padding: 0 var(--space-4); }
+  .topnav { gap: 0; }
+  .topnav a { padding: 0.45rem 0.6rem; }
+  .nav-label { display: none; }
+  .user-meta { display: none; }
+}
+
+@media (max-width: 540px) {
+  .brand-text { display: none; }
+}

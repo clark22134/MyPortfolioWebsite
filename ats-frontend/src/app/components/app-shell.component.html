@@ -1,0 +1,52 @@
+<div class="app-shell">
+  <header class="topbar" role="banner">
+    <a routerLink="/" class="brand" aria-label="HireFlow home">
+      <span class="brand-mark">H</span>
+      <span class="brand-text">
+        HireFlow
+        <span class="brand-sub">by Clark</span>
+      </span>
+    </a>
+
+    <nav class="topnav" aria-label="Main navigation">
+      @for (item of visibleNav(); track item.link) {
+        <a [routerLink]="item.link"
+           routerLinkActive="active"
+           [routerLinkActiveOptions]="{ exact: !!item.exact }">
+          <span class="nav-icon" aria-hidden="true">{{ item.icon }}</span>
+          <span class="nav-label">{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+
+    <div class="user-area">
+      @if (user(); as u) {
+        <button type="button" class="user-trigger" (click)="toggleUserMenu()"
+                [attr.aria-expanded]="userMenuOpen()" aria-haspopup="menu">
+          <span class="avatar" aria-hidden="true">{{ userInitials() }}</span>
+          <span class="user-meta">
+            <span class="user-name">{{ u.fullName }}</span>
+            <span class="user-role">{{ roleLabel() }}</span>
+          </span>
+          <span class="caret" aria-hidden="true">▾</span>
+        </button>
+        @if (userMenuOpen()) {
+          <div class="user-menu" role="menu">
+            <div class="user-menu-header">
+              <div class="user-name">{{ u.fullName }}</div>
+              <div class="user-email muted">{{ u.email }}</div>
+              <div class="user-role-pill badge badge-accent">{{ roleLabel() }}</div>
+            </div>
+            <button type="button" class="menu-item" role="menuitem" (click)="signOut()">
+              Sign out
+            </button>
+          </div>
+        }
+      }
+    </div>
+  </header>
+
+  <main id="main-content" class="main-content">
+    <router-outlet />
+  </main>
+</div>

@@ -3,6 +3,7 @@ package com.clarksprojects.ats.service;
 import com.clarksprojects.ats.dto.JobRequest;
 import com.clarksprojects.ats.dto.JobResponse;
 import com.clarksprojects.ats.dto.TopCandidateMatch;
+import com.clarksprojects.ats.entity.ActivityType;
 import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.EmploymentType;
 import com.clarksprojects.ats.entity.Job;
@@ -12,12 +13,14 @@ import com.clarksprojects.ats.repository.CandidateRepository;
 import com.clarksprojects.ats.repository.JobRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +33,11 @@ public class JobService {
 
     private final JobRepository jobRepository;
     private final CandidateRepository candidateRepository;
+
+    // Field-injected to avoid a circular constructor cycle through
+    // ActivityService → (eventually) CandidateService → JobService.
+    @Autowired(required = false)
+    private ActivityService activityService;
 
     @Transactional(readOnly = true)
     public List<JobResponse> getAllJobs() {
@@ -92,14 +100,18 @@ public class JobService {
                 .status(request.getStatus())
                 .employmentType(request.getEmploymentType())
                 .build();
-        JobResponse response = toResponse(jobRepository.save(job));
-        log.info("Job created: id={}, title={}", response.getId(), response.getTitle());
-        return response;
+        Job saved = jobRepository.save(job);
+        log.info("Job created: id={}, title={}", saved.getId(), saved.getTitle());
+        recordActivity(ActivityType.JOB_CREATED, saved,
+                "Created job: " + saved.getTitle() + " @ " + saved.getEmployer(),
+                Map.of("jobId", String.valueOf(saved.getId())));
+        return toResponse(saved);
     }
 
     @Transactional
     public JobResponse updateJob(Long id, JobRequest request) {
         Job job = findJobOrThrow(id);
+        JobStatus previousStatus = job.getStatus();
         job.setEmployer(request.getEmployer());
         job.setTitle(request.getTitle());
         job.setDepartment(request.getDepartment());
@@ -111,16 +123,32 @@ public class JobService {
         job.setLongitude(request.getLongitude());
         job.setStatus(request.getStatus());
         job.setEmploymentType(request.getEmploymentType());
-        JobResponse response = toResponse(jobRepository.save(job));
+        Job saved = jobRepository.save(job);
         log.info("Job updated: id={}", id);
-        return response;
+        recordActivity(ActivityType.JOB_UPDATED, saved,
+                previousStatus != saved.getStatus()
+                        ? "Job status changed from %s to %s".formatted(previousStatus, saved.getStatus())
+                        : "Updated job: " + saved.getTitle(),
+                Map.of("jobId", String.valueOf(saved.getId()),
+                        "from", String.valueOf(previousStatus),
+                        "to", String.valueOf(saved.getStatus())));
+        return toResponse(saved);
     }
 
     @Transactional
     public void deleteJob(Long id) {
         Job job = findJobOrThrow(id);
+        recordActivity(ActivityType.JOB_DELETED, null,
+                "Deleted job: " + job.getTitle() + " @ " + job.getEmployer(),
+                Map.of("jobId", String.valueOf(job.getId())));
         jobRepository.delete(job);
         log.info("Job deleted: id={}", id);
+    }
+
+    private void recordActivity(ActivityType type, Job job, String summary, Map<String, String> meta) {
+        if (activityService != null) {
+            activityService.record(type, null, job, summary, meta);
+        }
     }
 
     private static final int MAX_DAYS = 730;

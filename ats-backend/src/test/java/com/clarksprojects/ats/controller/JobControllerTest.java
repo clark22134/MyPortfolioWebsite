@@ -26,7 +26,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(JobController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, ControllerTestSupport.class})
+@org.springframework.security.test.context.support.WithMockUser(roles = "RECRUITER")
 class JobControllerTest {
 
     @Autowired

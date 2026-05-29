@@ -1,0 +1,217 @@
+<div class="page-shell">
+  @if (loading()) {
+    <div class="loading-state">
+      <span class="spinner spinner-lg" aria-hidden="true"></span> Loading candidate…
+    </div>
+  } @else if (error()) {
+    <div class="error-state">
+      <span class="icon" aria-hidden="true">⚠️</span>
+      <p>{{ error() }}</p>
+      <a routerLink="/talent" class="btn btn-secondary btn-sm">Back to Talent</a>
+    </div>
+  } @else if (candidate(); as c) {
+    <a routerLink="/talent" class="back-link">← Talent</a>
+
+    <header class="detail-header">
+      <div class="header-left">
+        <span class="avatar-xl" aria-hidden="true">{{ initials(c) }}</span>
+        <div>
+          <h1>{{ c.firstName }} {{ c.lastName }}</h1>
+          <div class="header-meta">
+            <span class="muted">{{ c.jobTitle }}</span>
+            @if (!c.talentPool) {
+              <span class="muted">·</span>
+              <a [routerLink]="['/jobs', c.jobId, 'pipeline']" class="header-link">View pipeline →</a>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        @if (canWrite()) {
+          <select class="select stage-select" [ngModel]="c.stage" (ngModelChange)="moveStage($event)"
+                  [style.border-color]="stageColor(c.stage)">
+            @for (stage of stages; track stage) {
+              <option [value]="stage">{{ stageLabel(stage) }}</option>
+            }
+          </select>
+          <button type="button" class="btn btn-danger" (click)="remove()">Delete</button>
+        } @else {
+          <span class="badge" [style.background]="stageColor(c.stage) + '22'" [style.color]="stageColor(c.stage)">
+            {{ stageLabel(c.stage) }}
+          </span>
+        }
+      </div>
+    </header>
+
+    <div class="detail-grid">
+      <section class="detail-main">
+        <nav class="tabs" role="tablist">
+          <button class="tab" role="tab" [class.active]="activeTab() === 'activity'" (click)="setTab('activity')">
+            Activity <span class="tab-count">{{ activities().length }}</span>
+          </button>
+          <button class="tab" role="tab" [class.active]="activeTab() === 'notes'" (click)="setTab('notes')">
+            Notes <span class="tab-count">{{ notes().length }}</span>
+          </button>
+          <button class="tab" role="tab" [class.active]="activeTab() === 'tasks'" (click)="setTab('tasks')">
+            Tasks <span class="tab-count">{{ tasks().length }}</span>
+          </button>
+        </nav>
+
+        @if (activeTab() === 'activity') {
+          @if (activities().length === 0) {
+            <div class="empty-state">
+              <span class="icon" aria-hidden="true">📭</span>
+              <p>No activity yet. Updates will appear here as the candidate moves through your pipeline.</p>
+            </div>
+          } @else {
+            <ol class="timeline">
+              @for (activity of activities(); track activity.id) {
+                <li class="timeline-item">
+                  <span class="timeline-icon" aria-hidden="true">{{ activityIcon(activity.type) }}</span>
+                  <div class="timeline-body">
+                    <div class="timeline-summary">{{ activity.summary }}</div>
+                    <div class="timeline-meta muted">
+                      {{ activity.actorName }} · {{ formatDate(activity.createdAt) }}
+                    </div>
+                  </div>
+                </li>
+              }
+            </ol>
+          }
+        }
+
+        @if (activeTab() === 'notes') {
+          @if (canWrite()) {
+            <div class="note-composer">
+              <textarea class="textarea" rows="3" placeholder="Add a note for the team…"
+                        [ngModel]="noteDraft()" (ngModelChange)="noteDraft.set($event)"></textarea>
+              <div class="row gap-2" style="justify-content: flex-end; margin-top: var(--space-3);">
+                <button type="button" class="btn btn-primary" [disabled]="!noteDraft().trim()" (click)="saveNote()">Post note</button>
+              </div>
+            </div>
+          }
+          @if (notes().length === 0) {
+            <div class="empty-state">
+              <span class="icon" aria-hidden="true">📝</span>
+              <p>No notes yet.</p>
+            </div>
+          } @else {
+            <ul class="note-list">
+              @for (note of notes(); track note.id) {
+                <li class="note-item">
+                  <div class="note-header">
+                    <span class="note-author">{{ note.authorName }}</span>
+                    <span class="note-date muted">{{ formatDate(note.createdAt) }}</span>
+                  </div>
+                  <div class="note-body">{{ note.body }}</div>
+                  @if (canWrite()) {
+                    <button type="button" class="btn-icon note-delete" (click)="deleteNote(note)" aria-label="Delete note">🗑️</button>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        }
+
+        @if (activeTab() === 'tasks') {
+          @if (canWrite()) {
+            <div class="row gap-2" style="margin-bottom: var(--space-4);">
+              <button type="button" class="btn btn-primary btn-sm" (click)="toggleTaskForm()">
+                {{ showTaskForm() ? 'Cancel' : '+ Add task' }}
+              </button>
+            </div>
+            @if (showTaskForm()) {
+              <div class="card mt-2 task-form-card">
+                <input class="input" type="text" placeholder="Subject"
+                       [ngModel]="newTask().subject" (ngModelChange)="updateTaskField('subject', $event)" />
+                <div class="row gap-3 mt-3">
+                  <select class="select" [ngModel]="newTask().priority" (ngModelChange)="updateTaskField('priority', $event)">
+                    <option value="LOW">Low</option>
+                    <option value="NORMAL">Normal</option>
+                    <option value="HIGH">High</option>
+                    <option value="URGENT">Urgent</option>
+                  </select>
+                  <input class="input" type="datetime-local" [ngModel]="newTask().dueAt"
+                         (ngModelChange)="updateTaskField('dueAt', $event)" />
+                  <button type="button" class="btn btn-primary" (click)="saveTask()">Create</button>
+                </div>
+              </div>
+            }
+          }
+          @if (tasks().length === 0) {
+            <div class="empty-state">
+              <span class="icon" aria-hidden="true">🎯</span>
+              <p>No tasks for this candidate.</p>
+            </div>
+          } @else {
+            <ul class="task-mini-list">
+              @for (task of tasks(); track task.id) {
+                <li class="task-mini-row" [class.done]="task.status === 'DONE'">
+                  <span class="task-priority-dot" [style.background]="priorityColor(task.priority)"></span>
+                  <div class="task-mini-body">
+                    <div class="task-subject">{{ task.subject }}</div>
+                    <div class="task-meta muted">{{ task.assigneeName }} · {{ task.dueAt ? formatDate(task.dueAt) : 'no due date' }}</div>
+                  </div>
+                  @if (canWrite() && task.status === 'OPEN') {
+                    <button type="button" class="btn btn-ghost btn-sm" (click)="completeTask(task)">Complete</button>
+                  } @else if (task.status === 'DONE') {
+                    <span class="badge badge-success">Done</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        }
+      </section>
+
+      <aside class="detail-side">
+        <section class="card">
+          <h3>Contact</h3>
+          <dl class="contact-grid">
+            <dt>Email</dt><dd><a [href]="'mailto:' + c.email">{{ c.email }}</a></dd>
+            @if (c.phone) { <dt>Phone</dt><dd>{{ c.phone }}</dd> }
+            @if (c.address) { <dt>Address</dt><dd>{{ c.address }}</dd> }
+            @if (c.lastAssignmentDays) {
+              <dt>Last assignment</dt><dd>{{ c.lastAssignmentDays }} days</dd>
+            }
+            <dt>Applied</dt><dd>{{ formatDate(c.appliedAt) }}</dd>
+            <dt>Updated</dt><dd>{{ formatDate(c.updatedAt) }}</dd>
+            @if (c.resumeUrl) {
+              <dt>Resume</dt><dd><a [href]="c.resumeUrl" target="_blank" rel="noopener">Open ↗</a></dd>
+            }
+          </dl>
+        </section>
+
+        @if (parseSkills(c.skills).length > 0) {
+          <section class="card mt-4">
+            <h3>Skills</h3>
+            <div class="chip-row">
+              @for (skill of parseSkills(c.skills); track skill) {
+                <span class="chip">{{ skill }}</span>
+              }
+            </div>
+          </section>
+        }
+
+        <section class="card mt-4">
+          <h3>Tags</h3>
+          @if (allTags().length === 0) {
+            <p class="muted">No tags defined yet.</p>
+          } @else {
+            <div class="chip-row">
+              @for (tag of allTags(); track tag.id) {
+                <button type="button" class="chip-toggle"
+                        [class.active]="hasTag(tag)"
+                        [style.--tag-color]="tag.color || '#6366f1'"
+                        [disabled]="!canWrite()"
+                        (click)="toggleTag(tag)">
+                  {{ tag.name }}
+                </button>
+              }
+            </div>
+          }
+        </section>
+      </aside>
+    </div>
+  }
+</div>

@@ -1044,21 +1044,79 @@ All catalog endpoints are **auto-generated** by Spring Data REST. Write operatio
 
 **Base URL**: `https://ats.clarkfoster.com/api`
 **Framework**: Spring Boot 3.5.14 · Java 21
-**Database**: PostgreSQL 15.17 (Aurora Serverless v2)
-**Auth**: **None** (demo application — all endpoints are public)
+**Database**: PostgreSQL 15.17 (Aurora Serverless v2), schema managed by **Flyway** (migrations in `ats-backend/src/main/resources/db/migration/`)
+**Auth**: **JWT in HTTP-only cookies** (mirrors the portfolio pattern). Three roles: `ADMIN`, `RECRUITER`, `HIRING_MANAGER`.
 
-> **Note**: This is a demonstration application. All endpoints are publicly accessible with no authentication.
+### Auth model
+
+| Cookie | TTL | Notes |
+|--------|----:|-------|
+| `ats_access_token` | 15 min | Read by `JwtRequestFilter`; falls back to `Authorization: Bearer` for non-browser clients. |
+| `ats_refresh_token` | 7 days | Single-use — `POST /api/auth/refresh` rotates it. Server-side `refresh_token` table tracks revocation; max 5 active sessions per user. |
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/auth/login` | Public | Username/password login; issues both cookies. |
+| `POST` | `/api/auth/refresh` | Refresh cookie | Rotates access + refresh tokens. |
+| `POST` | `/api/auth/logout` | Yes | Revokes refresh token and clears cookies. |
+| `GET` | `/api/auth/me` | Yes | Returns the calling user's profile. |
+
+### Authorization map (path + method → role)
+
+| Path | `GET` | `POST` / `PUT` / `PATCH` / `DELETE` |
+|------|------|--------------------------------------|
+| `/api/jobs/**`, `/api/candidates/**`, `/api/dashboard/**`, `/api/tags/**`, `/api/activities/**` | any authenticated role | `ADMIN` or `RECRUITER` |
+| `/api/notes/**` | any authenticated role | `POST` open to all 3 roles; other methods `ADMIN`/`RECRUITER` |
+| `/api/tasks/**` | any authenticated role | `POST`/`PUT`/`DELETE` `ADMIN`/`RECRUITER`; `PATCH /api/tasks/{id}/status` open to all 3 |
+| `/api/users/**` | `ADMIN` only | `ADMIN` only |
+| `/api/auth/login`, `/api/auth/refresh`, `/api/health`, `/api/talent-pool/resumes/**` | public | — |
+
+Unauthenticated requests to protected paths return **`401 Unauthorized`** (the chain uses `HttpStatusEntryPoint` so the SPA can detect and silently refresh).
+
+### Demo accounts (seeded by `DemoUserInitializer`)
+
+| Username | Password | Role |
+|----------|----------|------|
+| `admin` | `admin123` | `ADMIN` |
+| `recruiter` | `recruiter123` | `RECRUITER` |
+| `manager` | `manager123` | `HIRING_MANAGER` |
+
+Override via `ATS_ADMIN_PASSWORD` / `ATS_RECRUITER_PASSWORD` / `ATS_MANAGER_PASSWORD`. Disable seeding with `ATS_DEMO_ACCOUNTS_ENABLED=false`.
+
+### New resources (V3 migration)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/notes?candidateId=…` | List threaded notes for a candidate, newest first. |
+| `POST` | `/api/notes` | Add a note (author = current user). Logs `NOTE_ADDED` activity. |
+| `DELETE` | `/api/notes/{id}` | Remove a note. |
+| `GET` | `/api/activities?candidateId=…` / `?jobId=…` / `?limit=…` | Read the activity timeline. Default `limit=20` when no filter. |
+| `GET` | `/api/tasks` (filters: `status`, `assigneeId`, `candidateId`) | List follow-up tasks. |
+| `GET` | `/api/tasks/mine` | Tasks assigned to the calling user. |
+| `POST` | `/api/tasks` | Create a task; logs `TASK_CREATED`. |
+| `PUT` | `/api/tasks/{id}` | Update a task's editable fields. |
+| `PATCH` | `/api/tasks/{id}/status` | `OPEN` ↔ `DONE` ↔ `CANCELLED`. Sets `completedAt`, logs activity. |
+| `DELETE` | `/api/tasks/{id}` | Remove a task. |
+| `GET` | `/api/tags` | All tags (alphabetical). |
+| `POST` / `PUT` / `DELETE` | `/api/tags/…` | Manage tags (recruiter+). |
+| `GET` | `/api/tags/candidate/{id}` | Tags currently on a candidate. |
+| `PUT` | `/api/tags/candidate/{id}` | Replace the candidate's tag set; logs `TAG_ADDED` / `TAG_REMOVED` for diff. |
+| `GET` / `POST` / `PUT` / `DELETE` | `/api/users` | Admin-only user CRUD. |
+
+### Existing endpoints (unchanged contract, now require auth)
+
+The Jobs / Candidates / Dashboard / Talent Pool endpoints documented below are unchanged in URL or payload shape, but now require an authenticated session. The candidate list now also accepts a `sort` query parameter (`name` (default), `applied`, `applied:asc`, `updated`), and `CandidateResponse` includes a `tags: TagResponse[]` field.
 
 ### 3.1 Jobs
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/jobs` | No | List jobs (optional filters) |
-| `GET` | `/api/jobs/{id}` | No | Get job by ID |
-| `GET` | `/api/jobs/{id}/top-candidates` | No | Get AI-ranked top candidate matches |
-| `POST` | `/api/jobs` | No | Create a job |
-| `PUT` | `/api/jobs/{id}` | No | Update a job |
-| `DELETE` | `/api/jobs/{id}` | No | Delete a job (cascades to candidates) |
+| `GET` | `/api/jobs` | ✓ | List jobs (optional filters) |
+| `GET` | `/api/jobs/{id}` | ✓ | Get job by ID |
+| `GET` | `/api/jobs/{id}/top-candidates` | ✓ | Get AI-ranked top candidate matches |
+| `POST` | `/api/jobs` | ✓ | Create a job |
+| `PUT` | `/api/jobs/{id}` | ✓ | Update a job |
+| `DELETE` | `/api/jobs/{id}` | ✓ | Delete a job (cascades to candidates) |
 
 #### `GET /api/jobs`
 
@@ -1066,8 +1124,8 @@ All catalog endpoints are **auto-generated** by Spring Data REST. Write operatio
 
 | Param | Type | Required | Description |
 |---|---|---|---|
-| `status` | `string` | No | Filter by status: `DRAFT`, `OPEN`, `CLOSED`, `ON_HOLD` |
-| `employer` | `string` | No | Filter by employer name |
+| `status` | `string` | ✓ | Filter by status: `DRAFT`, `OPEN`, `CLOSED`, `ON_HOLD` |
+| `employer` | `string` | ✓ | Filter by employer name |
 
 **Response** `200 OK`
 
@@ -1155,13 +1213,13 @@ All catalog endpoints are **auto-generated** by Spring Data REST. Write operatio
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/candidates` | No | List candidates for a job (required `jobId`) |
-| `GET` | `/api/candidates/search` | No | Search candidates (flexible filters) |
-| `GET` | `/api/candidates/{id}` | No | Get candidate by ID |
-| `POST` | `/api/candidates` | No | Create a candidate |
-| `PUT` | `/api/candidates/{id}` | No | Update a candidate |
-| `PATCH` | `/api/candidates/{id}/stage` | No | Move candidate to a new pipeline stage |
-| `DELETE` | `/api/candidates/{id}` | No | Delete a candidate |
+| `GET` | `/api/candidates` | ✓ | List candidates for a job (required `jobId`) |
+| `GET` | `/api/candidates/search` | ✓ | Search candidates (flexible filters) |
+| `GET` | `/api/candidates/{id}` | ✓ | Get candidate by ID |
+| `POST` | `/api/candidates` | ✓ | Create a candidate |
+| `PUT` | `/api/candidates/{id}` | ✓ | Update a candidate |
+| `PATCH` | `/api/candidates/{id}/stage` | ✓ | Move candidate to a new pipeline stage |
+| `DELETE` | `/api/candidates/{id}` | ✓ | Delete a candidate |
 
 #### `GET /api/candidates`
 
@@ -1170,7 +1228,7 @@ All catalog endpoints are **auto-generated** by Spring Data REST. Write operatio
 | Param | Type | Required | Description |
 |---|---|---|---|
 | `jobId` | `long` | **Yes** | Job ID to filter candidates |
-| `stage` | `string` | No | Pipeline stage filter |
+| `stage` | `string` | ✓ | Pipeline stage filter |
 
 **Response** `200 OK`
 
@@ -1275,8 +1333,8 @@ All catalog endpoints are **auto-generated** by Spring Data REST. Write operatio
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `POST` | `/api/talent-pool/upload` | No | Upload and parse a resume file |
-| `GET` | `/api/talent-pool/resumes/{filename}` | No | Download a stored resume |
+| `POST` | `/api/talent-pool/upload` | ✓ | Upload and parse a resume file |
+| `GET` | `/api/talent-pool/resumes/{filename}` | ✓ | Download a stored resume |
 
 #### `POST /api/talent-pool/upload`
 
@@ -1330,7 +1388,7 @@ All catalog endpoints are **auto-generated** by Spring Data REST. Write operatio
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/dashboard` | No | Get aggregate pipeline statistics |
+| `GET` | `/api/dashboard` | ✓ | Get aggregate pipeline statistics |
 
 #### `GET /api/dashboard`
 

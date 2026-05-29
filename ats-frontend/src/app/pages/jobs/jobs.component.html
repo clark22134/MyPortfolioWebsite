@@ -2,9 +2,11 @@
   <div class="page-header">
     <div class="header-top">
       <h1>Jobs</h1>
-      <button class="btn-primary" (click)="showForm = !showForm">
-        {{ showForm ? 'Cancel' : '+ New Job' }}
-      </button>
+      @if (canWrite) {
+        <button class="btn-primary" (click)="showForm = !showForm">
+          {{ showForm ? 'Cancel' : '+ New Job' }}
+        </button>
+      }
     </div>
     <div class="header-actions">
       <label class="toggle-switch" [class.active]="showOpenOnly">
@@ -131,8 +133,10 @@
                     ⭐ Top Matches
                   </button>
                   <a [routerLink]="['/jobs', job.id, 'pipeline']" class="btn-outline" (click)="$event.stopPropagation()">Pipeline →</a>
-                  <button class="btn-icon" (click)="editJob(job); $event.stopPropagation()" aria-label="Edit job">✏️</button>
-                  <button class="btn-icon danger" (click)="deleteJob(job.id); $event.stopPropagation()" aria-label="Delete job">🗑️</button>
+                  @if (canWrite) {
+                    <button class="btn-icon" (click)="editJob(job); $event.stopPropagation()" aria-label="Edit job">✏️</button>
+                    <button class="btn-icon danger" (click)="deleteJob(job.id); $event.stopPropagation()" aria-label="Delete job">🗑️</button>
+                  }
                 </div>
               </div>
               @if (expandedJobId === job.id) {
@@ -152,7 +156,9 @@
                         <div class="match-row">
                           <span class="match-rank">#{{ i + 1 }}</span>
                           <div class="match-info">
-                            <span class="match-name">{{ match.firstName }} {{ match.lastName }}</span>
+                            <a class="match-name" [routerLink]="['/candidates', match.candidateId]">
+                              {{ match.firstName }} {{ match.lastName }}
+                            </a>
                             <span class="match-email">{{ match.email }}</span>
                           </div>
                           <div class="match-scores">
@@ -259,7 +265,9 @@
         </div>
         <div class="detail-actions">
           <a [routerLink]="['/jobs', selectedJob.id, 'pipeline']" class="btn-primary" (click)="closeJobDetail()">View Pipeline →</a>
-          <button class="btn-outline-detail" (click)="editJob(selectedJob); closeJobDetail()">Edit Job</button>
+          @if (canWrite) {
+            <button class="btn-outline-detail" (click)="editJob(selectedJob); closeJobDetail()">Edit Job</button>
+          }
         </div>
       </div>
     </div>
