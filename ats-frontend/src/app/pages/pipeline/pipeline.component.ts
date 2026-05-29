@@ -10,6 +10,7 @@ import {
   Job, Candidate, CandidateRequest, PipelineStage,
   PIPELINE_STAGES, STAGE_LABELS, STAGE_COLORS
 } from '../../models/ats.models';
+import { seedCandidateEditForm, toCandidateRequest } from '../../util/candidate-form';
 
 @Component({
   selector: 'app-pipeline',
@@ -70,21 +71,7 @@ export class PipelineComponent implements OnInit {
 
   openEdit(candidate: Candidate): void {
     this.editingCandidate = candidate;
-    this.editForm = {
-      firstName: candidate.firstName,
-      lastName: candidate.lastName,
-      email: candidate.email,
-      phone: candidate.phone,
-      resumeUrl: candidate.resumeUrl,
-      notes: candidate.notes,
-      skills: candidate.skills,
-      address: candidate.address ?? '',
-      latitude: candidate.latitude ?? null,
-      longitude: candidate.longitude ?? null,
-      lastAssignmentDays: candidate.lastAssignmentDays ?? 0,
-      stage: candidate.stage,
-      jobId: candidate.jobId
-    };
+    this.editForm = seedCandidateEditForm(candidate);
   }
 
   closeEdit(): void {
@@ -94,21 +81,9 @@ export class PipelineComponent implements OnInit {
 
   saveEdit(): void {
     if (!this.editingCandidate) return;
-    const req: CandidateRequest = {
-      firstName: this.editForm.firstName ?? '',
-      lastName: this.editForm.lastName ?? '',
-      email: this.editForm.email ?? '',
-      phone: this.editForm.phone ?? '',
-      resumeUrl: this.editForm.resumeUrl ?? '',
-      notes: this.editForm.notes ?? '',
-      skills: this.editForm.skills ?? '',
-      address: this.editForm.address ?? '',
-      latitude: this.editForm.latitude ?? null,
-      longitude: this.editForm.longitude ?? null,
-      lastAssignmentDays: this.editForm.lastAssignmentDays ?? 0,
-      stage: this.editForm.stage ?? 'APPLIED',
-      jobId: this.editingCandidate.jobId
-    };
+    const req: CandidateRequest = toCandidateRequest(this.editForm, this.editingCandidate.jobId);
+    // Pipeline doesn't allow re-assigning the job, so pin it back to the original.
+    req.jobId = this.editingCandidate.jobId;
     this.candidateService.update(this.editingCandidate.id, req).subscribe(() => {
       this.closeEdit();
       this.loadCandidates();
