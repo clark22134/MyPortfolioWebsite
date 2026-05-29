@@ -39,9 +39,24 @@ Key properties:
 
 The E-Commerce backend uses a single JWT with a 1-hour expiration, stored in an HTTP-only cookie (`ecommerce_jwt`). The simpler model is appropriate for a storefront where session state is less sensitive.
 
-### 1.3 Demo Mode (ATS)
+### 1.3 ATS (HireFlow) — Role-Based JWT Auth
 
-The Applicant Tracking System is deployed as a public demo — all endpoints are unauthenticated, with CORS restricted to known origins. This is an intentional trade-off for portfolio demonstration purposes.
+The Applicant Tracking System now ships with **cookie-based JWT authentication mirroring the Portfolio's pattern**, plus role-based authorization:
+
+| Cookie | TTL | Notes |
+|--------|----:|-------|
+| `ats_access_token` | 15 min | `HttpOnly`, `Secure` (in prod), `SameSite=Lax`. |
+| `ats_refresh_token` | 7 days | Server-side `refresh_token` table tracks revocation; rotated on every refresh; max 5 active sessions per user. |
+
+**Roles** (`Role` enum): `ADMIN`, `RECRUITER`, `HIRING_MANAGER`. Authorization is path-based in `SecurityConfig`. Reads on operational data are open to all three roles; mutations require `ADMIN` or `RECRUITER`; user management is `ADMIN` only via `@PreAuthorize("hasRole('ADMIN')")` on `UserController`. Hiring managers can post notes and complete tasks assigned to them.
+
+**Demo accounts** (`admin`, `recruiter`, `manager`) are seeded on startup by `DemoUserInitializer` and can be disabled with `ATS_DEMO_ACCOUNTS_ENABLED=false`. Passwords are BCrypt-hashed at runtime — no pre-baked hashes in SQL.
+
+**Unauthenticated requests** hit `HttpStatusEntryPoint(401)` instead of redirecting, so the SPA can detect 401 and silently refresh once before bouncing the user to `/login`.
+
+**CORS** remains restricted to known origins (`app.cors.allowed-origins`).
+
+**CSRF** is disabled for the ATS — the SPA uses HTTP-only cookies and the auth interceptor sets `withCredentials: true` only for first-party `/api/*` requests; the CORS allowlist + `SameSite=Lax` cookies provide the equivalent guarantee without needing a CSRF token round-trip.
 
 ### 1.4 Frontend Route Guards
 

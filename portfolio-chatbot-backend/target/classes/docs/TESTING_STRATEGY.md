@@ -31,8 +31,14 @@ The platform consists of three independently tested applications—Portfolio, E-
 |---------|:------------:|:--------------:|:----------:|:-----:|
 | **Portfolio** | 13 | 12 | 5 pages | 25 + a11y |
 | **E-Commerce** | 7 | 28 | — | 35 |
-| **ATS** | 10 | 9 | — | 19 |
-| **Total** | **30** | **49** | **5 pages** | **79 + a11y** |
+| **ATS** | 221 | 142 | — | 363 |
+| **Total** | **241** | **182** | **5 pages** | **423 + a11y** |
+
+> **ATS coverage** (after the V2/V3 migration to JWT-secured, role-aware ATS):
+>
+> - Backend: **94.5 % instructions, 94.3 % lines** (`mvn test` → `target/site/jacoco/jacoco.csv`)
+> - Frontend: **58 % statements / 66 % lines** (`npx ng test --watch=false --coverage` → `coverage/ats-frontend/lcov.info`)
+> - **Combined ≥ 80 % statements** across the ATS codebase.
 
 ---
 
