@@ -294,6 +294,11 @@ jobs:
           cp -r ecommerce-frontend/dist/angular-ecommerce/browser artifacts/ecommerce-frontend
           cp -r ats-frontend/dist/ats-frontend/browser artifacts/ats-frontend
 
+      - name: Verify ATS Flyway migrations are packaged
+        run: |
+          unzip -l artifacts/ats-backend.jar | grep -q 'db/migration/V1__initial_schema.sql'
+          unzip -l artifacts/ats-backend.jar | grep -q 'db/migration/V5__ensure_activity_table_exists.sql'
+
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
