@@ -65,6 +65,33 @@ variable "portfolio_jwt_secret" {
   sensitive   = true
 }
 
+variable "ats_jwt_secret" {
+  description = "JWT secret for the HireFlow ATS backend (HMAC-SHA256, ≥ 32 bytes)"
+  type        = string
+  sensitive   = true
+}
+
+variable "ats_admin_password" {
+  description = "Initial password for the seeded ATS admin demo account"
+  type        = string
+  sensitive   = true
+  default     = "admin123"
+}
+
+variable "ats_recruiter_password" {
+  description = "Initial password for the seeded ATS recruiter demo account"
+  type        = string
+  sensitive   = true
+  default     = "recruiter123"
+}
+
+variable "ats_manager_password" {
+  description = "Initial password for the seeded ATS hiring-manager demo account"
+  type        = string
+  sensitive   = true
+  default     = "manager123"
+}
+
 variable "admin_password" {
   description = "Admin user password for portfolio backend"
   type        = string
