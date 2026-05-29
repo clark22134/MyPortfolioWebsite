@@ -1,0 +1,134 @@
+<div class="page-shell">
+  <header class="page-header page-header-row">
+    <div>
+      <h1>Tasks</h1>
+      <p class="subtitle">Follow-ups, reminders, and action items.</p>
+    </div>
+    @if (canWrite()) {
+      <button type="button" class="btn btn-primary" (click)="toggleCreate()">
+        {{ creating() ? 'Cancel' : '+ New task' }}
+      </button>
+    }
+  </header>
+
+  @if (creating()) {
+    <section class="card mt-3">
+      <h2>New task</h2>
+      <div class="form-grid mt-4">
+        <label class="field-full">
+          <span class="field-label">Subject</span>
+          <input class="input" type="text" name="subject"
+                 [ngModel]="newTask().subject"
+                 (ngModelChange)="updateNewTask('subject', $event)"
+                 placeholder="e.g. Call Alice about availability" />
+        </label>
+        <label>
+          <span class="field-label">Priority</span>
+          <select class="select" name="priority"
+                  [ngModel]="newTask().priority"
+                  (ngModelChange)="updateNewTask('priority', $event)">
+            @for (p of priorities; track p) {
+              <option [value]="p">{{ priorityLabel(p) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span class="field-label">Due (ISO)</span>
+          <input class="input" type="datetime-local" name="dueAt"
+                 (change)="updateNewTask('dueAt', $any($event.target).value)" />
+        </label>
+        <label class="field-full">
+          <span class="field-label">Description <span class="field-hint">(optional)</span></span>
+          <textarea class="textarea" rows="3" name="description"
+                    [ngModel]="newTask().description"
+                    (ngModelChange)="updateNewTask('description', $event)"></textarea>
+        </label>
+      </div>
+      <div class="row gap-3 mt-4" style="justify-content: flex-end;">
+        <button type="button" class="btn btn-ghost" (click)="toggleCreate()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="saveNew()">Create task</button>
+      </div>
+    </section>
+  }
+
+  <div class="filter-row" role="tablist" aria-label="Task filters">
+    <button class="filter-chip" role="tab" [class.active]="filter() === 'mine'" (click)="setFilter('mine')">
+      Mine <span class="filter-count">{{ counts().mine }}</span>
+    </button>
+    <button class="filter-chip" role="tab" [class.active]="filter() === 'open'" (click)="setFilter('open')">
+      Open <span class="filter-count">{{ counts().open }}</span>
+    </button>
+    <button class="filter-chip" role="tab" [class.active]="filter() === 'overdue'" (click)="setFilter('overdue')">
+      Overdue <span class="filter-count">{{ counts().overdue }}</span>
+    </button>
+    <button class="filter-chip" role="tab" [class.active]="filter() === 'done'" (click)="setFilter('done')">
+      Done <span class="filter-count">{{ counts().done }}</span>
+    </button>
+    <button class="filter-chip" role="tab" [class.active]="filter() === 'all'" (click)="setFilter('all')">
+      All <span class="filter-count">{{ counts().all }}</span>
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state">
+      <span class="spinner spinner-lg" aria-hidden="true"></span>
+      Loading tasks…
+    </div>
+  } @else if (visibleTasks().length === 0) {
+    <div class="empty-state">
+      <span class="icon" aria-hidden="true">🎯</span>
+      <p>No tasks here.</p>
+      @if (canWrite()) {
+        <button type="button" class="btn btn-ghost btn-sm" (click)="toggleCreate()">Create your first task</button>
+      }
+    </div>
+  } @else {
+    <ul class="task-table">
+      @for (task of visibleTasks(); track task.id) {
+        <li class="task-row" [class.done]="task.status === 'DONE'" [class.cancelled]="task.status === 'CANCELLED'">
+          <div class="task-status">
+            @if (task.status === 'OPEN' && canWrite()) {
+              <button type="button" class="check" (click)="setStatus(task, 'DONE')" [attr.aria-label]="'Complete ' + task.subject"></button>
+            } @else if (task.status === 'DONE' && canWrite()) {
+              <button type="button" class="check checked" (click)="setStatus(task, 'OPEN')" [attr.aria-label]="'Reopen ' + task.subject">✓</button>
+            } @else {
+              <span class="check disabled" aria-hidden="true">{{ task.status === 'DONE' ? '✓' : task.status === 'CANCELLED' ? '⊘' : '' }}</span>
+            }
+          </div>
+          <div class="task-info">
+            <div class="task-title-row">
+              <span class="task-priority-dot" [style.background]="priorityColor(task.priority)" [title]="priorityLabel(task.priority)"></span>
+              <span class="task-subject">{{ task.subject }}</span>
+            </div>
+            <div class="task-meta muted">
+              {{ task.assigneeName }}
+              · created by {{ task.creatorName }}
+              @if (task.candidateName) {
+                · candidate: <a [routerLink]="['/candidates', task.candidateId]">{{ task.candidateName }}</a>
+              }
+              @if (task.jobTitle && !task.candidateName) {
+                · job: {{ task.jobTitle }}
+              }
+            </div>
+            @if (task.description) {
+              <div class="task-description muted">{{ task.description }}</div>
+            }
+          </div>
+          <div class="task-actions">
+            <span class="task-due-pill"
+                  [class.past]="dueLabel(task).tone === 'past'"
+                  [class.today]="dueLabel(task).tone === 'today'">
+              {{ dueLabel(task).text }}
+            </span>
+            @if (canWrite() && task.status === 'OPEN') {
+              <button type="button" class="btn btn-ghost btn-sm" (click)="setStatus(task, 'CANCELLED')">Cancel</button>
+            }
+            @if (canWrite()) {
+              <button type="button" class="btn-icon" (click)="remove(task)" aria-label="Delete task">🗑️</button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>

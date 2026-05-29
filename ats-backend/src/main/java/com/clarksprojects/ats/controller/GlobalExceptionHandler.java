@@ -3,6 +3,9 @@ package com.clarksprojects.ats.controller;
 import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.exception.UnsupportedFileTypeException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -34,6 +37,24 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleUnsupportedFileType(UnsupportedFileTypeException ex) {
         return Map.of(ERROR_KEY, ex.getMessage());
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Map<String, String> handleBadCredentials(BadCredentialsException ex) {
+        return Map.of(ERROR_KEY, ex.getMessage());
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Map<String, String> handleAuthentication(AuthenticationException ex) {
+        return Map.of(ERROR_KEY, "Authentication required");
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, String> handleAccessDenied(AccessDeniedException ex) {
+        return Map.of(ERROR_KEY, "You do not have permission to perform this action");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

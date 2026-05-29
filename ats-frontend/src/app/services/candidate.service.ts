@@ -3,11 +3,14 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Candidate, CandidateRequest, PipelineStage, StageMoveRequest } from '../models/ats.models';
 
+export type CandidateSort = 'name' | 'applied' | 'applied:asc' | 'updated';
+
 export interface CandidateSearchParams {
   name?: string;
   skills?: string;
   stage?: PipelineStage | '';
   jobId?: number | null;
+  sort?: CandidateSort;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -22,6 +25,7 @@ export class CandidateService {
     if (params.skills) p = p.set('skills', params.skills);
     if (params.stage)  p = p.set('stage', params.stage);
     if (params.jobId)  p = p.set('jobId', params.jobId);
+    if (params.sort)   p = p.set('sort', params.sort);
     return this.http.get<Candidate[]>(`${this.baseUrl}/search`, { params: p });
   }
 

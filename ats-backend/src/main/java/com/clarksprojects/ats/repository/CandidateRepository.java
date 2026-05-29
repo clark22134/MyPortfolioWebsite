@@ -6,12 +6,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface CandidateRepository extends JpaRepository<Candidate, Long> {
     List<Candidate> findByJobIdOrderByStageOrderAsc(Long jobId);
     List<Candidate> findByJobIdAndStageOrderByStageOrderAsc(Long jobId, PipelineStage stage);
     long countByStage(PipelineStage stage);
+
+    @Query("SELECT COUNT(c) FROM Candidate c WHERE c.stage = com.clarksprojects.ats.entity.PipelineStage.HIRED AND c.updatedAt >= :since")
+    long countHiredSince(@Param("since") LocalDateTime since);
 
     @Query(value = "SELECT * FROM candidate c WHERE " +
            "(CAST(:name AS text) IS NULL OR LOWER(c.first_name || ' ' || c.last_name) LIKE LOWER('%' || CAST(:name AS text) || '%')) AND " +

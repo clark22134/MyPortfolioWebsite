@@ -4,6 +4,8 @@ import com.clarksprojects.ats.dto.CandidateRequest;
 import com.clarksprojects.ats.dto.CandidateResponse;
 import com.clarksprojects.ats.dto.ParsedResume;
 import com.clarksprojects.ats.dto.StageMoveRequest;
+import com.clarksprojects.ats.dto.TagResponse;
+import com.clarksprojects.ats.entity.ActivityType;
 import com.clarksprojects.ats.entity.Candidate;
 import com.clarksprojects.ats.entity.Job;
 import com.clarksprojects.ats.entity.PipelineStage;
@@ -15,7 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -25,19 +29,41 @@ public class CandidateService {
 
     private final CandidateRepository candidateRepository;
     private final JobService jobService;
+    private final ActivityService activityService;
 
     @Transactional(readOnly = true)
-    public List<CandidateResponse> searchCandidates(String name, String skills, PipelineStage stage, Long jobId) {
+    public List<CandidateResponse> searchCandidates(String name, String skills, PipelineStage stage, Long jobId, String sort) {
         String nameParam = (name == null || name.isBlank()) ? null : name.trim();
         String stageParam = stage != null ? stage.name() : null;
         List<Candidate> candidates = candidateRepository.search(nameParam, stageParam, jobId);
-        if (skills == null || skills.isBlank()) {
-            return candidates.stream().map(this::toResponse).toList();
+        if (skills != null && !skills.isBlank()) {
+            candidates = candidates.stream()
+                    .filter(c -> skillsMatch(c.getSkills(), skills))
+                    .toList();
         }
-        return candidates.stream()
-                .filter(c -> skillsMatch(c.getSkills(), skills))
-                .map(this::toResponse)
-                .toList();
+        return sorted(candidates, sort).stream().map(this::toResponse).toList();
+    }
+
+    /**
+     * Sort options:
+     *   "name"       (default) — last name then first name, ascending
+     *   "applied"    — applied date, descending
+     *   "applied:asc"— applied date, ascending
+     *   "updated"    — last updated, descending
+     */
+    private List<Candidate> sorted(List<Candidate> candidates, String sort) {
+        String key = sort == null ? "name" : sort.toLowerCase();
+        Comparator<Candidate> comparator = switch (key) {
+            case "applied", "applied:desc" -> Comparator.comparing(Candidate::getAppliedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder()));
+            case "applied:asc" -> Comparator.comparing(Candidate::getAppliedAt,
+                    Comparator.nullsLast(Comparator.naturalOrder()));
+            case "updated", "updated:desc" -> Comparator.comparing(Candidate::getUpdatedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder()));
+            default -> Comparator.comparing(Candidate::getLastName, String.CASE_INSENSITIVE_ORDER)
+                    .thenComparing(Candidate::getFirstName, String.CASE_INSENSITIVE_ORDER);
+        };
+        return candidates.stream().sorted(comparator).toList();
     }
 
     private boolean skillsMatch(String candidateSkills, String searchSkills) {
@@ -83,9 +109,13 @@ public class CandidateService {
                 .stageOrder(0)
                 .job(talentPoolJob)
                 .build();
-        CandidateResponse response = toResponse(candidateRepository.save(candidate));
-        log.info("Candidate created from parsed resume: id={}, email={}", response.getId(), response.getEmail());
-        return response;
+        Candidate saved = candidateRepository.save(candidate);
+        log.info("Candidate created from parsed resume: id={}, email={}", saved.getId(), saved.getEmail());
+        activityService.record(ActivityType.RESUME_UPLOADED, saved, talentPoolJob,
+                "Uploaded resume into Talent Pool",
+                Map.of("email", Objects.requireNonNullElse(saved.getEmail(), ""),
+                        "skills", Objects.requireNonNullElse(saved.getSkills(), "")));
+        return toResponse(saved);
     }
 
     @Transactional
@@ -107,14 +137,19 @@ public class CandidateService {
                 .stageOrder(0)
                 .job(job)
                 .build();
-        CandidateResponse response = toResponse(candidateRepository.save(candidate));
-        log.info("Candidate created: id={}, email={}", response.getId(), response.getEmail());
-        return response;
+        Candidate saved = candidateRepository.save(candidate);
+        log.info("Candidate created: id={}, email={}", saved.getId(), saved.getEmail());
+        activityService.record(ActivityType.CANDIDATE_CREATED, saved, job,
+                "Added candidate %s %s".formatted(saved.getFirstName(), saved.getLastName()),
+                Map.of("email", Objects.requireNonNullElse(saved.getEmail(), ""),
+                        "stage", saved.getStage().name()));
+        return toResponse(saved);
     }
 
     @Transactional
     public CandidateResponse updateCandidate(Long id, CandidateRequest request) {
         Candidate candidate = findCandidateOrThrow(id);
+        PipelineStage previousStage = candidate.getStage();
         candidate.setFirstName(request.getFirstName());
         candidate.setLastName(request.getLastName());
         candidate.setEmail(request.getEmail());
@@ -131,26 +166,45 @@ public class CandidateService {
             Job newJob = jobService.findJobOrThrow(request.getJobId());
             candidate.setJob(newJob);
         }
-        CandidateResponse response = toResponse(candidateRepository.save(candidate));
+        Candidate saved = candidateRepository.save(candidate);
         log.info("Candidate updated: id={}", id);
-        return response;
+
+        if (previousStage != saved.getStage()) {
+            activityService.record(ActivityType.STAGE_CHANGED, saved, saved.getJob(),
+                    "Moved from %s to %s".formatted(previousStage, saved.getStage()),
+                    Map.of("from", previousStage.name(), "to", saved.getStage().name()));
+        } else {
+            activityService.record(ActivityType.CANDIDATE_UPDATED, saved, saved.getJob(),
+                    "Updated candidate profile",
+                    Map.of("candidateId", String.valueOf(saved.getId())));
+        }
+        return toResponse(saved);
     }
 
     @Transactional
     public CandidateResponse moveStage(Long id, StageMoveRequest request) {
         Candidate candidate = findCandidateOrThrow(id);
+        PipelineStage previous = candidate.getStage();
         candidate.setStage(request.getNewStage());
         if (request.getNewOrder() != null) {
             candidate.setStageOrder(request.getNewOrder());
         }
-        CandidateResponse response = toResponse(candidateRepository.save(candidate));
+        Candidate saved = candidateRepository.save(candidate);
         log.info("Candidate stage moved: id={}, newStage={}", id, request.getNewStage());
-        return response;
+        if (previous != saved.getStage()) {
+            activityService.record(ActivityType.STAGE_CHANGED, saved, saved.getJob(),
+                    "Moved from %s to %s".formatted(previous, saved.getStage()),
+                    Map.of("from", previous.name(), "to", saved.getStage().name()));
+        }
+        return toResponse(saved);
     }
 
     @Transactional
     public void deleteCandidate(Long id) {
         Candidate candidate = findCandidateOrThrow(id);
+        activityService.record(ActivityType.CANDIDATE_DELETED, null, candidate.getJob(),
+                "Deleted candidate %s %s".formatted(candidate.getFirstName(), candidate.getLastName()),
+                Map.of("candidateId", String.valueOf(candidate.getId())));
         candidateRepository.delete(candidate);
         log.info("Candidate deleted: id={}", id);
     }
@@ -181,6 +235,11 @@ public class CandidateService {
                 .jobId(c.getJob().getId())
                 .jobTitle(isTalentPool ? "Talent Pool" : c.getJob().getTitle())
                 .talentPool(isTalentPool)
+                .tags(c.getTags() == null ? List.of()
+                        : c.getTags().stream()
+                            .sorted(Comparator.comparing(t -> t.getName().toLowerCase()))
+                            .map(TagResponse::from)
+                            .toList())
                 .appliedAt(c.getAppliedAt())
                 .updatedAt(c.getUpdatedAt())
                 .build();

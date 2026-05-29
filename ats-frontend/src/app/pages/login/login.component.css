@@ -1,0 +1,62 @@
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background:
+    radial-gradient(circle at top left, rgba(99, 102, 241, 0.15), transparent 50%),
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.12), transparent 50%),
+    var(--bg-app);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 460px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.brand-mark {
+  width: 40px; height: 40px;
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent-fg-on); font-weight: var(--fw-bold); font-size: 1.25rem;
+}
+.brand-name { font-size: 1.25rem; font-weight: var(--fw-bold); letter-spacing: -0.02em; }
+.brand-sub  { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.login-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.login-form .btn-primary { width: 100%; padding: 0.7rem 1rem; }
+
+.demo-section { margin-top: var(--space-2); }
+.demo-heading {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-secondary); margin-bottom: var(--space-3);
+}
+.demo-grid { display: grid; gap: var(--space-3); }
+.demo-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  cursor: pointer;
+  display: grid; gap: 2px;
+  transition: background var(--duration) var(--easing), border-color var(--duration) var(--easing);
+}
+.demo-card:hover { background: var(--bg-elevated); border-color: var(--accent); }
+.demo-username { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--accent-hover); font-weight: var(--fw-semibold); }
+.demo-role { font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--text-primary); }
+.demo-description { font-size: var(--fs-xs); color: var(--text-secondary); }

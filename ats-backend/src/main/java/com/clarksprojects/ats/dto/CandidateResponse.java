@@ -4,6 +4,7 @@ import com.clarksprojects.ats.entity.PipelineStage;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -28,6 +29,8 @@ public class CandidateResponse {
     private Long jobId;
     private String jobTitle;
     private boolean talentPool;
+    @Builder.Default
+    private List<TagResponse> tags = List.of();
     private LocalDateTime appliedAt;
     private LocalDateTime updatedAt;
 }

@@ -226,31 +226,74 @@ ecommerce-frontend/
 
 ### HireFlow ATS · ats.clarkfoster.com
 
-A purpose-built applicant tracking system with a Kanban recruitment pipeline, resume parsing, and candidate scoring.
+A purpose-built applicant tracking system with cookie-based JWT auth, role-aware access control, a Kanban recruitment pipeline, resume parsing, candidate scoring, threaded notes, an append-only activity log, follow-up tasks, and tags. The frontend is built on a refined custom design system tuned for non-technical recruiters and hiring managers.
 
-**Key Features:**
-- 7-stage Kanban pipeline: Applied → Screening → Interview → Assessment → Offer → Hired / Rejected
-- Drag-and-drop pipeline board (Angular CDK) with optimistic UI updates
-- Multi-format resume parsing: PDF (PDFBox), DOCX (Apache POI), TXT — with Tika MIME detection
-- Automated extraction of email, phone, name, and 60+ tech skills from resumes
+**Key features:**
+
+*Workflow*
+- 7-stage Kanban pipeline (Applied → Screening → Interview → Assessment → Offer → Hired / Rejected) with drag-and-drop and optimistic UI
+- New **Candidate Detail** page (`/candidates/:id`): threaded notes, activity timeline, per-candidate tasks, multi-tag assignment, in-place stage change
+- New **Tasks** page (`/tasks`): "Mine / Open / Overdue / Done / All" tabs, priority + due-date tracking, inline complete and cancel
+- Talent search with debounced name/skills filters, stage + job + sort dropdown, saved-sort in localStorage, pagination
+
+*Authentication & roles*
+- HTTP-only cookie JWT auth (access 15 min, refresh 7 days) mirroring the Portfolio's pattern (`AuthService`, `JwtUtil`, `CookieUtil`, `JwtRequestFilter`)
+- Three roles: **Admin** (full access incl. user management), **Recruiter** (read/write on operational data), **Hiring Manager** (read-only + can add notes and complete assigned tasks)
+- Auth interceptor with single-shot silent refresh on 401, then redirect to `/login`
+- Per-user session limits (max 5 active refresh tokens), token-rotation on refresh, secure logout that revokes the refresh token
+
+*Demo users (seeded on startup, override with `ATS_*_PASSWORD` env)*
+
+| Username | Default password | Role |
+|----------|------------------|------|
+| `admin` | `admin123` | Administrator |
+| `recruiter` | `recruiter123` | Recruiter |
+| `manager` | `manager123` | Hiring Manager |
+
+*Dashboard*
+- KPI row: open positions, total candidates, hired this month, open tasks, overdue tasks, active employers
+- Pipeline-at-a-glance bars per stage
+- Recent activity feed (last 10) + upcoming tasks (next 5 by due date)
+- Jobs-by-client donut chart
+
+*Resume parsing & matching*
+- Multi-format parsing: PDF (PDFBox), DOCX (Apache POI), TXT — with Tika MIME detection
+- Automated extraction of email, phone, name, and 60+ tech skills
 - Three-factor candidate scoring: skills match (50%), availability (25%), geographic proximity via Haversine (25%)
-- Polymorphic search with NULL-coalescing native SQL (single query handles all filter combinations)
-- Talent Pool: system-managed job for candidates uploaded without a specific posting
-- Dashboard analytics: candidate distribution, jobs by employer, pipeline metrics
+
+*Database & migrations*
+- Schema is now managed by **Flyway** (`ats-backend/src/main/resources/db/migration/`):
+  - `V1__initial_schema.sql` — jobs, candidates, talent pool, seed data
+  - `V2__auth_users.sql` — users (`app_user`) + refresh tokens
+  - `V3__notes_activities_tasks_tags.sql` — notes, activities, tasks, tags + candidate_tags join
+- Tests use H2 with `MODE=PostgreSQL` and `ddl-auto=create-drop`; Flyway is disabled under the test profile
 
 **Structure:**
 ```
 ats-backend/
-├── controller/     CandidateController, JobController, TalentPoolController, DashboardController
-├── service/        CandidateService, JobService, ResumeParserService, DashboardService
-├── entity/         Job, Candidate, PipelineStage (enum)
-├── dto/            ParsedResume, StageMoveRequest, TopCandidateMatch, DashboardStats
-└── exception/      GlobalExceptionHandler
+├── config/         SecurityConfig (role-based authorize, BCrypt, JWT)
+├── controller/     AuthController, UserController, JobController, CandidateController,
+│                   DashboardController, TalentPoolController, NoteController,
+│                   ActivityController, TaskController, TagController, HealthController
+├── service/        AuthService, UserService, CustomUserDetailsService, DemoUserInitializer,
+│                   JobService, CandidateService, DashboardService, ResumeParserService,
+│                   NoteService, ActivityService, TaskService, TagService, TalentPoolInitializer
+├── security/       JwtUtil, JwtRequestFilter, CookieUtil, CurrentUserService
+├── entity/         User, Role, RefreshToken, Job, Candidate, PipelineStage, JobStatus,
+│                   EmploymentType, CandidateNote, Activity, ActivityType, FollowUpTask,
+│                   TaskStatus, TaskPriority, Tag
+├── repository/     UserRepository, RefreshTokenRepository, JobRepository, CandidateRepository,
+│                   CandidateNoteRepository, ActivityRepository, FollowUpTaskRepository, TagRepository
+└── resources/db/migration/  V1, V2, V3 Flyway migrations
 
 ats-frontend/
-├── pages/          DashboardComponent, JobsComponent, PipelineComponent, TalentComponent
-├── services/       JobService, CandidateService, DashboardService
-└── models/         Job, Candidate, PipelineStage, DashboardStats
+├── components/     AppShellComponent (top bar + user menu), ToastContainerComponent
+├── pages/          DashboardComponent, LoginComponent, JobsComponent, PipelineComponent,
+│                   TalentComponent, CandidateDetailComponent, TasksComponent, UsersComponent
+├── services/       AuthService (+guard + interceptor), JobService, CandidateService,
+│                   DashboardService, NoteService, ActivityService, TaskService, TagService,
+│                   UserService, ToastService
+└── models/         job, candidate, pipeline, dashboard, auth, note, activity, task, tag
 ```
 
 ---
@@ -311,6 +354,11 @@ ats-frontend/
 
    # ATS
    POSTGRES_PASSWORD=your_postgres_password
+   JWT_SECRET=your_ats_jwt_secret_at_least_32_bytes      # shared with portfolio if you like
+   ATS_ADMIN_PASSWORD=your_admin_password                # optional — defaults to admin123
+   ATS_RECRUITER_PASSWORD=your_recruiter_password        # optional — defaults to recruiter123
+   ATS_MANAGER_PASSWORD=your_manager_password            # optional — defaults to manager123
+   ATS_DEMO_ACCOUNTS_ENABLED=true                        # set false to skip seeding the 3 demo users
    ```
 
 3. **Start all services:**
@@ -409,13 +457,17 @@ See `make help` for the full list of available commands.
 4. Complete the multi-step checkout: shipping → billing → payment → review → place order.
 5. View order history and track order status.
 
-### HireFlow ATS (Recruiter)
+### HireFlow ATS (Recruiter / Hiring Manager / Admin)
 
-1. Create job postings with title, department, location, required skills, and employment type.
-2. Upload resumes to the Talent Pool — the system automatically parses contact info and skills.
-3. Add candidates to specific jobs and move them through pipeline stages via drag-and-drop.
-4. Use the dashboard for pipeline analytics and employer-level job distribution.
-5. Search candidates by name, skills, or pipeline stage.
+1. **Sign in** at `/login` (the page lists three demo accounts — click any to autofill).
+2. **Dashboard** (`/`) — KPIs, pipeline-at-a-glance bars, recent activity, upcoming tasks, jobs-by-client donut.
+3. **Jobs** (`/jobs`) — group by employer, create/edit jobs (recruiter+), open "Top Matches" to see scored candidates per role.
+4. **Pipeline** (`/jobs/:id/pipeline`) — drag-and-drop kanban; clicking a candidate opens the new detail page.
+5. **Talent** (`/talent`) — search across all candidates with debounced name/skills filters, stage + job + sort dropdowns; sort selection persists per browser.
+6. **Candidate Detail** (`/candidates/:id`) — contact + skills + tags + score, three-tab body (Activity timeline / Notes thread / Tasks), in-place stage change for recruiters.
+7. **Tasks** (`/tasks`) — your follow-up queue: Mine / Open / Overdue / Done / All; one-click complete; create from any candidate.
+8. **Users** (`/users`, admin only) — create users, change roles, enable/disable, delete.
+9. **Sign out** from the user menu (top-right) — revokes the refresh token server-side.
 
 ---
 

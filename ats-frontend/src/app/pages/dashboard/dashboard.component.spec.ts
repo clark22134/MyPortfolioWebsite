@@ -8,26 +8,6 @@ import { DashboardStats } from '../../models/ats.models';
 describe('DashboardComponent', () => {
   let httpMock: HttpTestingController;
 
-  const mockStats: DashboardStats = {
-    totalJobs: 10,
-    openJobs: 5,
-    totalCandidates: 42,
-    candidatesByStage: {
-      APPLIED: 10,
-      SCREENING: 8,
-      INTERVIEW: 6,
-      ASSESSMENT: 4,
-      OFFER: 3,
-      HIRED: 7,
-      REJECTED: 4
-    },
-    jobsByEmployer: {
-      'Acme Corp': 4,
-      'TechStart': 3,
-      'BigCo': 3
-    }
-  };
-
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [DashboardComponent],
@@ -36,89 +16,47 @@ describe('DashboardComponent', () => {
     httpMock = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => {
-    httpMock.verify();
-  });
+  afterEach(() => httpMock.verify());
 
-  it('should create', () => {
-    const fixture = TestBed.createComponent(DashboardComponent);
-    const component = fixture.componentInstance;
-    expect(component).toBeTruthy();
-    fixture.detectChanges();
-    httpMock.expectOne('/api/dashboard').flush(mockStats);
-  });
+  function flushStats(extra: Partial<DashboardStats> = {}): void {
+    const stats: DashboardStats = {
+      totalJobs: 6, openJobs: 4, totalCandidates: 13,
+      openTasks: 2, overdueTasks: 1, hiredThisMonth: 1,
+      candidatesByStage: { APPLIED: 5, SCREENING: 3 } as Record<string, number>,
+      jobsByEmployer: { Acme: 3, Pixel: 1 } as Record<string, number>,
+      recentActivity: [],
+      upcomingTasks: [],
+      ...extra
+    };
+    httpMock.expectOne('/api/dashboard').flush(stats);
+  }
 
-  it('should load stats on init', () => {
-    const fixture = TestBed.createComponent(DashboardComponent);
-    const component = fixture.componentInstance;
-    fixture.detectChanges();
-
-    const req = httpMock.expectOne('/api/dashboard');
-    req.flush(mockStats);
-
-    expect(component.stats).toBeTruthy();
-    expect(component.stats!.totalJobs).toBe(10);
-    expect(component.stats!.openJobs).toBe(5);
-    expect(component.stats!.totalCandidates).toBe(42);
-  });
-
-  it('should compute stage entries from stats', () => {
+  it('shows KPIs once stats arrive', () => {
     const fixture = TestBed.createComponent(DashboardComponent);
     fixture.detectChanges();
-
-    const req = httpMock.expectOne('/api/dashboard');
-    req.flush(mockStats);
-
-    const component = fixture.componentInstance;
-    expect(component.stageEntries.length).toBe(7);
-    const applied = component.stageEntries.find(e => e.stage === 'APPLIED');
-    expect(applied?.count).toBe(10);
-  });
-
-  it('should compute employer chart data', () => {
-    const fixture = TestBed.createComponent(DashboardComponent);
+    flushStats();
     fixture.detectChanges();
 
-    const req = httpMock.expectOne('/api/dashboard');
-    req.flush(mockStats);
-
-    const component = fixture.componentInstance;
-    expect(component.employerChartData.length).toBe(3);
-    expect(component.employerChartData[0].employer).toBe('Acme Corp');
-    expect(component.employerChartData[0].count).toBe(4);
+    const html = fixture.nativeElement.textContent as string;
+    expect(html).toContain('Open positions');
+    expect(html).toContain('Total candidates');
+    expect(html).toContain('Hired this month');
   });
 
-  it('should show error on failure', () => {
+  it('shows the empty-state messages for activity/tasks when none', () => {
     const fixture = TestBed.createComponent(DashboardComponent);
     fixture.detectChanges();
-
-    const req = httpMock.expectOne('/api/dashboard');
-    req.flush('Error', { status: 500, statusText: 'Server Error' });
-
-    const component = fixture.componentInstance;
-    expect(component.error).toBe('Failed to load dashboard data. Please try again.');
-    expect(component.stats).toBeNull();
+    flushStats();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No activity yet');
+    expect(fixture.nativeElement.textContent).toContain('No upcoming tasks');
   });
 
-  it('should return correct stage labels', () => {
+  it('shows error state on failure', () => {
     const fixture = TestBed.createComponent(DashboardComponent);
-    const component = fixture.componentInstance;
     fixture.detectChanges();
-    httpMock.expectOne('/api/dashboard').flush(mockStats);
-
-    expect(component.getStageLabel('APPLIED')).toBe('Applied');
-    expect(component.getStageLabel('HIRED')).toBe('Hired');
-    expect(component.getStageLabel('REJECTED')).toBe('Rejected');
-  });
-
-  it('should return correct stage colors', () => {
-    const fixture = TestBed.createComponent(DashboardComponent);
-    const component = fixture.componentInstance;
+    httpMock.expectOne('/api/dashboard').flush('boom', { status: 500, statusText: 'Internal Server Error' });
     fixture.detectChanges();
-    httpMock.expectOne('/api/dashboard').flush(mockStats);
-
-    expect(component.getStageColor('APPLIED')).toBe('#6366f1');
-    expect(component.getStageColor('HIRED')).toBe('#10b981');
-    expect(component.getStageColor('REJECTED')).toBe('#ef4444');
+    expect(fixture.nativeElement.textContent).toContain('Failed to load dashboard');
   });
 });

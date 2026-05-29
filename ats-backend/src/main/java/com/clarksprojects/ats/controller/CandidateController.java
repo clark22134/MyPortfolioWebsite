@@ -24,8 +24,9 @@ public class CandidateController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String skills,
             @RequestParam(required = false) PipelineStage stage,
-            @RequestParam(required = false) Long jobId) {
-        return candidateService.searchCandidates(name, skills, stage, jobId);
+            @RequestParam(required = false) Long jobId,
+            @RequestParam(required = false) String sort) {
+        return candidateService.searchCandidates(name, skills, stage, jobId, sort);
     }
 
     @GetMapping

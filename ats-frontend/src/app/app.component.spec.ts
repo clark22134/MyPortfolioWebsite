@@ -1,50 +1,38 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { AppComponent } from './app.component';
 
 describe('AppComponent', () => {
+  let httpMock: HttpTestingController;
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
     }).compileComponents();
+    httpMock = TestBed.inject(HttpTestingController);
   });
 
-  it('should create the app', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
-  });
+  afterEach(() => httpMock.verify());
 
-  it('should render sidebar navigation', () => {
+  it('creates the app and bootstraps auth', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    const nav = fixture.nativeElement.querySelector('nav.sidebar');
-    expect(nav).toBeTruthy();
+    const req = httpMock.expectOne('/api/auth/me');
+    req.flush(null, { status: 401, statusText: 'Unauthorized' });
+    expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('should have brand text HireFlow by Clark', () => {
+  it('renders a router-outlet and toast container', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    const brandText = fixture.nativeElement.querySelector('.brand-text');
-    expect(brandText?.textContent?.trim()).toContain('HireFlow');
-    const subtitle = fixture.nativeElement.querySelector('.brand-subtitle');
-    expect(subtitle?.textContent?.trim()).toBe('by Clark');
-  });
-
-  it('should render router outlet', () => {
-    const fixture = TestBed.createComponent(AppComponent);
+    httpMock.expectOne('/api/auth/me').flush(null, { status: 401, statusText: 'Unauthorized' });
     fixture.detectChanges();
     const outlet = fixture.nativeElement.querySelector('router-outlet');
+    const toast = fixture.nativeElement.querySelector('app-toast-container');
     expect(outlet).toBeTruthy();
-  });
-
-  it('should have navigation links', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    fixture.detectChanges();
-    const links = fixture.nativeElement.querySelectorAll('.nav-links a');
-    expect(links.length).toBe(3);
+    expect(toast).toBeTruthy();
   });
 });

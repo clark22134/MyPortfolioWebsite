@@ -1,0 +1,94 @@
+<div class="page-shell">
+  <header class="page-header page-header-row">
+    <div>
+      <h1>Users</h1>
+      <p class="subtitle">Manage who can access HireFlow and what they can do.</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="toggleCreate()">
+      {{ creating() ? 'Cancel' : '+ Add user' }}
+    </button>
+  </header>
+
+  @if (creating()) {
+    <section class="card mt-3">
+      <h2>New user</h2>
+      <div class="form-grid mt-4">
+        <label>
+          <span class="field-label">Username</span>
+          <input class="input" [ngModel]="newUser().username" (ngModelChange)="update('username', $event)" autocomplete="off" />
+        </label>
+        <label>
+          <span class="field-label">Full name</span>
+          <input class="input" [ngModel]="newUser().fullName" (ngModelChange)="update('fullName', $event)" />
+        </label>
+        <label>
+          <span class="field-label">Email</span>
+          <input class="input" type="email" [ngModel]="newUser().email" (ngModelChange)="update('email', $event)" autocomplete="off" />
+        </label>
+        <label>
+          <span class="field-label">Initial password</span>
+          <input class="input" type="password" [ngModel]="newUser().password" (ngModelChange)="update('password', $event)" autocomplete="new-password" />
+        </label>
+        <label class="field-full">
+          <span class="field-label">Role</span>
+          <select class="select" [ngModel]="newUser().role" (ngModelChange)="update('role', $event)">
+            @for (role of roles; track role) {
+              <option [value]="role">{{ roleLabel(role) }}</option>
+            }
+          </select>
+        </label>
+      </div>
+      <div class="row gap-3 mt-4" style="justify-content: flex-end;">
+        <button type="button" class="btn btn-ghost" (click)="toggleCreate()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="save()">Create user</button>
+      </div>
+    </section>
+  }
+
+  @if (loading()) {
+    <div class="loading-state mt-4"><span class="spinner spinner-lg"></span> Loading users…</div>
+  } @else if (users().length === 0) {
+    <div class="empty-state">
+      <p>No users yet.</p>
+    </div>
+  } @else {
+    <div class="user-table card mt-4">
+      <div class="user-row user-head">
+        <div>User</div>
+        <div>Role</div>
+        <div>Last login</div>
+        <div>Status</div>
+        <div class="actions-col">Actions</div>
+      </div>
+      @for (user of users(); track user.id) {
+        <div class="user-row" [class.disabled]="!user.enabled">
+          <div class="user-cell">
+            <div class="user-name">{{ user.fullName }}</div>
+            <div class="user-username">&#64;{{ user.username }} · {{ user.email }}</div>
+          </div>
+          <div>
+            <select class="select role-select" [ngModel]="user.role" (ngModelChange)="changeRole(user, $event)">
+              @for (role of roles; track role) {
+                <option [value]="role">{{ roleLabel(role) }}</option>
+              }
+            </select>
+          </div>
+          <div class="muted">{{ formatDate(user.lastLoginAt) }}</div>
+          <div>
+            @if (user.enabled) {
+              <span class="badge badge-success">Active</span>
+            } @else {
+              <span class="badge">Disabled</span>
+            }
+          </div>
+          <div class="actions-col">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="toggleEnabled(user)">
+              {{ user.enabled ? 'Disable' : 'Enable' }}
+            </button>
+            <button type="button" class="btn-icon" (click)="remove(user)" aria-label="Delete user">🗑️</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

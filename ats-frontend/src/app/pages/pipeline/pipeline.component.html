@@ -24,7 +24,7 @@
           [cdkDropListConnectedTo]="activeStages"
           (cdkDropListDropped)="onDrop($event)">
           @for (candidate of getCandidatesForStage(stage); track candidate.id) {
-            <div class="candidate-card" cdkDrag [cdkDragData]="candidate">
+            <div class="candidate-card" cdkDrag [cdkDragData]="candidate" (click)="openDetail(candidate.id)" tabindex="0" role="link">
               <div class="candidate-name">{{ candidate.firstName }} {{ candidate.lastName }}</div>
               <div class="candidate-email">{{ candidate.email }}</div>
               @if (candidate.phone) {
@@ -41,8 +41,10 @@
                 <div class="candidate-notes">{{ candidate.notes }}</div>
               }
               <div class="candidate-date">Applied {{ formatDate(candidate.appliedAt) }}</div>
-              <button class="btn-edit" (click)="openEdit(candidate); $event.stopPropagation()" aria-label="Edit candidate">✏️</button>
-              <button class="btn-delete" (click)="deleteCandidate(candidate.id)" aria-label="Remove candidate">×</button>
+              @if (canWrite) {
+                <button class="btn-edit" (click)="openEdit(candidate); $event.stopPropagation()" aria-label="Edit candidate">✏️</button>
+                <button class="btn-delete" (click)="deleteCandidate(candidate.id); $event.stopPropagation()" aria-label="Remove candidate">×</button>
+              }
             </div>
           } @empty {
             <div class="empty-column">No candidates</div>

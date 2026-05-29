@@ -1,8 +1,9 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { JobService } from '../../services/job.service';
+import { AuthService } from '../../services/auth.service';
 import { Job, JobRequest, TopCandidateMatch } from '../../models/ats.models';
 
 interface EmployerGroup {
@@ -33,6 +34,9 @@ export class JobsComponent implements OnInit {
   jobsPage = 1;
   readonly jobsPageSize = 5;
   showOpenOnly = false;
+
+  private readonly auth = inject(AuthService);
+  get canWrite(): boolean { return this.auth.canWrite(); }
 
   constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
 
