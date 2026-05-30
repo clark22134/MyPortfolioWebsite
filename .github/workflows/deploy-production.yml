@@ -156,6 +156,8 @@ jobs:
     name: Deploy Infrastructure (Terraform)
     runs-on: ubuntu-latest
     needs: [test-backend, test-chatbot-backend, test-frontend, test-ats-backend, test-ats-frontend, test-ecommerce-backend, test-ecommerce-frontend, code-quality, security]
+    environment:
+      name: production
     permissions:
       id-token: write
       contents: read
@@ -171,9 +173,7 @@ jobs:
       # cannot resolve ${JWT_SECRET} and SnapStart init fails.
       TF_VAR_ats_jwt_secret: ${{ secrets.ATS_JWT_SECRET }}
       TF_VAR_admin_password: ${{ secrets.ADMIN_PASSWORD }}
-      # If OPENAI_API_KEY is unset in repo secrets this evaluates to an empty
-      # string and the chatbot stays disabled — but the secret resource will
-      # NOT be destroyed thanks to prevent_destroy in main.tf.
+      # Required for prod chatbot Lambda configuration.
       TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
       TF_VAR_aws_region: us-east-1
     steps:
@@ -188,6 +188,13 @@ jobs:
         with:
           terraform_version: 1.15.5
           terraform_wrapper: false
+
+      - name: Verify OPENAI_API_KEY is available
+        run: |
+          if [ -z "${TF_VAR_openai_api_key}" ]; then
+            echo "::error::OPENAI_API_KEY is empty or unavailable in deploy-infrastructure. Ensure it is set for the production environment or repository secrets."
+            exit 1
+          fi
 
       - name: Terraform Init
         run: terraform init

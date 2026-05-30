@@ -280,6 +280,11 @@ module "portfolio_chatbot_lambda" {
     OPENAI_API_KEY         = var.openai_api_key != "" ? data.aws_secretsmanager_secret_version.openai_api_key[0].secret_string : ""
     OPENAI_SECRET_ARN      = var.openai_api_key != "" ? aws_secretsmanager_secret.openai_api_key[0].arn : ""
     CHATBOT_ENABLED        = var.openai_api_key != "" ? "true" : "false"
+    # Keep the Lambda bootable when OpenAI is intentionally unset. Spring AI's
+    # OpenAI auto-config defaults to chat+embedding=openai and throws at startup
+    # if api-key is blank unless these are pinned to `none`.
+    SPRING_AI_MODEL_CHAT      = var.openai_api_key != "" ? "openai" : "none"
+    SPRING_AI_MODEL_EMBEDDING = var.openai_api_key != "" ? "openai" : "none"
   }
 }
 
