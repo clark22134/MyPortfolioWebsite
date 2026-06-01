@@ -210,10 +210,12 @@ export class ProductListComponent implements OnInit, OnDestroy {
 
     this.productService.getProductsByIds(promo.productIds).subscribe({
       next: products => {
+        if (this.selectedPromo() !== promo) return;
         this.promoProducts.set(products);
         this.promoLoading.set(false);
       },
       error: () => {
+        if (this.selectedPromo() !== promo) return;
         this.promoProducts.set([]);
         this.promoLoading.set(false);
       }
@@ -223,6 +225,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
   closePromoModal() {
     this.selectedPromo.set(null);
     this.promoProducts.set([]);
+    this.promoLoading.set(false);
     document.body.style.overflow = '';
   }
 
@@ -283,8 +286,8 @@ export class ProductListComponent implements OnInit, OnDestroy {
 
   private dayOfYear(): number {
     const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const diff = now.getTime() - start.getTime();
+    const start = Date.UTC(now.getUTCFullYear(), 0, 0);
+    const diff = now.getTime() - start;
     return Math.floor(diff / (1000 * 60 * 60 * 24));
   }
 

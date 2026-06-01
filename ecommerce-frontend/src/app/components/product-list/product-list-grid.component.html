@@ -240,14 +240,18 @@
 <!-- Curated Promo Modal -->
 @if (selectedPromo()) {
 <div class="modal-overlay" (click)="closePromoModal()">
-  <div class="modal-content promo-modal-content" (click)="$event.stopPropagation()">
-    <button class="modal-close" (click)="closePromoModal()">
-      <i class="fa fa-times"></i>
+  <div class="modal-content promo-modal-content"
+       role="dialog"
+       aria-modal="true"
+       [attr.aria-labelledby]="'promo-modal-title'"
+       (click)="$event.stopPropagation()">
+    <button class="modal-close" (click)="closePromoModal()" aria-label="Close promo modal">
+      <i class="fa fa-times" aria-hidden="true"></i>
     </button>
 
     <div class="promo-modal-header">
       <span class="promo-modal-tag">{{ selectedPromo()!.tag }}</span>
-      <h3>{{ selectedPromo()!.title }}</h3>
+      <h3 id="promo-modal-title">{{ selectedPromo()!.title }}</h3>
       <p>{{ selectedPromo()!.description }}</p>
     </div>
 
