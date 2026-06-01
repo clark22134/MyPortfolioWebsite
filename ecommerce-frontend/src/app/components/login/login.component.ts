@@ -90,26 +90,24 @@ export class LoginComponent {
 
   toggleCard() {
     this.includeCard.update(v => !v);
-    const cardGroup = this.registerForm.get('creditCard');
-    if (this.includeCard()) {
-      cardGroup?.get('cardType')?.setValidators([Validators.required]);
-      cardGroup?.get('nameOnCard')?.setValidators([Validators.required, ShopValidators.notOnlyWhitespace]);
-      cardGroup?.get('cardNumber')?.setValidators([Validators.required, Validators.pattern('[0-9]{16}')]);
-      cardGroup?.get('expirationMonth')?.setValidators([Validators.required]);
-      cardGroup?.get('expirationYear')?.setValidators([Validators.required]);
-      cardGroup?.get('securityCode')?.setValidators([Validators.required, Validators.pattern('[0-9]{3}')]);
-    } else {
-      cardGroup?.get('cardType')?.clearValidators();
-      cardGroup?.get('nameOnCard')?.clearValidators();
-      cardGroup?.get('cardNumber')?.clearValidators();
-      cardGroup?.get('expirationMonth')?.clearValidators();
-      cardGroup?.get('expirationYear')?.clearValidators();
-      cardGroup?.get('securityCode')?.clearValidators();
+    const cardGroup = this.registerForm.get('creditCard') as FormGroup;
+    const cardValidators: Record<string, any[]> = this.includeCard() ? {
+      cardType: [Validators.required],
+      nameOnCard: [Validators.required, ShopValidators.notOnlyWhitespace],
+      cardNumber: [Validators.required, Validators.pattern('[0-9]{16}')],
+      expirationMonth: [Validators.required],
+      expirationYear: [Validators.required],
+      securityCode: [Validators.required, Validators.pattern('[0-9]{3}')],
+    } : {
+      cardType: [], nameOnCard: [], cardNumber: [],
+      expirationMonth: [], expirationYear: [], securityCode: [],
+    };
+
+    for (const key of Object.keys(cardGroup.controls)) {
+      const ctl = cardGroup.get(key);
+      ctl?.setValidators(cardValidators[key] ?? []);
+      ctl?.updateValueAndValidity();
     }
-    // Update validity after changing validators
-    Object.keys((cardGroup as FormGroup).controls).forEach(key => {
-      cardGroup?.get(key)?.updateValueAndValidity();
-    });
   }
 
   onShippingCountryChange() {
@@ -181,12 +179,8 @@ export class LoginComponent {
   }
 
   onRegister() {
-    // Check that base fields + shipping address are valid
-    if (this.registerForm.get('firstName')?.invalid ||
-        this.registerForm.get('lastName')?.invalid ||
-        this.registerForm.get('email')?.invalid ||
-        this.registerForm.get('password')?.invalid ||
-        this.registerForm.get('shippingAddress')?.invalid) {
+    const requiredControls = ['firstName', 'lastName', 'email', 'password', 'shippingAddress'];
+    if (requiredControls.some(name => this.registerForm.get(name)?.invalid)) {
       this.registerForm.markAllAsTouched();
       this.errorMessage.set('Please fill in all required fields.');
       return;

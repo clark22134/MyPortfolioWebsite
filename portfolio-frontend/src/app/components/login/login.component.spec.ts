@@ -194,19 +194,19 @@ describe('LoginComponent', () => {
     expect(errorElement).toBeFalsy();
   });
 
-  it('should show "Logging in..." text when loading', () => {
+  it('should show "Authenticating..." text when loading', () => {
     component.loading = true;
     fixture.detectChanges();
 
     const submitButton = fixture.nativeElement.querySelector('.btn-submit');
-    expect(submitButton.textContent).toContain('Logging in...');
+    expect(submitButton.textContent).toContain('Authenticating...');
   });
 
-  it('should show "Login" text when not loading', () => {
+  it('should show "SIGN IN" text when not loading', () => {
     component.loading = false;
     fixture.detectChanges();
 
     const submitButton = fixture.nativeElement.querySelector('.btn-submit');
-    expect(submitButton.textContent).toContain('Login');
+    expect(submitButton.textContent).toContain('SIGN IN');
   });
 });

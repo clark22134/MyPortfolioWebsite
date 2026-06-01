@@ -68,23 +68,13 @@ export class AuthService {
   login(email: string, password: string): Observable<AuthResponse> {
     return this.http.post<AuthResponse>('/api/auth/login', { email, password }, {
       withCredentials: true
-    }).pipe(
-      tap(response => {
-        this.currentUser.set(response);
-        this.storage.setItem('authUser', JSON.stringify(response));
-      })
-    );
+    }).pipe(tap(response => this.setSession(response)));
   }
 
   register(data: RegisterData): Observable<AuthResponse> {
     return this.http.post<AuthResponse>('/api/auth/register', data, {
       withCredentials: true
-    }).pipe(
-      tap(response => {
-        this.currentUser.set(response);
-        this.storage.setItem('authUser', JSON.stringify(response));
-      })
-    );
+    }).pipe(tap(response => this.setSession(response)));
   }
 
   getProfile(): Observable<CustomerProfile> {
@@ -100,9 +90,13 @@ export class AuthService {
     this.http.post('/api/auth/logout', {}, { withCredentials: true }).pipe(
       catchError(() => of(null))
     ).subscribe(() => {
-      this.currentUser.set(null);
-      this.storage.removeItem('authUser');
+      this.clearSession();
       this.router.navigate(['/products']);
     });
+  }
+
+  private setSession(response: AuthResponse): void {
+    this.currentUser.set(response);
+    this.storage.setItem('authUser', JSON.stringify(response));
   }
 }

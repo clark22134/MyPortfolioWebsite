@@ -63,17 +63,14 @@ public class AuthController {
         customer.setFirstName(request.firstName());
         customer.setLastName(request.lastName());
 
-        // Default shipping address (required)
         if (request.shippingAddress() != null) {
             customer.setDefaultShippingAddress(buildAddress(request.shippingAddress()));
         }
-
-        // Default billing address (optional)
         if (request.billingAddress() != null) {
             customer.setDefaultBillingAddress(buildAddress(request.billingAddress()));
         }
 
-        // Credit card info (optional) — only store last 4 digits
+        // Credit card info (optional) — only the last 4 digits are persisted via maskCardNumber()
         if (request.cardNumber() != null && !request.cardNumber().isBlank()) {
             customer.setCardType(request.cardType());
             customer.setNameOnCard(request.nameOnCard());
@@ -111,7 +108,7 @@ public class AuthController {
         if (customer.getCardNumber() != null) {
             profile.setCardType(customer.getCardType());
             profile.setNameOnCard(customer.getNameOnCard());
-            // cardNumber is already stored as last 4 digits only
+            // cardNumber is already masked to last 4 digits at registration time
             profile.setCardNumberLast4(customer.getCardNumber());
             profile.setCardExpirationMonth(customer.getCardExpirationMonth());
             profile.setCardExpirationYear(customer.getCardExpirationYear());

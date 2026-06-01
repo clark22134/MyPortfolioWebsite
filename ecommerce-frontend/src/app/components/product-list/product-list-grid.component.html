@@ -25,7 +25,7 @@
             <p class="hero-highlight-tag">{{ promo.tag }}</p>
             <h3>{{ promo.title }}</h3>
             <p>{{ promo.description }}</p>
-            <button class="hero-highlight-cta" (click)="dealProduct() && viewDeal(dealProduct()!)" [disabled]="!dealProduct()">
+            <button class="hero-highlight-cta" (click)="openPromoModal(promo)">
               <i class="fa hero-mini-icon"
                 [class.fa-laptop]="promo.iconClass === 'fa-laptop'"
                 [class.fa-bolt]="promo.iconClass === 'fa-bolt'"
@@ -232,6 +232,80 @@
         <h4>Description</h4>
         <p>{{ selectedProduct()!.description }}</p>
       </div>
+    </div>
+  </div>
+</div>
+}
+
+<!-- Curated Promo Modal -->
+@if (selectedPromo()) {
+<div class="modal-overlay" (click)="closePromoModal()">
+  <div class="modal-content promo-modal-content" (click)="$event.stopPropagation()">
+    <button class="modal-close" (click)="closePromoModal()">
+      <i class="fa fa-times"></i>
+    </button>
+
+    <div class="promo-modal-header">
+      <span class="promo-modal-tag">{{ selectedPromo()!.tag }}</span>
+      <h3>{{ selectedPromo()!.title }}</h3>
+      <p>{{ selectedPromo()!.description }}</p>
+    </div>
+
+    @if (promoLoading()) {
+    <div class="promo-modal-loading">
+      <i class="fa fa-spinner fa-spin" aria-hidden="true"></i> Loading curated picks…
+    </div>
+    } @else {
+    <div class="promo-modal-grid">
+      @for (product of promoProducts(); track product.id) {
+      <div class="promo-modal-card">
+        <img [src]="product.imageUrl" [alt]="product.name" class="promo-modal-image">
+        <h4 class="promo-modal-name">{{ product.name }}</h4>
+        @if (authService.isAuthenticated()) {
+        <div class="price-vip-wrap">
+          <span class="price-original">{{ product.unitPrice | currency: 'USD' }}</span>
+          <span class="price-member">{{ getMemberPrice(product.unitPrice) | currency: 'USD' }}</span>
+        </div>
+        } @else {
+        <div class="price">{{ product.unitPrice | currency: 'USD' }}</div>
+        }
+        @if (getCartQuantity(product) > 0) {
+        <div class="promo-modal-qty-controls" role="group" aria-label="Quantity in cart">
+          <button class="promo-modal-qty-btn" (click)="decrementInCart(product)" aria-label="Decrease quantity">
+            <i class="fa fa-minus"></i>
+          </button>
+          <span class="promo-modal-qty-value" aria-live="polite">{{ getCartQuantity(product) }}</span>
+          <button class="promo-modal-qty-btn" (click)="incrementInCart(product)" aria-label="Increase quantity">
+            <i class="fa fa-plus"></i>
+          </button>
+          <button class="promo-modal-qty-btn promo-modal-remove-btn" (click)="removeFromCart(product)" aria-label="Remove from cart">
+            <i class="fa fa-trash"></i>
+          </button>
+        </div>
+        <p class="promo-modal-added">
+          <i class="fa fa-check-circle" aria-hidden="true"></i> Added to cart
+        </p>
+        } @else {
+        <button class="btn-add-to-cart promo-modal-add" (click)="addToCart(product)">
+          <i class="fa fa-cart-plus" aria-hidden="true"></i> Add to Cart
+        </button>
+        }
+      </div>
+      }
+    </div>
+    }
+
+    <div class="promo-modal-cart-summary" aria-live="polite">
+      <i class="fa fa-shopping-cart" aria-hidden="true"></i>
+      <span>{{ totalQuantity() }} {{ totalQuantity() === 1 ? 'item' : 'items' }} in cart</span>
+      <span class="promo-modal-cart-divider">|</span>
+      <span class="promo-modal-cart-total">{{ totalPrice() | currency: 'USD' }}</span>
+    </div>
+
+    <div class="promo-modal-footer">
+      <button class="promo-modal-view-all" (click)="viewPromoCategory()">
+        View all in category <i class="fa fa-arrow-right" aria-hidden="true"></i>
+      </button>
     </div>
   </div>
 </div>

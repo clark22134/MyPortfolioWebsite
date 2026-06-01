@@ -18,26 +18,12 @@ export class CartDetailsComponent implements OnInit {
   totalQuantity: number = 0;
   authService = inject(AuthService);
 
-  ngOnInit(): void {
-    // Initialize cart items, total price, and total quantity
-    this.listCartDetails();
-  }
-
   constructor(private readonly cartService: CartService) {}
 
-  listCartDetails() {
-    // get a handle to the cart items
+  ngOnInit(): void {
     this.cartItems = this.cartService.cartItems;
-
-    // subscribe to the cart totalPrice
-    this.cartService.totalPrice.subscribe(data =>
-      this.totalPrice = data);
-
-    // subscribe to the cart totalQuantity
-    this.cartService.totalQuantity.subscribe(data =>
-      this.totalQuantity = data);
-
-    // compute cart total price and total quantity
+    this.cartService.totalPrice.subscribe(data => this.totalPrice = data);
+    this.cartService.totalQuantity.subscribe(data => this.totalQuantity = data);
     this.cartService.computeCartTotals();
   }
 
@@ -52,6 +38,4 @@ export class CartDetailsComponent implements OnInit {
   remove(theCartItem: CartItem) {
     this.cartService.remove(theCartItem);
   }
-
-
 }
