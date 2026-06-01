@@ -36,11 +36,9 @@ export class CartService {
       }
     }
 
-    // read data from storage using user-scoped key
-    let data = this.storage.getItem(this.cartStorageKey);
+    const data = this.storage.getItem(this.cartStorageKey);
     if (data) {
       this.cartItems = JSON.parse(data);
-      // compute totals based on the data that is read from storage
       this.computeCartTotals();
     }
   }
@@ -69,8 +67,7 @@ export class CartService {
     this.http.get<CartItemDto[]>(this.cartApiUrl, { withCredentials: true }).subscribe({
       next: (serverItems) => {
         const serverCart = serverItems.map(dto => this.dtoToCartItem(dto));
-        const merged = this.mergeCartItems(serverCart, guestItems);
-        this.cartItems = merged;
+        this.cartItems = this.mergeCartItems(serverCart, guestItems);
         this.computeCartTotals();
         this.persistCartItems();
         this.syncToServer();
@@ -79,8 +76,7 @@ export class CartService {
         // Server unreachable — fall back to localStorage
         const data = this.storage.getItem(this.cartStorageKey);
         const localItems: CartItem[] = data ? JSON.parse(data) : [];
-        const merged = this.mergeCartItems(localItems, guestItems);
-        this.cartItems = merged;
+        this.cartItems = this.mergeCartItems(localItems, guestItems);
         this.computeCartTotals();
         this.persistCartItems();
       }
@@ -103,30 +99,14 @@ export class CartService {
   }
 
   addToCart(theCartItem: CartItem) {
-    // check if we already have the item in our cart
-    let alreadyExistsInCart: boolean = false;
-    let existingCartItem: CartItem = undefined!;
-
-    if (this.cartItems.length > 0) {
-      // find the item in the cart based on item id
-      existingCartItem = this.cartItems.find(tempCartItem => tempCartItem.id === theCartItem.id)!;
-      // check if we found it
-      alreadyExistsInCart = (existingCartItem != undefined);
-    }
-
-    if (alreadyExistsInCart) {
-      // increment the quantity
-      existingCartItem.quantity++;
-    }
-    else {
-      // add the item to the array
+    const existing = this.cartItems.find(item => item.id === theCartItem.id);
+    if (existing) {
+      existing.quantity++;
+    } else {
       this.cartItems.push(theCartItem);
     }
 
-    // compute cart total price and total quantity
     this.computeCartTotals();
-
-    // persist cart data
     this.persistCartItems();
     this.syncToServer();
   }
@@ -136,15 +116,14 @@ export class CartService {
   }
 
   computeCartTotals() {
-    let totalPriceValue: number = 0;
-    let totalQuantityValue: number = 0;
+    let totalPriceValue = 0;
+    let totalQuantityValue = 0;
 
-    for (let currentCartItem of this.cartItems) {
-      totalPriceValue += currentCartItem.unitPrice * currentCartItem.quantity;
-      totalQuantityValue += currentCartItem.quantity;
+    for (const item of this.cartItems) {
+      totalPriceValue += item.unitPrice * item.quantity;
+      totalQuantityValue += item.quantity;
     }
 
-    // publish the new values ... all subscribers will receive the new data
     this.totalPrice.next(totalPriceValue);
     this.totalQuantity.next(totalQuantityValue);
   }
@@ -162,7 +141,7 @@ export class CartService {
   }
 
   remove(theCartItem: CartItem) {
-    const itemIndex = this.cartItems.findIndex(tempCartItem => tempCartItem.id === theCartItem.id);
+    const itemIndex = this.cartItems.findIndex(item => item.id === theCartItem.id);
 
     if (itemIndex > -1) {
       this.cartItems.splice(itemIndex, 1);

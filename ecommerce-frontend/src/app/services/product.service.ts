@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { map, Observable } from 'rxjs';
+import { forkJoin, map, Observable, of } from 'rxjs';
 import { Product } from '../common/product.model';
 import { ProductCategory } from '../common/product-category.model';
 
@@ -18,10 +18,16 @@ export class ProductService {
     return this.httpClient.get<Product>(productUrl);
   }
 
+  getProductsByIds(ids: number[]): Observable<Product[]> {
+    if (ids.length === 0) {
+      return of([]);
+    }
+    return forkJoin(ids.map(id => this.getProduct(id)));
+  }
+
   getProducts(searchUrl: string): Observable<Product[]> {
+    // Spring Data REST omits `_embedded` entirely when a page has zero results.
     return this.httpClient.get<GetResponseProducts>(searchUrl).pipe(
-      // Spring Data REST omits `_embedded` entirely when a page has zero
-      // results, so we have to defend against undefined here.
       map(response => response._embedded?.products ?? [])
     );
   }
@@ -29,40 +35,30 @@ export class ProductService {
   getProductListPaginate(thePage: number,
                         thePageSize: number,
                         theCategoryId: number): Observable<GetResponseProducts> {
-
     // Spring Data REST pages are 0-based, ngb-pagination is 1-based
     const searchUrl = `${this.baseUrl}/search/findByCategoryId?id=${theCategoryId}`
                     + `&page=${thePage - 1}&size=${thePageSize}`;
-
     return this.httpClient.get<GetResponseProducts>(searchUrl);
   }
 
   getProductList(theCategoryId: number): Observable<Product[]> {
-
-    const searchUrl = `${this.baseUrl}/search/findByCategoryId?id=${theCategoryId}`;
-    return this.getProducts(searchUrl);
+    return this.getProducts(`${this.baseUrl}/search/findByCategoryId?id=${theCategoryId}`);
   }
 
   searchProducts(theKeyword: string): Observable<Product[]> {
-
-    // need to build URL based on the keyword (URL-encode for safety)
-    const searchUrl = `${this.baseUrl}/search/findByNameContainingIgnoreCase?name=${encodeURIComponent(theKeyword)}`;
-    return this.getProducts(searchUrl);
+    return this.getProducts(`${this.baseUrl}/search/findByNameContainingIgnoreCase?name=${encodeURIComponent(theKeyword)}`);
   }
 
   searchProductsPaginate(thePage: number,
                         thePageSize: number,
                         theKeyword: string): Observable<GetResponseProducts> {
-
-    // need to build URL based on keyword, page and size (URL-encode for safety)
     const searchUrl = `${this.baseUrl}/search/findByNameContainingIgnoreCase?name=${encodeURIComponent(theKeyword)}`
                     + `&page=${thePage - 1}&size=${thePageSize}`;
-
     return this.httpClient.get<GetResponseProducts>(searchUrl);
   }
 
   getProductCategories(): Observable<ProductCategory[]> {
-      return this.httpClient.get<GetResponseProductCategory>(this.categoryUrl).pipe(
+    return this.httpClient.get<GetResponseProductCategory>(this.categoryUrl).pipe(
       map(response => response._embedded.productCategory)
     );
   }

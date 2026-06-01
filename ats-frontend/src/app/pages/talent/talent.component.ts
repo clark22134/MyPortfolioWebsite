@@ -36,7 +36,6 @@ export class TalentComponent implements OnInit, OnDestroy {
   addForm: Partial<CandidateRequest> = {};
   editingCandidate: Candidate | null = null;
   editForm: Partial<CandidateRequest> = {};
-  selectedCandidate: Candidate | null = null;
 
   page = 1;
   readonly pageSize = 12;
@@ -295,10 +294,6 @@ export class TalentComponent implements OnInit, OnDestroy {
 
   openCandidateDetail(candidate: Candidate): void {
     this.router.navigate(['/candidates', candidate.id]);
-  }
-
-  closeCandidateDetail(): void {
-    this.selectedCandidate = null;
   }
 
   get pagedCandidates(): Candidate[] {

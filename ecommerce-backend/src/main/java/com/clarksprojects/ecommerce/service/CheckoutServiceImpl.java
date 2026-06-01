@@ -28,7 +28,7 @@ public class CheckoutServiceImpl implements CheckoutService {
   public PurchaseResponse placeOrder(Purchase purchase, String authenticatedEmail) {
 
     Order order = purchase.order();
-    order.setOrderTrackingNumber(generateOrderTrackingNumber());
+    order.setOrderTrackingNumber(UUID.randomUUID().toString());
     order.setStatus(OrderStatus.PROCESSING);
 
     Set<OrderItem> orderItems = purchase.orderItems();
@@ -37,8 +37,8 @@ public class CheckoutServiceImpl implements CheckoutService {
     order.setBillingAddress(purchase.billingAddress());
     order.setShippingAddress(purchase.shippingAddress());
 
-    // Use the authenticated email when available to ensure order is linked
-    // to the correct customer account; fall back to form email for guests
+    // Prefer the authenticated email so the order links to the right account;
+    // fall back to the form-provided email for guest checkouts.
     String email = (authenticatedEmail != null) ? authenticatedEmail : purchase.customer().getEmail();
     Customer customer = customerRepository.findByEmail(email).orElse(purchase.customer());
 
@@ -50,9 +50,5 @@ public class CheckoutServiceImpl implements CheckoutService {
 
     log.info("Order placed successfully: trackingNumber={}, email={}", order.getOrderTrackingNumber(), email);
     return new PurchaseResponse(order.getOrderTrackingNumber());
-  }
-
-  private String generateOrderTrackingNumber() {
-    return UUID.randomUUID().toString();
   }
 }

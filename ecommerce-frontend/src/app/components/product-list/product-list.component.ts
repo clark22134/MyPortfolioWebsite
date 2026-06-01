@@ -2,18 +2,21 @@ import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular
 import { CurrencyPipe } from '@angular/common';
 import { GetResponseProducts, ProductService } from '../../services/product.service';
 import { Product } from '../../common/product.model';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { NgbPagination } from '@ng-bootstrap/ng-bootstrap';
 import { CartItem } from '../../common/cart-item.model';
 import { CartService } from '../../services/cart.service';
 import { AuthService } from '../../services/auth.service';
 
 interface PromoHighlight {
+  readonly id: string;
   readonly tag: string;
   readonly title: string;
   readonly description: string;
   readonly cta: string;
   readonly iconClass: string;
+  readonly categoryId: number;
+  readonly productIds: number[];
 }
 
 @Component({
@@ -27,6 +30,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
   private readonly productService = inject(ProductService);
   private readonly cartService = inject(CartService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   authService = inject(AuthService);
   products = signal<Product[]>([]);
   currentCategoryId = signal<number>(1);
@@ -34,34 +38,52 @@ export class ProductListComponent implements OnInit, OnDestroy {
   searchMode = signal<boolean>(false);
   loading = signal<boolean>(true);
   selectedProduct = signal<Product | null>(null);
+  selectedPromo = signal<PromoHighlight | null>(null);
+  promoProducts = signal<Product[]>([]);
+  promoLoading = signal<boolean>(false);
   totalPrice = signal<number>(0);
   totalQuantity = signal<number>(0);
+  // categoryId/productIds reference backend seed data (sql_scripts/refresh-database-with-100-products-updated.sql) — keep in sync.
   readonly promoHighlights: PromoHighlight[] = [
     {
-      tag: 'Seasonal Pick',
-      title: 'Home Office Refresh',
-      description: 'Save up to 40% on desks, chairs, and productivity essentials.',
-      cta: 'Explore Refresh',
-      iconClass: 'fa-laptop'
+      id: 'ai-toolkit',
+      tag: 'AI Toolkit Sale',
+      title: 'AI Code & Ops Essentials',
+      description: 'Save on AI reviewers, predictive monitors, and natural-language tooling.',
+      cta: 'Shop AI Tools',
+      iconClass: 'fa-laptop',
+      categoryId: 1,
+      productIds: [1, 3, 10, 16]
     },
     {
-      tag: 'Lightning Savings',
-      title: 'Limited-Time Electronics',
-      description: 'Top-rated devices and accessories at this week\'s best prices.',
-      cta: 'See Deals',
-      iconClass: 'fa-bolt'
+      id: 'dev-survival',
+      tag: 'Limited-Time Drop',
+      title: 'Developer Survival Picks',
+      description: "Top-rated dev gear and productivity essentials at this week's best prices.",
+      cta: 'See the Drop',
+      iconClass: 'fa-bolt',
+      categoryId: 2,
+      productIds: [26, 30, 37, 45]
     },
     {
-      tag: 'Bundle Offer',
-      title: 'Buy More, Save More',
-      description: 'Stackable discounts on accessories and everyday essentials.',
+      id: 'spy-bundle',
+      tag: 'Bundle & Save',
+      title: 'Spy Tech Bundles',
+      description: 'Stackable discounts on cybersecurity gadgets and surveillance kit.',
       cta: 'Bundle & Save',
-      iconClass: 'fa-tags'
+      iconClass: 'fa-tags',
+      categoryId: 3,
+      productIds: [51, 58, 64, 72]
     }
   ];
   readonly dealInventoryTarget = 120;
   readonly dealRemainingUnits = signal<number>(37);
-  readonly dealProduct = computed(() => this.products()[0] ?? null);
+  private readonly dealPool = signal<Product[]>([]);
+  readonly dealProduct = (): Product | null => {
+    const pool = this.dealPool();
+    if (pool.length === 0) return null;
+    return pool[this.dayOfYear() % pool.length];
+  };
   readonly dealUnitsSold = computed(() => {
     const soldUnits = this.dealInventoryTarget - this.dealRemainingUnits();
     return Math.min(this.dealInventoryTarget, Math.max(0, soldUnits));
@@ -89,6 +111,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.startDealCountdown();
+    this.loadDealPool();
     this.route.paramMap.subscribe(() => {
       this.listProducts();
     });
@@ -110,23 +133,20 @@ export class ProductListComponent implements OnInit, OnDestroy {
 
     if (this.searchMode()) {
       this.handleSearchProducts();
-    }
-    else {
+    } else {
       this.handleListProducts();
     }
   }
 
-
   handleSearchProducts() {
     const theKeyword: string = this.route.snapshot.paramMap.get('keyword')!;
 
-    // if we have a different keyword than previous then set thePageNumber to 1
+    // Reset to page 1 when the keyword changes
     if (this.previousKeyword() !== theKeyword) {
       this.thePageNumber.set(1);
     }
     this.previousKeyword.set(theKeyword);
 
-    // now search for the products using keyword
     this.loading.set(true);
     this.productService.searchProductsPaginate(this.thePageNumber(),
                                               this.thePageSize(),
@@ -145,28 +165,17 @@ export class ProductListComponent implements OnInit, OnDestroy {
   }
 
   handleListProducts() {
+    const idParam = this.route.snapshot.paramMap.get('id');
+    this.currentCategoryId.set(idParam ? +idParam : 1);
 
-    // check if "id" parameter is available
-    const hasCategoryId: boolean = this.route.snapshot.paramMap.has('id');
-
-    if (hasCategoryId) {
-      // get the "id" parameter string. convert string to a number using the "+" symbol
-      this.currentCategoryId.set(+this.route.snapshot.paramMap.get('id')!);
-    }
-    else {
-      // not category id available ... default to category id 1
-      this.currentCategoryId.set(1);
-    }
-
-    // Check if we have a different category than previous
-    // Note: Angular will reuse a component if it is currently being viewed
-    // if we have a different category id than previous then set thePageNumber back to 1
+    // Angular reuses the component when navigating between categories — reset
+    // to page 1 whenever the category changes so we don't request a page that
+    // doesn't exist in the new category.
     if (this.currentCategoryId() !== this.previousCategoryId()) {
       this.thePageNumber.set(1);
     }
     this.previousCategoryId.set(this.currentCategoryId());
 
-    // now get the products for the given category id
     this.loading.set(true);
     this.productService.getProductListPaginate(this.thePageNumber(),
                                               this.thePageSize(),
@@ -191,6 +200,40 @@ export class ProductListComponent implements OnInit, OnDestroy {
   closeProductModal() {
     this.selectedProduct.set(null);
     document.body.style.overflow = '';
+  }
+
+  openPromoModal(promo: PromoHighlight) {
+    this.selectedPromo.set(promo);
+    this.promoProducts.set([]);
+    this.promoLoading.set(true);
+    document.body.style.overflow = 'hidden';
+
+    this.productService.getProductsByIds(promo.productIds).subscribe({
+      next: products => {
+        if (this.selectedPromo() !== promo) return;
+        this.promoProducts.set(products);
+        this.promoLoading.set(false);
+      },
+      error: () => {
+        if (this.selectedPromo() !== promo) return;
+        this.promoProducts.set([]);
+        this.promoLoading.set(false);
+      }
+    });
+  }
+
+  closePromoModal() {
+    this.selectedPromo.set(null);
+    this.promoProducts.set([]);
+    this.promoLoading.set(false);
+    document.body.style.overflow = '';
+  }
+
+  viewPromoCategory() {
+    const promo = this.selectedPromo();
+    if (!promo) return;
+    this.closePromoModal();
+    this.router.navigateByUrl(`/category/${promo.categoryId}`);
   }
 
   addToCart(theProduct: Product) {
@@ -239,6 +282,20 @@ export class ProductListComponent implements OnInit, OnDestroy {
 
   formatCountdown(value: number): string {
     return value.toString().padStart(2, '0');
+  }
+
+  private dayOfYear(): number {
+    const now = new Date();
+    const start = Date.UTC(now.getUTCFullYear(), 0, 0);
+    const diff = now.getTime() - start;
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  }
+
+  private loadDealPool() {
+    this.productService.getProductListPaginate(1, 24, 1).subscribe({
+      next: response => this.dealPool.set(response._embedded?.products ?? []),
+      error: () => this.dealPool.set([])
+    });
   }
 
   private startDealCountdown() {

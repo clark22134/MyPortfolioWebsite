@@ -110,12 +110,15 @@ public class TaskService {
         }
         FollowUpTask saved = taskRepository.save(task);
 
-        ActivityType type = status == TaskStatus.DONE ? ActivityType.TASK_COMPLETED
-                : status == TaskStatus.CANCELLED ? ActivityType.TASK_CANCELLED
-                : null;
+        ActivityType type = switch (status) {
+            case DONE -> ActivityType.TASK_COMPLETED;
+            case CANCELLED -> ActivityType.TASK_CANCELLED;
+            default -> null;
+        };
         if (type != null) {
+            String verb = status == TaskStatus.DONE ? "Completed" : "Cancelled";
             activityService.record(type, saved.getCandidate(), saved.getJob(),
-                    (status == TaskStatus.DONE ? "Completed" : "Cancelled") + " task: " + saved.getSubject(),
+                    verb + " task: " + saved.getSubject(),
                     Map.of("taskId", String.valueOf(saved.getId())));
         }
         return TaskResponse.from(saved);

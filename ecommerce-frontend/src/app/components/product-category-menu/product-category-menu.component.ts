@@ -20,12 +20,8 @@ export class ProductCategoryMenu implements OnInit {
 
   listProductCategories() {
     this.productService.getProductCategories().subscribe({
-      next: data => {
-        this.productCategories.set(data);
-      },
-      error: err => {
-        console.error('Error fetching categories:', err);
-      }
+      next: data => this.productCategories.set(data),
+      error: err => console.error('Error fetching categories:', err)
     });
   }
 }

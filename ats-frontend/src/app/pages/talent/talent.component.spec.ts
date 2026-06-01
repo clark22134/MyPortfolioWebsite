@@ -208,14 +208,12 @@ describe('TalentComponent', () => {
     expect(c.uploadFile).toBe(file);
   });
 
-  it('opens detail modal then renders contents', () => {
+  it('renders candidate rows in the list', () => {
     const fixture = TestBed.createComponent(TalentComponent);
     fixture.detectChanges();
     const candidate = mkCandidate({ notes: 'Note text', tags: [{ id: 1, name: 'Top', color: '#0f0' }] });
     initialLoad([candidate]);
     fixture.detectChanges();
-    // selectedCandidate is shown when openCandidateDetail is invoked — but it now navigates,
-    // so we just exercise pages by rendering with candidates and verify content.
     expect(fixture.nativeElement.textContent).toContain('Alice Smith');
     expect(fixture.nativeElement.textContent).toContain('Java');
   });

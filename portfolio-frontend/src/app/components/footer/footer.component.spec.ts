@@ -49,4 +49,13 @@ describe('FooterComponent', () => {
     const footer = fixture.nativeElement.querySelector('footer');
     expect(footer.getAttribute('role')).toBe('contentinfo');
   });
+
+  it('should link AI Projects to the public /ai-projects route', () => {
+    const links = Array.from(
+      fixture.nativeElement.querySelectorAll('.footer-links a')
+    ) as HTMLAnchorElement[];
+    const aiProjects = links.find(a => a.textContent?.trim() === 'AI Projects');
+    expect(aiProjects).toBeTruthy();
+    expect(aiProjects!.getAttribute('href')).toBe('/ai-projects');
+  });
 });

@@ -73,5 +73,3 @@ export class App implements AfterViewInit {
     this.showVideoIntro.set(false);
   }
 }
-
-

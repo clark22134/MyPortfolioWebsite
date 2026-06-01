@@ -192,3 +192,8 @@ coverage.xml
 local_settings.py
 *.local
 .local/
+
+# Claude Code / agent local metadata
+.agents/
+.claude/settings.local.json
+skills-lock.json

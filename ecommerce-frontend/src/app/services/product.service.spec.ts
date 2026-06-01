@@ -123,4 +123,30 @@ describe('ProductService', () => {
     expect(req.request.method).toBe('GET');
     req.flush({ page: { size: 10, totalElements: 0, totalPages: 0, number: 0 } });
   });
+
+  it('should return empty array immediately for getProductsByIds([])', () => {
+    let emitted: any = null;
+    service.getProductsByIds([]).subscribe(result => { emitted = result; });
+    expect(emitted).toEqual([]);
+    httpMock.expectNone(() => true);
+  });
+
+  it('should fetch multiple products by id in input order', () => {
+    const productA = { id: 1, name: 'Alpha', unitPrice: 1 };
+    const productB = { id: 5, name: 'Bravo', unitPrice: 2 };
+    let emitted: any[] = [];
+
+    service.getProductsByIds([1, 5]).subscribe(result => { emitted = result; });
+
+    const req1 = httpMock.expectOne('/api/products/1');
+    const req5 = httpMock.expectOne('/api/products/5');
+    expect(req1.request.method).toBe('GET');
+    expect(req5.request.method).toBe('GET');
+
+    // Flush out of input order to prove the method preserves input order.
+    req5.flush(productB);
+    req1.flush(productA);
+
+    expect(emitted.map(p => p.id)).toEqual([1, 5]);
+  });
 });

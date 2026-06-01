@@ -254,61 +254,40 @@ export class CheckoutComponent implements OnInit {
       return;
     }
 
-    // set up order
-    let order = new Order();
+    const order = new Order();
     order.totalPrice = this.totalPrice;
     order.totalQuantity = this.totalQuantity;
 
-    // get cart items
-    const cartItems = this.cartService.cartItems;
+    const orderItems: OrderItem[] = this.cartService.cartItems.map(item => new OrderItem(item));
 
-    // create orderItems from cartItems
-    let orderItems: OrderItem[] = cartItems.map(tempCartItem => new OrderItem(tempCartItem));
-
-    // set up and populate purchase (customer, shipping and billing address, order and orderItems)
-    let purchase = new Purchase();
-
-    // customer
+    const purchase = new Purchase();
     purchase.customer = this.checkoutFormGroup.controls['customer']?.value;
-
-    // shipping address
     purchase.shippingAddress = this.checkoutFormGroup.controls['shippingAddress']?.value;
-    const shippingState = structuredClone(purchase.shippingAddress.state as unknown as State);
-    const shippingCountry = structuredClone(purchase.shippingAddress.country as unknown as Country);
-    purchase.shippingAddress.state = shippingState.name;
-    purchase.shippingAddress.country = shippingCountry.name;
-
-    // billing address
     purchase.billingAddress = this.checkoutFormGroup.controls['billingAddress']?.value;
-    const billingState = structuredClone(purchase.billingAddress.state as unknown as State);
-    const billingCountry = structuredClone(purchase.billingAddress.country as unknown as Country);
-    purchase.billingAddress.state = billingState.name;
-    purchase.billingAddress.country = billingCountry.name;
 
-    // order
+    // The form holds State/Country objects, but the API expects names — flatten.
+    purchase.shippingAddress.state = (purchase.shippingAddress.state as unknown as State).name;
+    purchase.shippingAddress.country = (purchase.shippingAddress.country as unknown as Country).name;
+    purchase.billingAddress.state = (purchase.billingAddress.state as unknown as State).name;
+    purchase.billingAddress.country = (purchase.billingAddress.country as unknown as Country).name;
+
     purchase.order = order;
     purchase.orderItems = orderItems;
 
-    // call REST API via the CheckoutService
     this.checkoutService.placeOrder(purchase).subscribe({
-      next: response => { // success/happy path
+      next: response => {
         alert(`Order placed successfully. Order tracking number: ${response.orderTrackingNumber}`);
         this.resetCart();
       },
-      error: err => { // something went wrong
+      error: err => {
         alert(`There was an error: ${err.message}`);
       }
     });
-
   }
+
   resetCart() {
-    // reset cart data (also syncs to server)
     this.cartService.clearCart();
-
-    // reset the form
     this.checkoutFormGroup.reset();
-
-    // navigate back to the products (main) page
     this.router.navigate(['/products']);
   }
 }

@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.security.Principal;
 
-
 @RestController
 @RequestMapping("/api/checkout")
 @RequiredArgsConstructor
@@ -28,6 +27,4 @@ public class CheckoutController {
       String authenticatedEmail = (principal != null) ? principal.getName() : null;
       return checkoutService.placeOrder(purchase, authenticatedEmail);
   }
-  
-
 }
