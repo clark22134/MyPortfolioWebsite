@@ -196,3 +196,4 @@ local_settings.py
 # Claude Code / agent local metadata
 .agents/
 .claude/settings.local.json
+skills-lock.json
