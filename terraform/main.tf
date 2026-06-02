@@ -517,9 +517,15 @@ module "ats_lambda" {
     # SnapStart pre-init and the Lambda waiter reports "Failed".
     JWT_SECRET    = var.ats_jwt_secret
     COOKIE_DOMAIN = ".clarkfoster.com"
-    # Seed admin/recruiter/manager demo accounts on first boot so the public
-    # demo site has known credentials. Flip to "false" to disable seeding.
-    ATS_DEMO_ACCOUNTS_ENABLED = "true"
+    # Demo accounts disabled in prod (SECURITY: previously defaulted to seeding
+    # admin/admin123, recruiter/recruiter123, manager/manager123 — anyone on the
+    # internet could log in with full ADMIN privileges). To re-enable the public
+    # demo, set this to "true" AND supply strong, non-empty values for
+    # TF_VAR_ats_admin_password / TF_VAR_ats_recruiter_password /
+    # TF_VAR_ats_manager_password in the deploy workflow. `DemoUserInitializer`
+    # also refuses to seed a user whose configured password is blank, as a
+    # belt-and-suspenders guard.
+    ATS_DEMO_ACCOUNTS_ENABLED = "false"
     ATS_ADMIN_PASSWORD        = var.ats_admin_password
     ATS_RECRUITER_PASSWORD    = var.ats_recruiter_password
     ATS_MANAGER_PASSWORD      = var.ats_manager_password

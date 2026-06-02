@@ -30,16 +30,19 @@ public class DemoUserInitializer implements ApplicationRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${app.demo-accounts.enabled:true}")
+    // Defaults are intentionally safe-off / blank. Local dev opts in via
+    // application.properties; prod opts in only when an operator deliberately
+    // sets ATS_DEMO_ACCOUNTS_ENABLED=true AND provides strong passwords.
+    @Value("${app.demo-accounts.enabled:false}")
     private boolean enabled;
 
-    @Value("${app.demo-accounts.admin-password:admin123}")
+    @Value("${app.demo-accounts.admin-password:}")
     private String adminPassword;
 
-    @Value("${app.demo-accounts.recruiter-password:recruiter123}")
+    @Value("${app.demo-accounts.recruiter-password:}")
     private String recruiterPassword;
 
-    @Value("${app.demo-accounts.manager-password:manager123}")
+    @Value("${app.demo-accounts.manager-password:}")
     private String managerPassword;
 
     @Override
@@ -67,6 +70,13 @@ public class DemoUserInitializer implements ApplicationRunner {
     }
 
     private void seed(String username, String email, String fullName, Role role, String rawPassword) {
+        // Refuse to seed a user with a blank password. Prevents a
+        // misconfiguration (env var unset, fallback empty) from creating a
+        // login-able account whose password is the BCrypt hash of "".
+        if (rawPassword == null || rawPassword.isBlank()) {
+            log.warn("Skipping demo user {} ({}): no password configured", username, role);
+            return;
+        }
         if (userRepository.existsByUsernameIgnoreCase(username)) {
             return;
         }

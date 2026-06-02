@@ -68,4 +68,16 @@ class DemoUserInitializerTest {
 
         verify(userRepository, times(1)).save(any(User.class));
     }
+
+    @Test
+    void run_blankPasswords_skipsSeedAndNeverHashes() {
+        ReflectionTestUtils.setField(initializer, "adminPassword", "");
+        ReflectionTestUtils.setField(initializer, "recruiterPassword", "   ");
+        ReflectionTestUtils.setField(initializer, "managerPassword", null);
+
+        initializer.run(null);
+
+        verify(userRepository, never()).save(any(User.class));
+        verifyNoInteractions(passwordEncoder);
+    }
 }

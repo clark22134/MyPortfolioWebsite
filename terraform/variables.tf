@@ -71,25 +71,31 @@ variable "ats_jwt_secret" {
   sensitive   = true
 }
 
+# SECURITY: these were previously defaulted to literal `admin123` / `recruiter123`
+# / `manager123`. The deploy workflow does NOT pass overrides, so those defaults
+# would flow straight into the production Lambda env, and `DemoUserInitializer`
+# would seed real, internet-reachable accounts with those passwords. To re-enable
+# the public demo, the operator MUST supply strong values via TF_VAR_ats_*_password
+# in the deploy workflow AND set ATS_DEMO_ACCOUNTS_ENABLED to "true" in main.tf.
 variable "ats_admin_password" {
-  description = "Initial password for the seeded ATS admin demo account"
+  description = "Initial password for the seeded ATS admin demo account. Empty by default; must be a strong value if demo seeding is re-enabled."
   type        = string
   sensitive   = true
-  default     = "admin123"
+  default     = ""
 }
 
 variable "ats_recruiter_password" {
-  description = "Initial password for the seeded ATS recruiter demo account"
+  description = "Initial password for the seeded ATS recruiter demo account. Empty by default; must be a strong value if demo seeding is re-enabled."
   type        = string
   sensitive   = true
-  default     = "recruiter123"
+  default     = ""
 }
 
 variable "ats_manager_password" {
-  description = "Initial password for the seeded ATS hiring-manager demo account"
+  description = "Initial password for the seeded ATS hiring-manager demo account. Empty by default; must be a strong value if demo seeding is re-enabled."
   type        = string
   sensitive   = true
-  default     = "manager123"
+  default     = ""
 }
 
 variable "admin_password" {
