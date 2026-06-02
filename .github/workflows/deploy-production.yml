@@ -47,7 +47,7 @@ jobs:
           cd ../ecommerce-backend && mvn compile -DskipTests -q
 
       - name: Download JaCoCo coverage reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: '*-jacoco'
           merge-multiple: false
@@ -67,7 +67,7 @@ jobs:
           done
 
       - name: Download LCOV coverage reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: '*-lcov'
           merge-multiple: false
@@ -91,7 +91,7 @@ jobs:
           done
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@v8
         with:
           # Pin to a scanner version that's fully propagated on the SonarSource
           # CDN. The action's default ("latest") pulled 8.0.1.6346 which was
@@ -190,7 +190,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.15.5
           terraform_wrapper: false
@@ -274,7 +274,7 @@ jobs:
           cache: maven
 
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: 'npm'
@@ -313,7 +313,7 @@ jobs:
           unzip -l artifacts/ats-backend.jar | grep -q 'db/migration/V5__ensure_activity_table_exists.sql'
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: deployment-artifacts
           path: artifacts/
@@ -332,7 +332,7 @@ jobs:
       url: https://clarkfoster.com
     steps:
       - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: deployment-artifacts
           path: artifacts/
