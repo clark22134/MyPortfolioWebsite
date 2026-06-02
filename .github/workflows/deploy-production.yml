@@ -92,6 +92,12 @@ jobs:
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v7
+        with:
+          # Pin to a scanner version that's fully propagated on the SonarSource
+          # CDN. The action's default ("latest") pulled 8.0.1.6346 which was
+          # returning intermittent 403s from CloudFront edges right after
+          # release. Bump deliberately when a newer version has stabilised.
+          scannerVersion: 7.2.0.5079
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
