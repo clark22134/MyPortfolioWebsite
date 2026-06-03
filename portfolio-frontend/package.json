@@ -34,7 +34,7 @@
     "@angular/compiler-cli": "^21.2.15",
     "@axe-core/puppeteer": "^4.11.3",
     "@types/marked": "^6.0.0",
-    "@vitest/coverage-v8": "^4.1.7",
+    "@vitest/coverage-v8": "^4.1.8",
     "jsdom": "^29.1.1",
     "puppeteer": "^25.1.0",
     "typescript": "~5.9.3",
