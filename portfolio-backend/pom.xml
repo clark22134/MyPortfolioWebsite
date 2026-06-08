@@ -22,23 +22,19 @@
         <java.version>21</java.version>
         <jwt.version>0.13.0</jwt.version>
         <lombok.version>1.18.38</lombok.version>
-        <!--
-            Spring AI 1.0.x is the GA line compatible with Spring Boot 3.5.x.
-            Pinned via BOM so transitive AI deps stay aligned.
-        -->
-        <!--
-            Keep the latest patched 1.0.x release to stay aligned with
-            Spring Boot 3.5.x while pulling in CVE/security fixes.
-        -->
-        <spring-ai.version>1.0.8</spring-ai.version>
+        <!-- Override Spring Boot's managed pgjdbc (and the wrapper's transitive
+             42.7.10) to the CVE-2026-42198 fix. -->
+        <postgresql.version>42.7.11</postgresql.version>
+        <!-- AWS SDK for Java v2 BOM: single source of truth for all aws-sdk module versions. -->
+        <aws-sdk.version>2.34.0</aws-sdk.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-bom</artifactId>
-                <version>${spring-ai.version}</version>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws-sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -81,6 +77,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+            <version>42.7.11</version>
             <scope>runtime</scope>
         </dependency>
         
@@ -143,91 +140,34 @@
             <version>2.0.3</version>
         </dependency>
         
-        <!-- AWS SDK for Secrets Manager -->
+        <!-- AWS SDK for Secrets Manager (version managed by the AWS SDK v2 BOM above). -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>secretsmanager</artifactId>
-            <version>2.20.162</version>
         </dependency>
 
         <!--
-            Spring AI: OpenAI chat + embeddings model starter.
-            Provides ChatClient, EmbeddingModel, and auto-configured beans.
-            We intentionally do NOT add a vector-store starter so we can use
-            the in-process SimpleVectorStore (file-backed JSON) instead. This
-            avoids running an extra service (Chroma/PGVector) for the small
-            (~hundreds of chunks) portfolio knowledge base, keeps the AWS
-            Lambda packaging trivial, and remains swappable behind the
-            VectorStore interface.
+            AWS Advanced JDBC Wrapper — enables RDS IAM database authentication.
+            The IAM plugin generates a short-lived auth token by SigV4-signing
+            locally (no network call), so it works from inside the VPC where the
+            Secrets Manager API is unreachable. Only active in the prod profile
+            when DB_DRIVER_CLASS selects software.amazon.jdbc.Driver and the URL
+            uses the jdbc:aws-wrapper: scheme; otherwise it sits inert on the
+            classpath and the plain PostgreSQL driver is used.
         -->
         <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-model-openai</artifactId>
-            <!--
-                Spring AI's OpenAI starter pulls in spring-boot-starter-webflux
-                because its default HTTP client is WebClient. We're a servlet
-                MVC application; having webflux on the classpath causes Spring
-                Boot to auto-configure both reactive and servlet stacks, which
-                produces BeanDefinitionOverrideException at startup and (when
-                worked around) silently breaks Jackson HTTP message converters
-                so REST endpoints return empty bodies. Spring AI gracefully
-                falls back to RestClient when WebClient is absent.
-            -->
-            <exclusions>
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-webflux</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>software.amazon.jdbc</groupId>
+            <artifactId>aws-advanced-jdbc-wrapper</artifactId>
+            <version>2.6.0</version>
         </dependency>
-
-        <!--
-            Pull spring-ai-openai with its full transitive closure (including
-            spring-webflux). Reactive auto-configuration is suppressed by
-            `spring.main.web-application-type=servlet` in application.properties,
-            and spring-boot-starter-webflux is still excluded above so Boot
-            won't try to start a reactive server. The raw spring-webflux jar
-            *is* required on the classpath because Spring AI 1.0.x's
-            OpenAiEmbeddingAutoConfiguration bean factory method references
-            WebClient.Builder; without it, condition introspection fails and
-            SnapStart init blows up with NoClassDefFoundError.
-        -->
+        <!-- Used by the wrapper's IAM plugin to generate RDS auth tokens (version via the AWS SDK v2 BOM). -->
         <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-openai</artifactId>
-            <version>${spring-ai.version}</version>
-        </dependency>
-
-        <!-- VectorStore interface + SimpleVectorStore (file-backed in-process). -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-vector-store</artifactId>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>rds</artifactId>
         </dependency>
     </dependencies>
     
     <build>
-        <!--
-            Bundle the repo-level /docs directory into the JAR under
-            BOOT-INF/classes/docs/ so the chatbot's KnowledgeIngestionService
-            can load it from the classpath in production (AWS Lambda has no
-            access to the source tree at runtime). In local dev the same files
-            are also reachable via the filesystem path (chatbot.docs.path),
-            but the ingestion service de-duplicates by source name so this
-            is harmless.
-        -->
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-            </resource>
-            <resource>
-                <directory>${project.basedir}/../docs</directory>
-                <targetPath>docs</targetPath>
-                <includes>
-                    <include>*.md</include>
-                </includes>
-            </resource>
-        </resources>
-
         <plugins>
             <!-- Maven Shade Plugin for Lambda-compatible flat JAR -->
             <plugin>

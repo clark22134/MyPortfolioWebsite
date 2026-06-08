@@ -1,9 +1,11 @@
 package com.clarksprojects.ecommerce.service;
 
 import com.clarksprojects.ecommerce.repository.CustomerRepository;
+import com.clarksprojects.ecommerce.repository.ProductRepository;
 import com.clarksprojects.ecommerce.dto.Purchase;
 import com.clarksprojects.ecommerce.dto.PurchaseResponse;
 import com.clarksprojects.ecommerce.entity.*;
+import com.clarksprojects.ecommerce.exception.InvalidPurchaseException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +28,9 @@ class CheckoutServiceImplTest {
 
     @Mock
     private CustomerRepository customerRepository;
+
+    @Mock
+    private ProductRepository productRepository;
 
     @InjectMocks
     private CheckoutServiceImpl checkoutService;
@@ -74,6 +79,22 @@ class CheckoutServiceImplTest {
         billingAddress.setZipCode("62702");
 
         purchase = new Purchase(customer, shippingAddress, billingAddress, order, orderItems);
+
+        // Authoritative catalog prices the service re-prices against. Lenient so the
+        // negative-path tests (which build their own minimal purchases) don't trip
+        // Mockito's strict unused-stub check.
+        lenient().when(productRepository.findById(1L))
+                .thenReturn(Optional.of(activeProduct(1L, "24.99")));
+        lenient().when(productRepository.findById(2L))
+                .thenReturn(Optional.of(activeProduct(2L, "25.00")));
+    }
+
+    private Product activeProduct(Long id, String unitPrice) {
+        Product product = new Product();
+        product.setId(id);
+        product.setUnitPrice(new BigDecimal(unitPrice));
+        product.setActive(true);
+        return product;
     }
 
     @Test
@@ -173,5 +194,78 @@ class CheckoutServiceImplTest {
         checkoutService.placeOrder(purchase, null);
 
         assertEquals(OrderStatus.PROCESSING, order.getStatus());
+    }
+
+    @Test
+    void placeOrder_shouldRepriceFromCatalogAndIgnoreClientSuppliedPrices() {
+        // Tamper every client-supplied price/total to near-zero.
+        order.setTotalPrice(new BigDecimal("0.01"));
+        order.setTotalQuantity(99);
+        purchase.orderItems().forEach(i -> i.setUnitPrice(new BigDecimal("0.01")));
+
+        when(customerRepository.findByEmail("john@example.com")).thenReturn(Optional.empty());
+        when(customerRepository.save(any(Customer.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        checkoutService.placeOrder(purchase, null);
+
+        // Server recomputes from the catalog: 24.99 + 25.00 = 49.99, qty 2.
+        assertEquals(0, new BigDecimal("49.99").compareTo(order.getTotalPrice()));
+        assertEquals(2, order.getTotalQuantity());
+        order.getOrderItems().forEach(item -> {
+            BigDecimal expected = item.getProductId() == 1L
+                    ? new BigDecimal("24.99") : new BigDecimal("25.00");
+            assertEquals(0, expected.compareTo(item.getUnitPrice()));
+        });
+    }
+
+    @Test
+    void placeOrder_shouldRejectEmptyOrder() {
+        Purchase empty = new Purchase(customer, new Address(), new Address(), new Order(), new HashSet<>());
+
+        assertThrows(InvalidPurchaseException.class, () -> checkoutService.placeOrder(empty, null));
+        verify(customerRepository, never()).save(any());
+    }
+
+    @Test
+    void placeOrder_shouldRejectUnknownProduct() {
+        OrderItem item = new OrderItem();
+        item.setQuantity(1);
+        item.setProductId(999L); // not stubbed -> Optional.empty()
+        Set<OrderItem> items = new HashSet<>();
+        items.add(item);
+        Purchase bad = new Purchase(customer, new Address(), new Address(), new Order(), items);
+
+        assertThrows(InvalidPurchaseException.class, () -> checkoutService.placeOrder(bad, null));
+        verify(customerRepository, never()).save(any());
+    }
+
+    @Test
+    void placeOrder_shouldRejectInactiveProduct() {
+        Product inactive = activeProduct(3L, "10.00");
+        inactive.setActive(false);
+        when(productRepository.findById(3L)).thenReturn(Optional.of(inactive));
+
+        OrderItem item = new OrderItem();
+        item.setQuantity(1);
+        item.setProductId(3L);
+        Set<OrderItem> items = new HashSet<>();
+        items.add(item);
+        Purchase bad = new Purchase(customer, new Address(), new Address(), new Order(), items);
+
+        assertThrows(InvalidPurchaseException.class, () -> checkoutService.placeOrder(bad, null));
+        verify(customerRepository, never()).save(any());
+    }
+
+    @Test
+    void placeOrder_shouldRejectNonPositiveQuantity() {
+        OrderItem item = new OrderItem();
+        item.setQuantity(0);
+        item.setProductId(1L);
+        Set<OrderItem> items = new HashSet<>();
+        items.add(item);
+        Purchase bad = new Purchase(customer, new Address(), new Address(), new Order(), items);
+
+        assertThrows(InvalidPurchaseException.class, () -> checkoutService.placeOrder(bad, null));
+        verify(customerRepository, never()).save(any());
     }
 }

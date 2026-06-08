@@ -73,6 +73,12 @@ variable "extra_secret_arns" {
   default     = []
 }
 
+variable "db_iam_connect_arn" {
+  description = "When set, grants the Lambda role rds-db:connect on this exact dbuser ARN for RDS IAM database authentication. Empty disables the grant."
+  type        = string
+  default     = ""
+}
+
 variable "enable_snapstart" {
   description = "Enable Lambda SnapStart for faster cold starts"
   type        = bool
@@ -173,6 +179,25 @@ resource "aws_iam_role_policy" "lambda_extra_secrets" {
           "secretsmanager:DescribeSecret"
         ]
         Resource = var.extra_secret_arns
+      }
+    ]
+  })
+}
+
+# RDS IAM database authentication: allow the function to obtain a DB auth token
+# for exactly one dbuser ARN. Created only when db_iam_connect_arn is supplied.
+resource "aws_iam_role_policy" "lambda_rds_connect" {
+  count = var.db_iam_connect_arn != "" ? 1 : 0
+  name  = "${var.environment}-${var.function_name}-rds-connect-policy"
+  role  = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "rds-db:connect"
+        Resource = var.db_iam_connect_arn
       }
     ]
   })

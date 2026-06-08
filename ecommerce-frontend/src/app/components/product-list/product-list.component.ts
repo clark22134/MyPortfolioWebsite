@@ -1,4 +1,5 @@
-import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CurrencyPipe } from '@angular/common';
 import { GetResponseProducts, ProductService } from '../../services/product.service';
 import { Product } from '../../common/product.model';
@@ -31,12 +32,14 @@ export class ProductListComponent implements OnInit, OnDestroy {
   private readonly cartService = inject(CartService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   authService = inject(AuthService);
   products = signal<Product[]>([]);
   currentCategoryId = signal<number>(1);
   previousCategoryId = signal<number>(1);
   searchMode = signal<boolean>(false);
   loading = signal<boolean>(true);
+  error = signal<boolean>(false);
   selectedProduct = signal<Product | null>(null);
   selectedPromo = signal<PromoHighlight | null>(null);
   promoProducts = signal<Product[]>([]);
@@ -112,12 +115,14 @@ export class ProductListComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.startDealCountdown();
     this.loadDealPool();
-    this.route.paramMap.subscribe(() => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.listProducts();
     });
 
-    this.cartService.totalPrice.subscribe(data => this.totalPrice.set(data));
-    this.cartService.totalQuantity.subscribe(data => this.totalQuantity.set(data));
+    this.cartService.totalPrice.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(data => this.totalPrice.set(data));
+    this.cartService.totalQuantity.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(data => this.totalQuantity.set(data));
   }
 
   ngOnDestroy(): void {
@@ -148,19 +153,29 @@ export class ProductListComponent implements OnInit, OnDestroy {
     this.previousKeyword.set(theKeyword);
 
     this.loading.set(true);
+    this.error.set(false);
     this.productService.searchProductsPaginate(this.thePageNumber(),
                                               this.thePageSize(),
                                               theKeyword).subscribe(this.processResult());
   }
 
   processResult() {
-    return (data: GetResponseProducts) => {
-      // Spring Data REST omits `_embedded` when a page is empty, so guard for it.
-      this.products.set(data._embedded?.products ?? []);
-      this.thePageNumber.set(data.page.number + 1);
-      this.thePageSize.set(data.page.size);
-      this.theTotalElements.set(data.page.totalElements);
-      this.loading.set(false);
+    return {
+      next: (data: GetResponseProducts) => {
+        // Spring Data REST omits `_embedded` when a page is empty, so guard for it.
+        this.products.set(data._embedded?.products ?? []);
+        this.thePageNumber.set(data.page.number + 1);
+        this.thePageSize.set(data.page.size);
+        this.theTotalElements.set(data.page.totalElements);
+        this.loading.set(false);
+        this.error.set(false);
+      },
+      error: () => {
+        // Surface a retryable error instead of spinning forever.
+        this.products.set([]);
+        this.loading.set(false);
+        this.error.set(true);
+      }
     };
   }
 
@@ -177,6 +192,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
     this.previousCategoryId.set(this.currentCategoryId());
 
     this.loading.set(true);
+    this.error.set(false);
     this.productService.getProductListPaginate(this.thePageNumber(),
                                               this.thePageSize(),
                                               this.currentCategoryId()).subscribe(this.processResult());

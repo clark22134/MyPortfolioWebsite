@@ -2,7 +2,9 @@ package com.clarksprojects.ecommerce.controller;
 
 import com.clarksprojects.ecommerce.dto.CartItemDto;
 import com.clarksprojects.ecommerce.service.CartService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/cart")
 @RequiredArgsConstructor
+@Validated
 public class CartController {
 
     private final CartService cartService;
@@ -25,7 +28,7 @@ public class CartController {
     }
 
     @PutMapping
-    public List<CartItemDto> saveCart(Principal principal, @RequestBody List<CartItemDto> items) {
+    public List<CartItemDto> saveCart(Principal principal, @RequestBody List<@Valid CartItemDto> items) {
         return cartService.saveCart(principal.getName(), items);
     }
 }

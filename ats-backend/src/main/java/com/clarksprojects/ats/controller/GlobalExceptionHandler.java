@@ -2,6 +2,8 @@ package com.clarksprojects.ats.controller;
 
 import com.clarksprojects.ats.exception.ResourceNotFoundException;
 import com.clarksprojects.ats.exception.UnsupportedFileTypeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -18,6 +20,8 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     private static final String ERROR_KEY = "error";
 
@@ -76,5 +80,17 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Map<String, String> handleIOException(IOException ex) {
         return Map.of(ERROR_KEY, "Failed to process the uploaded file. Please try again.");
+    }
+
+    /**
+     * Catch-all for anything not handled above. Logs the real cause for
+     * diagnostics (CloudWatch) but returns a generic message so internal
+     * exception details are never leaked to the client.
+     */
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public Map<String, String> handleUnexpected(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return Map.of(ERROR_KEY, "An unexpected error occurred");
     }
 }
