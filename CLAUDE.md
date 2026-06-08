@@ -5,6 +5,28 @@
 > explicitly asked** — though for this RDS IAM workflow the user has been
 > authorizing PR creation explicitly; re-confirm each time).
 
+## Branch & PR workflow (REQUIRED)
+
+**Do all development work and open all PRs from the `clark-development` branch.**
+The goal is to keep `clark-development` always in sync with `main`.
+
+- Do **not** create new feature branches for this work — commit to
+  `clark-development` and open PRs from `clark-development` → `main`.
+- After a PR merges, **fast-forward `clark-development` back to `main`** so it
+  stays current:
+  ```
+  git fetch origin
+  git checkout clark-development
+  git merge --ff-only origin/main   # clark-development has no unique commits post-merge
+  git push origin clark-development
+  ```
+- If `clark-development` ever can't fast-forward (it shouldn't, since its commits
+  land in `main` via merge), reconcile before continuing — never work on a stale
+  branch.
+- Deploys still trigger only on merge to `main` (see Deploy below). All the usual
+  "explicitly ask before git" etiquette applies; the user has standing approval to
+  commit/push/PR **on `clark-development`** for this workflow.
+
 ## Architecture (one monorepo, three apps + a chatbot)
 
 - **portfolio** (clarkfoster.com), **ecommerce** (shop.clarkfoster.com), **ats** —
@@ -161,5 +183,7 @@ aws rds-data execute-statement --region us-east-1 --resource-arn "$CLUSTER_ARN" 
   call — which is the whole reason it works from the egress-less VPC.
 - Cost: the IAM-auth work adds **$0 recurring**; the Data API is the only public-path
   expansion and is gated off by default.
-- Branching: PR #262 = `clark-development`, PR #266 = `clark-rds-iam-cutover-portfolio`
-  (both merged). Branch new work from latest `origin/main`.
+- Branching: all work & PRs go on **`clark-development`** (see "Branch & PR
+  workflow" at top); fast-forward it to `main` after each merge. (History note:
+  PR #262 was `clark-development`; #266/#267 used a temporary
+  `clark-rds-iam-cutover-portfolio` branch — going forward, use `clark-development`.)
