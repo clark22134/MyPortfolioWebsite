@@ -47,6 +47,12 @@ variable "max_capacity" {
   default     = 2
 }
 
+variable "enable_data_api" {
+  description = "Enable the RDS Data API (HTTP endpoint). Default off to preserve VPC isolation; enable transiently only to run one-time IAM provisioning SQL, then turn back off."
+  type        = bool
+  default     = false
+}
+
 # Generate random password (exclude characters Aurora doesn't allow: / @ " and space)
 resource "random_password" "master" {
   length           = 32
@@ -128,10 +134,13 @@ resource "aws_rds_cluster" "aurora" {
   # Additive: allows IAM database authentication alongside password auth, so
   # apps can migrate to IAM tokens one at a time without disrupting the rest.
   iam_database_authentication_enabled = true
-  # RDS Data API — lets operators run the one-time IAM-role provisioning SQL via
-  # `aws rds-data execute-statement` (a public AWS endpoint), with no bastion or
-  # in-VPC compute. Safe to set back to false once provisioning is complete.
-  enable_http_endpoint      = true
+  # RDS Data API — a public AWS endpoint that bypasses VPC isolation, so it is
+  # OFF by default. Enable transiently (var.enable_data_api=true) only to run the
+  # one-time IAM-role provisioning SQL via `aws rds-data execute-statement`, then
+  # turn it back off. apply_immediately ensures that toggle takes effect now
+  # rather than waiting for the maintenance window.
+  enable_http_endpoint      = var.enable_data_api
+  apply_immediately         = true
   deletion_protection       = true
   skip_final_snapshot       = false
   final_snapshot_identifier = "${var.environment}-${var.cluster_identifier}-final-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"

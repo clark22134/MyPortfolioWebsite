@@ -66,10 +66,14 @@ aws rds describe-db-clusters --region us-east-1 \
 ```
 
 ### Step 2 — Create the IAM DB role (one-time, via RDS Data API)
-The cluster has the **RDS Data API** enabled (`enable_http_endpoint = true`),
-whose endpoint is a public AWS API — so the provisioning SQL runs with no
-bastion or in-VPC compute. Run each statement in `terraform/rds-iam/portfolio_app.sql`
-with:
+The **RDS Data API** is a public AWS endpoint that bypasses VPC isolation, so it
+is **off by default** (`enable_http_endpoint = var.enable_data_api`). Enable it
+**transiently** for provisioning, then turn it back off:
+```
+# enable: set TF_VAR_enable_data_api=true (workflow env or local), apply
+# provision (below), then remove TF_VAR_enable_data_api and apply to disable.
+```
+With it enabled, run each statement in `terraform/rds-iam/portfolio_app.sql` with:
 ```
 CLUSTER_ARN=arn:aws:rds:us-east-1:010438493245:cluster:prod-shared
 SECRET_ARN=arn:aws:secretsmanager:us-east-1:010438493245:secret:prod-shared-credentials-flwd0N
