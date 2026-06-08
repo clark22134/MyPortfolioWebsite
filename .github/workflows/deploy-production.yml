@@ -182,6 +182,10 @@ jobs:
       # Required for prod chatbot Lambda configuration.
       TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
       TF_VAR_aws_region: us-east-1
+      # RDS IAM auth cutover for portfolio-backend: switches it to IAM token auth
+      # and removes its plaintext DB_PASSWORD. The portfolio_app role must already
+      # exist (see terraform/RDS_IAM_AUTH_RUNBOOK.md). Plain literal, not a secret.
+      TF_VAR_portfolio_db_iam_auth: "true"
     steps:
       - uses: actions/checkout@v6
 

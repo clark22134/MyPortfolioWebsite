@@ -119,6 +119,12 @@ variable "openai_api_key" {
 # See terraform/RDS_IAM_AUTH_RUNBOOK.md. Flip an app's flag to true only AFTER
 # its IAM DB role has been created (provisioning SQL in terraform/rds-iam/).
 # ---------------------------------------------------------------------------
+variable "enable_data_api" {
+  description = "Transiently enable the Aurora RDS Data API to run one-time IAM-role provisioning SQL. Keep false in steady state to preserve VPC isolation."
+  type        = bool
+  default     = false
+}
+
 variable "portfolio_db_iam_auth" {
   description = "When true, the portfolio Lambda authenticates to Aurora with RDS IAM tokens (no DB password) and is granted rds-db:connect. When false, it uses the master password as before."
   type        = bool

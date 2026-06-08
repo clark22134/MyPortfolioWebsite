@@ -128,6 +128,10 @@ module "shared_aurora" {
   ]
   min_capacity = 0.5
   max_capacity = 4
+
+  # Off by default. Set TF_VAR_enable_data_api=true only while running one-time
+  # IAM-role provisioning SQL, then unset it (see RDS_IAM_AUTH_RUNBOOK.md).
+  enable_data_api = var.enable_data_api
 }
 
 # =========================================================================
