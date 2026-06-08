@@ -39,6 +39,10 @@ export class CheckoutComponent implements OnInit {
   useSavedBilling = signal(false);
   useSavedCard = signal(false);
 
+  // Submission state for the Place Order action.
+  submitting = signal(false);
+  submitError = signal<string | null>(null);
+
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly cartService: CartService,
@@ -254,6 +258,13 @@ export class CheckoutComponent implements OnInit {
       return;
     }
 
+    // Guard against double submission and clear any prior error.
+    if (this.submitting()) {
+      return;
+    }
+    this.submitting.set(true);
+    this.submitError.set(null);
+
     const order = new Order();
     order.totalPrice = this.totalPrice;
     order.totalQuantity = this.totalQuantity;
@@ -275,12 +286,15 @@ export class CheckoutComponent implements OnInit {
     purchase.orderItems = orderItems;
 
     this.checkoutService.placeOrder(purchase).subscribe({
-      next: response => {
-        alert(`Order placed successfully. Order tracking number: ${response.orderTrackingNumber}`);
+      next: () => {
+        this.submitting.set(false);
         this.resetCart();
       },
       error: err => {
-        alert(`There was an error: ${err.message}`);
+        this.submitting.set(false);
+        this.submitError.set(
+          err?.error?.error ?? 'We could not place your order. Please review your details and try again.'
+        );
       }
     });
   }

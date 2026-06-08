@@ -116,15 +116,22 @@ resource "aws_security_group" "aurora" {
 
 # Aurora Serverless v2 cluster
 resource "aws_rds_cluster" "aurora" {
-  cluster_identifier        = "${var.environment}-${var.cluster_identifier}"
-  engine                    = "aurora-postgresql"
-  engine_mode               = "provisioned"
-  engine_version            = "15.17"
-  database_name             = var.database_name
-  master_username           = var.master_username
-  master_password           = random_password.master.result
-  db_subnet_group_name      = aws_db_subnet_group.aurora.name
-  vpc_security_group_ids    = [aws_security_group.aurora.id]
+  cluster_identifier     = "${var.environment}-${var.cluster_identifier}"
+  engine                 = "aurora-postgresql"
+  engine_mode            = "provisioned"
+  engine_version         = "15.17"
+  database_name          = var.database_name
+  master_username        = var.master_username
+  master_password        = random_password.master.result
+  db_subnet_group_name   = aws_db_subnet_group.aurora.name
+  vpc_security_group_ids = [aws_security_group.aurora.id]
+  # Additive: allows IAM database authentication alongside password auth, so
+  # apps can migrate to IAM tokens one at a time without disrupting the rest.
+  iam_database_authentication_enabled = true
+  # RDS Data API — lets operators run the one-time IAM-role provisioning SQL via
+  # `aws rds-data execute-statement` (a public AWS endpoint), with no bastion or
+  # in-VPC compute. Safe to set back to false once provisioning is complete.
+  enable_http_endpoint      = true
   deletion_protection       = true
   skip_final_snapshot       = false
   final_snapshot_identifier = "${var.environment}-${var.cluster_identifier}-final-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
@@ -182,6 +189,11 @@ output "cluster_id" {
 output "cluster_arn" {
   description = "Aurora cluster ARN"
   value       = aws_rds_cluster.aurora.arn
+}
+
+output "cluster_resource_id" {
+  description = "Aurora cluster resource ID (used in rds-db:connect IAM ARNs)"
+  value       = aws_rds_cluster.aurora.cluster_resource_id
 }
 
 output "database_name" {

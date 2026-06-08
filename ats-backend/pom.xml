@@ -20,7 +20,21 @@
     <lombok.version>1.18.38</lombok.version>
     <postgresql.version>42.7.7</postgresql.version>
     <jwt.version>0.13.0</jwt.version>
+    <!-- AWS SDK for Java v2 BOM: single source of truth for all aws-sdk module versions. -->
+    <aws-sdk.version>2.34.0</aws-sdk.version>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${aws-sdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
@@ -125,11 +139,30 @@
       <version>2.0.3</version>
     </dependency>
     
-    <!-- AWS SDK for Secrets Manager -->
+    <!-- AWS SDK for Secrets Manager (version managed by the AWS SDK v2 BOM above). -->
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>secretsmanager</artifactId>
-      <version>2.20.162</version>
+    </dependency>
+
+    <!--
+        AWS Advanced JDBC Wrapper — enables RDS IAM database authentication.
+        The IAM plugin generates a short-lived auth token by SigV4-signing
+        locally (no network call), so it works from inside the VPC where the
+        Secrets Manager API is unreachable. Only active in the prod profile when
+        DB_DRIVER_CLASS selects software.amazon.jdbc.Driver and the URL uses the
+        jdbc:aws-wrapper: scheme; otherwise it sits inert on the classpath and
+        the plain PostgreSQL driver is used.
+    -->
+    <dependency>
+      <groupId>software.amazon.jdbc</groupId>
+      <artifactId>aws-advanced-jdbc-wrapper</artifactId>
+      <version>2.6.0</version>
+    </dependency>
+    <!-- Used by the wrapper's IAM plugin to generate RDS auth tokens (version via the AWS SDK v2 BOM). -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>rds</artifactId>
     </dependency>
   </dependencies>
 

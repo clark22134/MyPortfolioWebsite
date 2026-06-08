@@ -1,6 +1,6 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, tap, catchError, of } from 'rxjs';
+import { Observable, BehaviorSubject, tap, catchError, of, filter, take, map, finalize } from 'rxjs';
 import { LoginRequest, RegisterRequest } from '../models/user.model';
 
 /**
@@ -32,6 +32,11 @@ export class AuthService implements OnDestroy {
 
   private readonly currentUserSubject = new BehaviorSubject<UserInfo | null>(null);
   public readonly currentUser$ = this.currentUserSubject.asObservable();
+
+  // Emits `true` once the initial /me bootstrap call has resolved (success or
+  // failure). Guards await this so a hard refresh of a protected route does not
+  // race the async auth check and bounce an authenticated user to /login.
+  private readonly authReadySubject = new BehaviorSubject<boolean>(false);
 
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -145,6 +150,19 @@ export class AuthService implements OnDestroy {
     return this.currentUserSubject.value !== null;
   }
 
+  /**
+   * Resolves the authentication status once the initial bootstrap /me check has
+   * completed. Route guards should use this instead of the synchronous
+   * isAuthenticated() to avoid a race on first load / hard refresh.
+   */
+  whenReady(): Observable<boolean> {
+    return this.authReadySubject.pipe(
+      filter(ready => ready),
+      take(1),
+      map(() => this.isAuthenticated())
+    );
+  }
+
   // ========== Private Methods ==========
 
   private initializeAuthState(): void {
@@ -156,7 +174,8 @@ export class AuthService implements OnDestroy {
       catchError(() => {
         this.currentUserSubject.next(null);
         return of(null);
-      })
+      }),
+      finalize(() => this.authReadySubject.next(true))
     ).subscribe();
   }
 

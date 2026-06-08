@@ -260,9 +260,16 @@
                 <span>Total</span>
                 <span>{{ totalPrice | currency: 'USD' }}</span>
               </div>
-              <button type="submit" class="btn-purchase">
-                <i class="fa fa-lock"></i> Place Order
+              <button type="submit" class="btn-purchase" [disabled]="submitting()">
+                @if (submitting()) {
+                  <i class="fa fa-spinner fa-spin"></i> Placing Order…
+                } @else {
+                  <i class="fa fa-lock"></i> Place Order
+                }
               </button>
+              @if (submitError()) {
+                <small class="error" role="alert">{{ submitError() }}</small>
+              }
               <a routerLink="/cart-details" class="back-to-cart">
                 <i class="fa fa-arrow-left"></i> Back to Cart
               </a>

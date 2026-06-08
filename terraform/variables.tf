@@ -113,3 +113,44 @@ variable "openai_api_key" {
   sensitive   = true
   default     = ""
 }
+
+# ---------------------------------------------------------------------------
+# RDS IAM database authentication (per app, default off).
+# See terraform/RDS_IAM_AUTH_RUNBOOK.md. Flip an app's flag to true only AFTER
+# its IAM DB role has been created (provisioning SQL in terraform/rds-iam/).
+# ---------------------------------------------------------------------------
+variable "portfolio_db_iam_auth" {
+  description = "When true, the portfolio Lambda authenticates to Aurora with RDS IAM tokens (no DB password) and is granted rds-db:connect. When false, it uses the master password as before."
+  type        = bool
+  default     = false
+}
+
+variable "portfolio_db_iam_user" {
+  description = "PostgreSQL role the portfolio Lambda assumes for IAM auth (must exist with 'GRANT rds_iam' and privileges on the portfolio database)."
+  type        = string
+  default     = "portfolio_app"
+}
+
+variable "ecommerce_db_iam_auth" {
+  description = "When true, the ecommerce Lambda authenticates to Aurora with RDS IAM tokens (no DB password) and is granted rds-db:connect."
+  type        = bool
+  default     = false
+}
+
+variable "ecommerce_db_iam_user" {
+  description = "PostgreSQL role the ecommerce Lambda assumes for IAM auth (must exist with 'GRANT rds_iam' and privileges on the ecommerce database)."
+  type        = string
+  default     = "ecommerce_app"
+}
+
+variable "ats_db_iam_auth" {
+  description = "When true, the ATS Lambda authenticates to Aurora with RDS IAM tokens (no DB password) and is granted rds-db:connect."
+  type        = bool
+  default     = false
+}
+
+variable "ats_db_iam_user" {
+  description = "PostgreSQL role the ATS Lambda assumes for IAM auth (must exist with 'GRANT rds_iam', CREATE on schema public for Flyway, and privileges on the ats database)."
+  type        = string
+  default     = "ats_app"
+}

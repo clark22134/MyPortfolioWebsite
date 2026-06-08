@@ -73,6 +73,9 @@ docker-compose.override.yml
 *.backup
 *.bak
 *.db
+# Tracked exception: RDS IAM provisioning scripts (no secrets — DDL/GRANT only),
+# referenced by terraform/RDS_IAM_AUTH_RUNBOOK.md.
+!terraform/rds-iam/*.sql
 *.sqlite
 *.sqlite3
 

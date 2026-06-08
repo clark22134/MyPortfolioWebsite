@@ -32,6 +32,18 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# Account ID, used to build rds-db:connect ARNs for IAM database auth.
+data "aws_caller_identity" "current" {}
+
+# rds-db:connect ARNs for each app's IAM database role. Empty unless that app's
+# *_db_iam_auth flag is enabled, which keeps the IAM grant off until cutover.
+locals {
+  rds_db_arn_prefix            = "arn:aws:rds-db:${var.aws_region}:${data.aws_caller_identity.current.account_id}:dbuser:${module.shared_aurora.cluster_resource_id}"
+  portfolio_db_iam_connect_arn = var.portfolio_db_iam_auth ? "${local.rds_db_arn_prefix}/${var.portfolio_db_iam_user}" : ""
+  ecommerce_db_iam_connect_arn = var.ecommerce_db_iam_auth ? "${local.rds_db_arn_prefix}/${var.ecommerce_db_iam_user}" : ""
+  ats_db_iam_connect_arn       = var.ats_db_iam_auth ? "${local.rds_db_arn_prefix}/${var.ats_db_iam_user}" : ""
+}
+
 # VPC and Networking
 module "networking" {
   source = "./modules/networking"
@@ -165,36 +177,39 @@ module "portfolio_lambda" {
   # empty removes the IAM grant.
   extra_secret_arns = []
 
-  environment_variables = {
-    SPRING_PROFILES_ACTIVE = "prod"
-    SPRING_DATASOURCE_URL  = "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/portfolio"
-    DATABASE_SECRET_ARN    = module.shared_aurora.secret_arn
-    DB_USERNAME            = module.shared_aurora.master_username
-    DB_PASSWORD            = module.shared_aurora.master_password
-    MAIL_HOST              = "email-smtp.us-east-1.amazonaws.com"
-    MAIL_PORT              = "587"
-    MAIL_USERNAME          = var.ses_smtp_username
-    MAIL_PASSWORD          = var.ses_smtp_password
-    CONTACT_EMAIL          = "clark@clarkfoster.com"
-    JWT_SECRET             = var.portfolio_jwt_secret
-    ADMIN_PASSWORD         = var.admin_password
-    # Chatbot is permanently disabled in this Lambda — its code path now
-    # lives in portfolio-chatbot-backend / module.portfolio_chatbot_lambda
-    # which runs OUTSIDE the VPC so it can reach api.openai.com. Keeping
-    # the env var pinned to "false" prevents the legacy chatbot beans in
-    # portfolio-backend (still on classpath until cleanup PR) from trying
-    # to embed knowledge at startup, which would block on a VPC with no
-    # NAT and burn the entire SnapStart init budget.
-    CHATBOT_ENABLED = "false"
-    OPENAI_API_KEY  = ""
-    # Disable Spring AI's OpenAI auto-config entirely on this Lambda. With
-    # CHATBOT_ENABLED=false the OPENAI_API_KEY is empty, so OpenAiChat /
-    # OpenAiEmbedding auto-configurations would still try to instantiate
-    # `openAiApi` at context refresh and fail with "OpenAI API key must be
-    # set", killing SnapStart pre-snapshot init.
-    SPRING_AI_MODEL_CHAT      = "none"
-    SPRING_AI_MODEL_EMBEDDING = "none"
-  }
+  # Grants rds-db:connect only while IAM auth is enabled (empty otherwise).
+  db_iam_connect_arn = local.portfolio_db_iam_connect_arn
+
+  # DB auth is env-driven so the artifact never changes between modes:
+  #   - IAM auth: jdbc:aws-wrapper:// URL + wrapper driver + IAM dbuser, no password.
+  #   - Password auth (default): plain jdbc:postgresql:// URL + master creds.
+  # See terraform/RDS_IAM_AUTH_RUNBOOK.md for the cutover/rollback procedure.
+  environment_variables = merge(
+    {
+      SPRING_PROFILES_ACTIVE = "prod"
+      SPRING_DATASOURCE_URL  = var.portfolio_db_iam_auth ? "jdbc:aws-wrapper:postgresql://${module.shared_aurora.cluster_endpoint}:5432/portfolio?wrapperPlugins=iam&sslmode=require" : "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/portfolio"
+      DATABASE_SECRET_ARN    = module.shared_aurora.secret_arn
+      DB_USERNAME            = var.portfolio_db_iam_auth ? var.portfolio_db_iam_user : module.shared_aurora.master_username
+      MAIL_HOST              = "email-smtp.us-east-1.amazonaws.com"
+      MAIL_PORT              = "587"
+      MAIL_USERNAME          = var.ses_smtp_username
+      MAIL_PASSWORD          = var.ses_smtp_password
+      CONTACT_EMAIL          = "clark@clarkfoster.com"
+      JWT_SECRET             = var.portfolio_jwt_secret
+      ADMIN_PASSWORD         = var.admin_password
+      # Chatbot is permanently disabled in this Lambda — its code path now
+      # lives in portfolio-chatbot-backend / module.portfolio_chatbot_lambda
+      # which runs OUTSIDE the VPC so it can reach api.openai.com.
+      CHATBOT_ENABLED           = "false"
+      OPENAI_API_KEY            = ""
+      SPRING_AI_MODEL_CHAT      = "none"
+      SPRING_AI_MODEL_EMBEDDING = "none"
+    },
+    # IAM mode selects the wrapper driver; password mode supplies the master password.
+    var.portfolio_db_iam_auth
+    ? { DB_DRIVER_CLASS = "software.amazon.jdbc.Driver" }
+    : { DB_PASSWORD = module.shared_aurora.master_password }
+  )
 }
 
 # ---------------------------------------------------------------------------
@@ -397,14 +412,22 @@ module "ecommerce_lambda" {
   database_secret_arn    = module.shared_aurora.secret_arn
   enable_database_access = true
 
-  environment_variables = {
-    SPRING_PROFILES_ACTIVE = "prod"
-    SPRING_DATASOURCE_URL  = "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ecommerce"
-    DATABASE_SECRET_ARN    = module.shared_aurora.secret_arn
-    DB_USERNAME            = module.shared_aurora.master_username
-    DB_PASSWORD            = module.shared_aurora.master_password
-    ECOMMERCE_JWT_SECRET   = var.ecommerce_jwt_secret
-  }
+  # Grants rds-db:connect only while IAM auth is enabled (empty otherwise).
+  db_iam_connect_arn = local.ecommerce_db_iam_connect_arn
+
+  # Env-driven DB auth (see terraform/RDS_IAM_AUTH_RUNBOOK.md).
+  environment_variables = merge(
+    {
+      SPRING_PROFILES_ACTIVE = "prod"
+      SPRING_DATASOURCE_URL  = var.ecommerce_db_iam_auth ? "jdbc:aws-wrapper:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ecommerce?wrapperPlugins=iam&sslmode=require" : "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ecommerce"
+      DATABASE_SECRET_ARN    = module.shared_aurora.secret_arn
+      DB_USERNAME            = var.ecommerce_db_iam_auth ? var.ecommerce_db_iam_user : module.shared_aurora.master_username
+      ECOMMERCE_JWT_SECRET   = var.ecommerce_jwt_secret
+    },
+    var.ecommerce_db_iam_auth
+    ? { DB_DRIVER_CLASS = "software.amazon.jdbc.Driver" }
+    : { DB_PASSWORD = module.shared_aurora.master_password }
+  )
 }
 
 # API Gateway for E-Commerce Backend
@@ -507,29 +530,38 @@ module "ats_lambda" {
   database_secret_arn    = module.shared_aurora.secret_arn
   enable_database_access = true
 
-  environment_variables = {
-    SPRING_PROFILES_ACTIVE = "prod"
-    SPRING_DATASOURCE_URL  = "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ats"
-    DATABASE_SECRET_ARN    = module.shared_aurora.secret_arn
-    DB_USERNAME            = module.shared_aurora.master_username
-    DB_PASSWORD            = module.shared_aurora.master_password
-    # Required: JwtUtil @PostConstruct fails fast without this, which kills
-    # SnapStart pre-init and the Lambda waiter reports "Failed".
-    JWT_SECRET    = var.ats_jwt_secret
-    COOKIE_DOMAIN = ".clarkfoster.com"
-    # Demo accounts disabled in prod (SECURITY: previously defaulted to seeding
-    # admin/admin123, recruiter/recruiter123, manager/manager123 — anyone on the
-    # internet could log in with full ADMIN privileges). To re-enable the public
-    # demo, set this to "true" AND supply strong, non-empty values for
-    # TF_VAR_ats_admin_password / TF_VAR_ats_recruiter_password /
-    # TF_VAR_ats_manager_password in the deploy workflow. `DemoUserInitializer`
-    # also refuses to seed a user whose configured password is blank, as a
-    # belt-and-suspenders guard.
-    ATS_DEMO_ACCOUNTS_ENABLED = "false"
-    ATS_ADMIN_PASSWORD        = var.ats_admin_password
-    ATS_RECRUITER_PASSWORD    = var.ats_recruiter_password
-    ATS_MANAGER_PASSWORD      = var.ats_manager_password
-  }
+  # Grants rds-db:connect only while IAM auth is enabled (empty otherwise).
+  db_iam_connect_arn = local.ats_db_iam_connect_arn
+
+  # Env-driven DB auth (see terraform/RDS_IAM_AUTH_RUNBOOK.md). Flyway runs as
+  # the IAM role, so ats_app needs CREATE on schema public (see the SQL).
+  environment_variables = merge(
+    {
+      SPRING_PROFILES_ACTIVE = "prod"
+      SPRING_DATASOURCE_URL  = var.ats_db_iam_auth ? "jdbc:aws-wrapper:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ats?wrapperPlugins=iam&sslmode=require" : "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ats"
+      DATABASE_SECRET_ARN    = module.shared_aurora.secret_arn
+      DB_USERNAME            = var.ats_db_iam_auth ? var.ats_db_iam_user : module.shared_aurora.master_username
+      # Required: JwtUtil @PostConstruct fails fast without this, which kills
+      # SnapStart pre-init and the Lambda waiter reports "Failed".
+      JWT_SECRET    = var.ats_jwt_secret
+      COOKIE_DOMAIN = ".clarkfoster.com"
+      # Demo accounts disabled in prod (SECURITY: previously defaulted to seeding
+      # admin/admin123, recruiter/recruiter123, manager/manager123 — anyone on the
+      # internet could log in with full ADMIN privileges). To re-enable the public
+      # demo, set this to "true" AND supply strong, non-empty values for
+      # TF_VAR_ats_admin_password / TF_VAR_ats_recruiter_password /
+      # TF_VAR_ats_manager_password in the deploy workflow. `DemoUserInitializer`
+      # also refuses to seed a user whose configured password is blank, as a
+      # belt-and-suspenders guard.
+      ATS_DEMO_ACCOUNTS_ENABLED = "false"
+      ATS_ADMIN_PASSWORD        = var.ats_admin_password
+      ATS_RECRUITER_PASSWORD    = var.ats_recruiter_password
+      ATS_MANAGER_PASSWORD      = var.ats_manager_password
+    },
+    var.ats_db_iam_auth
+    ? { DB_DRIVER_CLASS = "software.amazon.jdbc.Driver" }
+    : { DB_PASSWORD = module.shared_aurora.master_password }
+  )
 }
 
 # API Gateway for ATS Backend

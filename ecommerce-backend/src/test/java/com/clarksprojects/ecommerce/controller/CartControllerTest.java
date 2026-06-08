@@ -107,4 +107,16 @@ class CartControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }
+
+    @Test
+    void saveCart_invalidItem_returns400() throws Exception {
+        // Missing productId and non-positive quantity must be rejected.
+        String invalidBody = "[{\"name\":\"Bad\",\"unitPrice\":1.00,\"quantity\":0}]";
+
+        mockMvc.perform(put("/api/cart")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidBody))
+                .andExpect(status().isBadRequest());
+    }
 }
