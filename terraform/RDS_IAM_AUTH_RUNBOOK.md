@@ -87,15 +87,17 @@ with `rds_iam` + DML privileges. (The Data API can be disabled again after all
 apps are provisioned.)
 
 ### Step 3 — Cutover (canary)
-Flip the flag and apply:
+Deploys are CI-only (`terraform apply` runs inside `deploy-production.yml` with
+the secrets injected as `TF_VAR_*`), so flip the flag by adding one line to that
+workflow's `env:` block, then merge to `main`:
+```yaml
+# .github/workflows/deploy-production.yml, in the terraform job's env:
+TF_VAR_portfolio_db_iam_auth: "true"
 ```
-terraform apply -var="portfolio_db_iam_auth=true"
-# (or set portfolio_db_iam_auth = true in your tfvars)
-```
-This single apply: swaps the URL to the wrapper scheme, sets
-`DB_DRIVER_CLASS`, switches `DB_USERNAME` to `portfolio_app`, **removes
-`DB_PASSWORD`**, and attaches the `rds-db:connect` policy. New Lambda execution
-environments pick it up immediately.
+(This is a plain literal, not a GitHub secret.) The resulting `terraform apply`
+swaps the URL to the wrapper scheme, sets `DB_DRIVER_CLASS`, switches
+`DB_USERNAME` to `portfolio_app`, **removes `DB_PASSWORD`**, and attaches the
+`rds-db:connect` policy. New Lambda execution environments pick it up immediately.
 
 ### Step 4 — Verify
 ```
@@ -110,10 +112,15 @@ Also check CloudWatch logs for a clean HikariCP start (no auth errors). A first
 cold start may be slightly slower while the token is generated and cached.
 
 ### Rollback (instant, no redeploy)
+Remove the `TF_VAR_portfolio_db_iam_auth` line (or set it to `"false"`) and merge
+— the next apply restores password auth on the same artifact. For an emergency
+rollback without waiting for CI, set the env directly:
 ```
-terraform apply -var="portfolio_db_iam_auth=false"
+aws lambda update-function-configuration --function-name prod-portfolio-backend \
+  --region us-east-1 --environment "Variables={...,DB_PASSWORD=<master>,...}"
+# then reconcile Terraform afterwards.
 ```
-Restores password auth on the same artifact. (Optionally drop the role later:
+(Optionally drop the role later:
 `DROP ROLE portfolio_app;` and revert the cluster flag once all apps are migrated.)
 
 ## Hardening follow-ups (optional)
@@ -133,11 +140,11 @@ role (`portfolio_app`, `ecommerce_app`, `ats_app`). The cluster IAM-auth flag
 
 To migrate an app, run its cutover independently:
 
-| App | Provisioning SQL | DB | Cutover |
+| App | Provisioning SQL | DB | Cutover (add to deploy-production.yml env, then merge) |
 |---|---|---|---|
-| portfolio | `terraform/rds-iam/portfolio_app.sql` | `portfolio` | `apply -var="portfolio_db_iam_auth=true"` |
-| ecommerce | `terraform/rds-iam/ecommerce_app.sql` | `ecommerce` | `apply -var="ecommerce_db_iam_auth=true"` |
-| ats | `terraform/rds-iam/ats_app.sql` | `ats` | `apply -var="ats_db_iam_auth=true"` |
+| portfolio | `terraform/rds-iam/portfolio_app.sql` | `portfolio` | `TF_VAR_portfolio_db_iam_auth: "true"` |
+| ecommerce | `terraform/rds-iam/ecommerce_app.sql` | `ecommerce` | `TF_VAR_ecommerce_db_iam_auth: "true"` |
+| ats | `terraform/rds-iam/ats_app.sql` | `ats` | `TF_VAR_ats_db_iam_auth: "true"` |
 
 Verify each the same way as Step 4, against the matching function
 (`prod-ecommerce-backend`, `prod-ats-backend`) and a DB-backed endpoint.
