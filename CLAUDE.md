@@ -1,0 +1,165 @@
+# Project Working State & Roadmap
+
+> Working/handoff doc for ongoing infra & security work. Keep it current. The
+> user's standing global rules still apply (e.g. **never run git commands unless
+> explicitly asked** — though for this RDS IAM workflow the user has been
+> authorizing PR creation explicitly; re-confirm each time).
+
+## Architecture (one monorepo, three apps + a chatbot)
+
+- **portfolio** (clarkfoster.com), **ecommerce** (shop.clarkfoster.com), **ats** —
+  each = Angular 21 frontend + Spring Boot 3.5.14 / Java 21 backend, deployed as
+  an **AWS Lambda (SnapStart)** behind **API Gateway → CloudFront**.
+- **portfolio-chatbot-backend** — RAG chatbot, separate Lambda **outside the VPC**
+  (so it can reach api.openai.com). The canonical chatbot lives here; the old
+  duplicate copy was removed from portfolio-backend this session.
+- Shared **Aurora Serverless v2 PostgreSQL** cluster `prod-shared` (one cluster,
+  three databases: `portfolio`, `ecommerce`, `ats`).
+- **Deploy = push to `main`** → GitHub Actions `deploy-production.yml`: quality
+  gates → `terraform apply` (secrets injected as `TF_VAR_*` from GitHub Secrets)
+  → build jars → S3 (`prod-lambda-deployments-<acct>`) → `lambda
+  update-function-code` → `publish-version` → alias shift. **No local
+  `terraform apply`** (secrets only exist in CI). `main` is NOT branch-protected.
+
+## Verified environment facts (us-east-1, account 010438493245, env `prod`)
+
+- Aurora cluster `prod-shared`: Aurora PostgreSQL **15.17**, Serverless v2
+  - resource id `cluster-WI6AY6X3CBFXCMUDXZADOOC3BI`
+  - endpoint `prod-shared.cluster-c6zq2wwwkp8z.us-east-1.rds.amazonaws.com`
+  - cluster ARN `arn:aws:rds:us-east-1:010438493245:cluster:prod-shared`
+- Master secret `prod-shared-credentials`
+  ARN `arn:aws:secretsmanager:us-east-1:010438493245:secret:prod-shared-credentials-flwd0N`
+- Lambdas: `prod-portfolio-backend`, `prod-ecommerce-backend`, `prod-ats-backend`,
+  `prod-portfolio-chatbot`. Backends run **in private subnets**.
+- **VPC has NO NAT and NO VPC endpoints** → in-VPC Lambdas cannot reach public AWS
+  APIs (Secrets Manager is unreachable from them). This is *why* DB auth uses RDS
+  IAM (token is signed locally, no API call) instead of Secrets-Manager-at-runtime.
+- GitHub Secrets present: `ADMIN_PASSWORD, ATS_JWT_SECRET, AWS_ACCOUNT_ID,
+  AWS_ROLE_ARN, ECOMMERCE_JWT_SECRET, OPENAI_API_KEY, PORTFOLIO_JWT_SECRET,
+  SES_SMTP_PASSWORD, SES_SMTP_USERNAME, SONAR_TOKEN`. (ats demo-account passwords
+  intentionally absent → demo seeding stays off.)
+- Local toolchain: Maven runs on **JDK 26** (`JAVA_HOME=/opt/homebrew/Cellar/openjdk/26.0.1/libexec/openjdk.jdk/Contents/Home`);
+  tests pass under it via the surefire experimental flags. Terraform **v1.15.5**
+  (`fmt`/`validate` work; `validate` needs `init -backend=false`). The user is
+  authenticated for **read-only + targeted** AWS CLI use.
+
+## ACTIVE WORKFLOW: RDS IAM database authentication
+
+Goal: remove plaintext `DB_PASSWORD` from Lambda env; authenticate to Aurora with
+short-lived IAM tokens. (Resolves audit finding "Infra H1".)
+
+### Design — env-driven dual mode (same artifact, zero-downtime cutover)
+- App deps: `software.amazon.jdbc:aws-advanced-jdbc-wrapper:2.6.0` +
+  `software.amazon.awssdk:rds` (BOM-managed). Prod driver is
+  `${DB_DRIVER_CLASS:org.postgresql.Driver}`; url/username/password from env.
+- **Password mode (default)**: `jdbc:postgresql://…`, master creds, `DB_PASSWORD` set.
+- **IAM mode**: `SPRING_DATASOURCE_URL=jdbc:aws-wrapper:postgresql://HOST:5432/DB?wrapperPlugins=iam&sslmode=require`,
+  `DB_DRIVER_CLASS=software.amazon.jdbc.Driver`, `DB_USERNAME=<app>_app`, NO `DB_PASSWORD`.
+- Per-app Terraform flag `var.<app>_db_iam_auth` (default **false**); when true the
+  lambda module attaches an `rds-db:connect` policy and the env switches to IAM mode.
+- Provisioning SQL: `terraform/rds-iam/{portfolio,ecommerce,ats}_app.sql`.
+- **Data API** (`var.enable_data_api`, default **false** + `apply_immediately`):
+  a public endpoint used only to run provisioning SQL with no bastion; enable
+  transiently, then disable. Cluster also has `iam_database_authentication_enabled = true`.
+- Full procedure: `terraform/RDS_IAM_AUTH_RUNBOOK.md`.
+
+### Status
+- ✅ **PR #262** (merged/deployed): all session fixes + IAM scaffolding (3 backends,
+  flags off) + enabled cluster IAM auth & Data API.
+- ✅ Cluster IAM auth was *pending* after apply (no `apply_immediately`); flushed via
+  `aws rds modify-db-cluster --enable-iam-database-authentication --apply-immediately`.
+- ✅ `portfolio_app` role provisioned via Data API (member of `rds_iam`, CONNECT on
+  `portfolio`, DML on 16 tables).
+- ✅ **PR #266** (merged/deployed): **portfolio cutover** (`TF_VAR_portfolio_db_iam_auth=true`)
+  + gated Data API off (`var.enable_data_api` default false) + `apply_immediately`.
+- ✅ **PORTFOLIO CUTOVER VERIFIED**: HikariCP opened a wrapper/IAM connection (logs),
+  `DB_PASSWORD` removed, Data API off, `GET https://clarkfoster.com/api/projects`
+  returns real DB JSON (200). Portfolio now uses IAM tokens, no password.
+
+### Remaining IAM work
+1. **Soak portfolio** (cold starts / token refresh over real traffic). Benign log
+   noise: HikariCP `connection has been closed` / `thread starvation` = normal
+   Lambda freeze/thaw; wrapper mints a fresh token on the next connection.
+2. **ecommerce cutover** — DML-only (ddl-auto=validate). Procedure below with
+   `ecommerce_app` / db `ecommerce`.
+3. **ats cutover — DO LAST, carefully.** ats runs **Flyway as the datasource user**,
+   so `ats_app.sql` does `REASSIGN OWNED BY postgres TO ats_app` + `CREATE` on schema.
+   Review object ownership first.
+4. After all three migrate: consider rotating the Aurora master password (still used
+   as break-glass + by not-yet-migrated apps + Data API provisioning).
+
+### Repeatable cutover procedure (per app)
+```bash
+# 1) Transiently enable Data API: add TF_VAR_enable_data_api: "true" to
+#    deploy-production.yml terraform env, merge (or use an already-open window).
+# 2) Provision the role (Data API; public endpoint, no VPC needed):
+CLUSTER_ARN=arn:aws:rds:us-east-1:010438493245:cluster:prod-shared
+SECRET_ARN=arn:aws:secretsmanager:us-east-1:010438493245:secret:prod-shared-credentials-flwd0N
+aws rds-data execute-statement --region us-east-1 --resource-arn "$CLUSTER_ARN" \
+  --secret-arn "$SECRET_ARN" --database <DB> --sql "<one statement>"   # one per call
+# 3) Cutover: add TF_VAR_<app>_db_iam_auth: "true" to deploy-production.yml env, merge.
+# 4) Verify: Lambda env has no DB_PASSWORD; CloudWatch shows
+#    "HikariPool-1 - Added connection software.amazon.jdbc.wrapper.ConnectionWrapper";
+#    hit a DB-backed endpoint (portfolio: /api/projects -> JSON 200).
+# 5) Remove TF_VAR_enable_data_api (back to false), merge -> Data API off.
+# Rollback: remove/false TF_VAR_<app>_db_iam_auth, merge -> password mode, same artifact.
+```
+
+## FULL ROADMAP (priority order)
+
+1. **Finish IAM migration**: ecommerce cutover → ats cutover (last) → optional master
+   password rotation.
+2. **Dependency CVE remediation PR** (separate; Trivy-surfaced, mostly pre-existing
+   on main — NOT introduced by our work):
+   - `tomcat-embed-core` HIGH **CVE-2026-34487 / 34483** → override `tomcat.version`
+     to **10.1.54** (Spring Boot 3.5.14 ships 10.1.53) in the backends.
+   - ats `commons-lang3` **CVE-2025-48924** → 3.18.0; ats criticals **CVE-2025-66516**
+     (fix 3.2.2) and **CVE-2025-31672** (fix 5.4.0) — identify the libs.
+   - Frontends: ecommerce lockfile **CVE-2026-33671** (HIGH), portfolio `uuid` → 14,
+     ats-frontend base image → `npm audit fix` / base image bump.
+   - Note: a Trivy scan saw a **stale `app.jar` on Spring Boot 3.4.4 / Tomcat
+     10.1.39** (CRITICALs) — current source is 3.5.14; confirm what's actually
+     deployed vs source.
+3. **Remaining audit findings** (from this session's audit; none yet done):
+   - Infra **H2/M3**: CI deploy-role IAM wildcards (`terraform/main.tf` ~771-821) — scope down.
+   - Infra **H3**: hardcoded dev creds in `ats-db` / `ecommerce-db` Dockerfiles.
+   - Infra **M1**: containers run as root (all Dockerfiles); **M2**: unpinned base tags.
+   - Infra **M4**: OpenAI key plaintext in chatbot Lambda env — chatbot is *outside*
+     the VPC, so Secrets-Manager-at-runtime IS feasible there.
+   - Backend **M2**: inconsistent security config (CORS/CSRF, `JwtUtil` vs `JwtUtils`)
+     across modules — standardize.
+   - Backend **L1**: `printStackTrace` in `StreamLambdaHandler`s; **L2**: unbounded
+     in-memory rate-limiter map in portfolio-chatbot-backend.
+   - Frontend **M3**: duplicated auth guard (ecommerce/portfolio); **M4**: portfolio
+     missing specs for ~12 components (interactive projects, a11y service).
+
+## Completed this session (merged in PR #262 unless noted)
+
+- **Security**: removed committed ecommerce JWT secret + `keystore.p12` (local dev →
+  HTTP); checkout **server-side re-pricing** (`InvalidPurchaseException` → 400) so
+  tampered orders are rejected; cart `@Valid` + `ConstraintViolation` → 400; ats
+  catch-all exception handler; **portfolio auth-guard race fix** (`whenReady()`);
+  ecommerce checkout UX (submit guard + inline error, no `alert()`); ecommerce
+  product-list error state + `takeUntilDestroyed`; ecommerce CSP dropped
+  `script-src 'unsafe-inline'`.
+- **Currency/cleanup**: AWS SDK v2 `2.20.162 → 2.34.0` (BOM); `postgresql 42.7.11`
+  (CVE-2026-42198); **removed dead duplicate chatbot from portfolio-backend** (canonical
+  in portfolio-chatbot-backend; dropped Spring AI + webflux → smaller/faster Lambda);
+  `npm install → npm ci` (portfolio-frontend); removed obsolete compose `version`.
+- Local test baselines (JDK 26): portfolio-backend 171, ats-backend 222,
+  ecommerce-backend 84, portfolio-frontend 246, ecommerce-frontend 199 — all green.
+
+## Gotchas / operational notes
+
+- Cluster setting changes go to `PendingModifiedValues` unless `apply_immediately =
+  true` (now set on the cluster). Flush a stuck pending change with
+  `aws rds modify-db-cluster … --apply-immediately`.
+- Trivy (GitHub Advanced Security) parses `pom.xml` statically and does **not**
+  resolve Spring-managed/property versions — use **literal** `<version>` to satisfy
+  it (we pinned postgresql literally for this reason).
+- The IAM token is generated by the wrapper via **local SigV4 signing** — no network
+  call — which is the whole reason it works from the egress-less VPC.
+- Cost: the IAM-auth work adds **$0 recurring**; the Data API is the only public-path
+  expansion and is gated off by default.
+- Branching: PR #262 = `clark-development`, PR #266 = `clark-rds-iam-cutover-portfolio`
+  (both merged). Branch new work from latest `origin/main`.
