@@ -103,7 +103,7 @@ short-lived IAM tokens. (Resolves audit finding "Infra H1".)
   order_item, cart_item) + `ALTER DEFAULT PRIVILEGES`. Data API was enabled with
   `aws rds enable-http-endpoint`, used, then **re-disabled** with
   `aws rds disable-http-endpoint` (confirmed off).
-- 🚧 **ecommerce cutover PR opened (this session)**: flips
+- 🚧 **PR #269 (this session): ecommerce cutover** — flips
   `TF_VAR_ecommerce_db_iam_auth=true` in `deploy-production.yml`. **Not yet
   merged** → ecommerce still in password mode until merge+deploy. Verify after
   deploy (Lambda env has no `DB_PASSWORD`; CloudWatch HikariCP wrapper connection;
