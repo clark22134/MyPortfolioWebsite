@@ -20,10 +20,10 @@
 		     via spring-boot-starter-data-rest) to the CVE-2026-34487 / CVE-2026-34483
 		     fix. Literal version so Trivy resolves it. -->
 		<tomcat.version>10.1.54</tomcat.version>
-		<lombok.version>1.18.38</lombok.version>
+		<lombok.version>1.18.46</lombok.version>
 		<jjwt.version>0.13.0</jjwt.version>
 		<!-- AWS SDK for Java v2 BOM: single source of truth for all aws-sdk module versions. -->
-		<aws-sdk.version>2.34.0</aws-sdk.version>
+		<aws-sdk.version>2.46.6</aws-sdk.version>
 	</properties>
 
 	<dependencyManagement>
@@ -121,7 +121,7 @@
 		<dependency>
 			<groupId>com.amazonaws.serverless</groupId>
 			<artifactId>aws-serverless-java-container-springboot3</artifactId>
-			<version>2.0.3</version>
+			<version>2.1.5</version>
 		</dependency>
 
 		<!--
@@ -179,7 +179,7 @@
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.14</version>
+				<version>0.8.15</version>
 				<executions>
 					<execution>
 						<goals>
@@ -198,7 +198,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>3.6.0</version>
+				<version>3.6.2</version>
 				<configuration>
 					<createDependencyReducedPom>false</createDependencyReducedPom>
 					<filters>
