@@ -205,6 +205,22 @@ resource "aws_security_group" "ses_smtp_endpoint" {
   }
 }
 
+# Adopt the pre-existing SES SMTP interface endpoint instead of creating a new one.
+# An endpoint for email-smtp.<region>.amazonaws.com with private DNS enabled was
+# created out-of-band (manually, on 2026-04-14) and already owns that private DNS
+# domain in this VPC. AWS permits only ONE private-DNS endpoint per domain per VPC,
+# so a fresh create collides ("private-dns-enabled cannot be set because there is
+# already a conflicting DNS domain for email-smtp.us-east-1.amazonaws.com"). The
+# existing endpoint already sits in the only private subnet whose AZ offers SES SMTP
+# (us-east-1b), so adoption is in-place — Terraform just attaches the managed SG
+# (prod-ses-smtp-vpce-sg, which already allows :587 from the portfolio Lambda SG) and
+# adds tags; no replacement, no subnet move, no email-egress interruption. This block
+# can be removed in a follow-up once a deploy confirms the resource is in state.
+import {
+  to = aws_vpc_endpoint.ses_smtp
+  id = "vpce-00b0dd97892f35d02"
+}
+
 resource "aws_vpc_endpoint" "ses_smtp" {
   vpc_id              = module.networking.vpc_id
   service_name        = data.aws_vpc_endpoint_service.ses_smtp.service_name
