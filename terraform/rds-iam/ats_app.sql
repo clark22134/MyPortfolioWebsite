@@ -39,7 +39,15 @@ GRANT USAGE, CREATE ON SCHEMA public TO ats_app;
 --      SELECT relname, relkind FROM pg_class c
 --      JOIN pg_roles r ON r.oid = c.relowner
 --      WHERE r.rolname = 'postgres' AND relkind IN ('r','S','v','m');
+--
+--    AURORA GOTCHA: the master user is `rds_superuser`, NOT a real superuser, so
+--    REASSIGN OWNED requires it to hold the privileges of BOTH the old and new
+--    roles. Without the line below it fails with
+--    "permission denied to reassign objects" (SQLState 42501). Grant ats_app to
+--    postgres for the reassign, then revoke it afterward to keep the role graph clean.
+GRANT ats_app TO postgres;
 REASSIGN OWNED BY postgres TO ats_app;
+REVOKE ats_app FROM postgres;
 
 -- 5. Belt-and-suspenders DML grants (redundant for owned objects, but cover any
 --    objects not owned by postgres, and future ones).
