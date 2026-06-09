@@ -15,6 +15,6 @@
 # already runs non-root. Adding USER here would break that init chown.
 # Infra M2: base image pinned by digest for reproducible builds (tag kept for
 # clarity; Dependabot still bumps tag + digest).
-FROM postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+FROM postgres:18-alpine@sha256:96d56f7f57c6aacd1fcb908bc83b345ec5f83231ee486dd66a1baadce274db88
 ENV POSTGRES_DB=ats
 ENV POSTGRES_USER=atsapp
