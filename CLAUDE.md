@@ -45,13 +45,23 @@
   and `POST /api/chatbot/message` returns a grounded RAG answer with citations. Details in
   the **"Infra M4 — chatbot OpenAI key in Secrets Manager"** section below. Chatbot test
   baseline **12 → 20**.
+- ✅ **Frontend M4 — portfolio-frontend test coverage — PR #276 OPEN (`clark-development` →
+  `main`).** Added **14 unit spec files** for the behavior-rich portfolio-frontend files that
+  had no tests (AccessibilityService, auth interceptor/guard, TerminalLoaderService, doc-viewer,
+  ai-projects, documentation, project-gallery, accessibility-statement, kali-terminal-loader,
+  + the 4 interactive-project placeholder pages). **Test-only — no prod source changed.**
+  portfolio-frontend baseline **246 → 317** (`npm run test:ci`, 31 files all green). Details +
+  test-env gotchas in the **"Frontend M4"** section below. Frontend **M3** (auth-guard "dedup")
+  was investigated and is **NOT a real defect** — see that section.
+  **After #276 merges, resync:** `git fetch && git checkout clark-development &&
+  git merge --ff-only origin/main && git push origin clark-development`.
 - ▶️ **NEXT WORK**: remaining roadmap **#3** findings (H2/M3 IAM wildcards, M1 non-root,
-  M2 pin base tags, Backend M2 security-config standardization, Frontend M3/M4 — see FULL
-  ROADMAP). H2/M3 is the highest-value item left but is **risky to do blind** (a wrong IAM
+  M2 pin base tags, Backend M2 security-config standardization — see FULL ROADMAP).
+  H2/M3 is the highest-value item left but is **risky to do blind** (a wrong IAM
   scope breaks *all* future deploys and can't be deploy-tested locally). M1/M2 are lower
   priority: **Dependabot already tracks base-image bumps** (many `dependabot/docker/*`
   branches open), and Docker images are **local-dev only** (prod runs as Lambda jars), so
-  they ship no prod attack surface.
+  they ship no prod attack surface. Frontend **M3** is a non-issue (see Frontend M4 section).
 - Optional IAM follow-ups (not blocking): soak; rotate the Aurora master password.
 
 ## Branch & PR workflow (REQUIRED)
@@ -274,6 +284,58 @@ stale is snapshotted (a pooled Apache/Netty client could be — another reason f
   `terraform/main.tf` and merge — the app still honours `${OPENAI_API_KEY:}`, so it reverts
   to env-var mode with the same artifact.
 
+## Frontend M4 — portfolio-frontend test coverage (✅ PR #276 OPEN; clark-development → main)
+
+**Goal:** fill the portfolio-frontend unit-test gaps the audit flagged — the roadmap-named
+accessibility service + interactive-project pages had no specs. **Test-only change: 14 new
+`*.spec.ts`, zero production source touched.** Baseline **246 → 317** (`npm run test:ci`, 31
+files all green; also verified plain `npx ng test --watch=false`).
+
+### What was added (14 files)
+- **services/** `accessibility.service.spec.ts` (font clamp 75–200, toggles + document-root
+  classes, `settings$`, localStorage persistence + corrupt-value fallback, prefers-reduced-motion,
+  TTS speak/stop/toggle), `auth.interceptor.spec.ts` (withCredentials, CSRF header on mutating
+  requests, 401 refresh-and-retry, refresh-fail propagation, /auth/login bypass),
+  `terminal-loader.service.spec.ts`.
+- **guards/** `auth.guard.spec.ts` (whenReady allow vs `/login` redirect).
+- **components/** `ai-projects`, `documentation`, `accessibility-statement`,
+  `doc-viewer` (slug→title + de-slugify fallback, markdown render, fenced-code escaping,
+  load-error flag, in-page anchor scroll; `mermaid` stubbed via `vi.mock`), `kali-terminal-loader`
+  (fakeAsync animation → `markComplete` + timer cleanup on destroy).
+- **projects/** `project-gallery` (data integrity) + `ai-chatbot`, `code-playground`,
+  `real-time-analytics`, `task-manager` (render/creation guards for the placeholder pages).
+
+### Test-environment facts (portfolio-frontend = `@angular/build:unit-test` + Vitest 4 / jsdom)
+Established by probe this session — these bit me, so they're recorded for next time:
+- **`localStorage` is `undefined`** in the runner (Node, no `--localstorage-file`; emits an
+  ExperimentalWarning). Code guarded by `typeof localStorage === 'undefined'` takes the no-op
+  branch by default; to test persistence, `vi.stubGlobal('localStorage', <in-memory mock>)`
+  **before** constructing the service.
+- **`window.speechSynthesis` / global `SpeechSynthesisUtterance` are absent** → stub both before
+  constructing to exercise TTS paths.
+- **`window.matchMedia` is stubbed in `src/test-setup.ts`** and returns `matches:false`; use
+  `vi.spyOn(window,'matchMedia').mockReturnValue({matches:true} as MediaQueryList)` to force the
+  prefers-reduced-motion branch.
+- **`vi.mock('<bare-module>', () => ({ default: ... }))` DOES work** here (used to stub the heavy
+  `mermaid` ESM import so it never loads in jsdom) — provide a `default` key for default imports.
+- **`fakeAsync` + `setInterval`/`setTimeout` started inside `ngOnInit`:** call
+  `component.ngOnInit()` **directly** (NOT `fixture.detectChanges()`) so the timer is scheduled
+  inside the fakeAsync zone and `tick()` advances it; routed through change detection / NgZone it
+  runs on real timers and never fires. (`fakeAsync` itself works — see `auth.service.spec.ts`.)
+- Spec conventions: Vitest globals are on (`globals:true`) — no need to import
+  `describe/it/expect/vi/beforeEach`; `createSpyObj`/`SpyObj` come from `src/test-helpers.ts`
+  (Vitest drop-in for Jasmine); standalone components use `imports:[Component, RouterTestingModule]`
+  and are imported (not declared); `UserInfo` = `{ username, email, fullName }` (no `role`).
+
+### Frontend M3 — auth-guard "dedup" is NOT a real defect (investigated, left as-is)
+The roadmap listed the portfolio/ecommerce auth guards as "duplicated." They correctly **differ**:
+portfolio's `AuthService` is RxJS with an async `/me` bootstrap (so its guard uses `whenReady()`
+to avoid a hard-refresh race), while ecommerce's `AuthService` uses Angular **signals** and
+restores auth **synchronously** from `localStorage` in its constructor (so its synchronous
+`isAuthenticated()` guard is correct — there is no async window to race). True dedup would need a
+shared Angular library across two separate npm apps — a disproportionate change for no behavioral
+win. **No change made.**
+
 ## FULL ROADMAP (priority order)
 
 1. **IAM migration — ✅ COMPLETE** (portfolio + ecommerce + ats all on IAM tokens;
@@ -315,8 +377,13 @@ stale is snapshotted (a pooled Apache/Netty client could be — another reason f
    - Backend **M2**: inconsistent security config (CORS/CSRF, `JwtUtil` vs `JwtUtils`)
      across modules — standardize. *(Locally testable, but it changes live auth behaviour
      on all 3 apps and is largely cosmetic — modest security value.)*
-   - Frontend **M3**: duplicated auth guard (ecommerce/portfolio); **M4**: portfolio
-     missing specs for ~12 components (interactive projects, a11y service).
+   - ✅ **Frontend M4** (PR #276, open): added 14 unit specs for the previously-untested
+     portfolio-frontend files (a11y service, interactive-project pages, doc-viewer, auth
+     interceptor/guard, documentation, etc.); baseline 246 → 317. **Test-only.** See the
+     **"Frontend M4"** section above.
+   - Frontend **M3** (auth-guard "dedup"): **investigated — NOT a real defect.** The portfolio
+     (RxJS + async `/me`) and ecommerce (signals + sync localStorage) guards correctly differ
+     because their AuthService architectures differ; true dedup would need a shared lib. No change.
 
 ## Completed this session (merged in PR #262 unless noted)
 
@@ -334,7 +401,8 @@ stale is snapshotted (a pooled Apache/Netty client could be — another reason f
 - Local test baselines (JDK 26): portfolio-backend 171, ats-backend 222,
   ecommerce-backend 84, portfolio-chatbot-backend **20** (was 12; +8 `OpenAiKeyResolverTest`
   in the M4 PR — 7 resolve-logic cases + 1 real-client-construction guard), portfolio-frontend
-  246, ecommerce-frontend 199, ats-frontend 148 — all green.
+  **317** (was 246; +71 across 14 new spec files — Frontend M4, PR #276), ecommerce-frontend 199,
+  ats-frontend 148 — all green.
 
 ## Gotchas / operational notes
 
@@ -390,4 +458,5 @@ stale is snapshotted (a pooled Apache/Netty client could be — another reason f
   history: #262 (scaffolding), #266/#267 (portfolio cutover, temp branch), **#269**
   (ecommerce cutover), **#270** (ats cutover), **#271** (CVE remediation), **#273** (security
   hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`), **#274** (Infra M4:
-  chatbot OpenAI key → Secrets Manager at runtime). Going forward, always `clark-development`.
+  chatbot OpenAI key → Secrets Manager at runtime), **#276** (Frontend M4: 14 portfolio-frontend
+  unit specs, 246→317, test-only). Going forward, always `clark-development`.
