@@ -815,13 +815,37 @@ resource "aws_iam_role_policy" "github_actions" {
           "acm:*",
           "wafv2:*",
           "apigateway:*",
-          "lambda:*",
+          "lambda:*"
+        ]
+        Resource = "*"
+      },
+      {
+        # IAM read/describe — no privilege-escalation risk, so kept account-wide
+        # to ensure Terraform state refresh never trips on a role/policy it reads.
+        Sid    = "IamReadOnly"
+        Effect = "Allow"
+        Action = [
           "iam:GetRole",
           "iam:GetRolePolicy",
           "iam:ListRolePolicies",
           "iam:ListAttachedRolePolicies",
-          "iam:GetOpenIDConnectProvider",
-          "iam:PassRole",
+          "iam:ListInstanceProfilesForRole",
+          "iam:GetPolicy",
+          "iam:GetPolicyVersion",
+          "iam:ListPolicyVersions",
+          "iam:GetOpenIDConnectProvider"
+        ]
+        Resource = "*"
+      },
+      {
+        # Role create/modify/pass — the privilege-escalation vector (Infra H2).
+        # Scoped to the roles this stack actually manages: the deploy role itself
+        # plus every ${var.environment}-* role (the four Lambda execution roles and
+        # the API Gateway CloudWatch role). Prevents the CI role from minting,
+        # rewriting, or passing arbitrary (e.g. admin) roles in the account.
+        Sid    = "IamManageProjectRoles"
+        Effect = "Allow"
+        Action = [
           "iam:CreateRole",
           "iam:DeleteRole",
           "iam:UpdateRole",
@@ -833,22 +857,48 @@ resource "aws_iam_role_policy" "github_actions" {
           "iam:DetachRolePolicy",
           "iam:TagRole",
           "iam:UntagRole",
-          "iam:ListInstanceProfilesForRole",
+          "iam:PassRole"
+        ]
+        Resource = [
+          "arn:aws:iam::010438493245:role/github-actions-role",
+          "arn:aws:iam::010438493245:role/${var.environment}-*"
+        ]
+      },
+      {
+        # Customer-managed policy writes. This stack creates none today (it uses
+        # inline role policies + AWS-managed attachments), so this is inert /
+        # future-proofing — scoped to ${var.environment}-* so the CI role can
+        # never create an arbitrary account-wide managed policy.
+        Sid    = "IamManageProjectPolicies"
+        Effect = "Allow"
+        Action = [
           "iam:CreatePolicy",
           "iam:DeletePolicy",
-          "iam:GetPolicy",
-          "iam:GetPolicyVersion",
-          "iam:ListPolicyVersions",
           "iam:CreatePolicyVersion",
-          "iam:DeletePolicyVersion",
+          "iam:DeletePolicyVersion"
+        ]
+        Resource = "arn:aws:iam::010438493245:policy/${var.environment}-*"
+      },
+      {
+        # OIDC provider — scoped to the GitHub Actions provider this stack owns.
+        Sid    = "IamManageOidcProvider"
+        Effect = "Allow"
+        Action = [
           "iam:CreateOpenIDConnectProvider",
           "iam:DeleteOpenIDConnectProvider",
           "iam:UpdateOpenIDConnectProviderThumbprint",
           "iam:TagOpenIDConnectProvider",
-          "iam:UntagOpenIDConnectProvider",
-          "iam:CreateServiceLinkedRole"
+          "iam:UntagOpenIDConnectProvider"
         ]
-        Resource = "*"
+        Resource = aws_iam_openid_connect_provider.github.arn
+      },
+      {
+        # Service-linked roles only ever live under the reserved aws-service-role
+        # path, so this cannot be used to create a normal (privileged) role.
+        Sid      = "IamCreateServiceLinkedRoles"
+        Effect   = "Allow"
+        Action   = "iam:CreateServiceLinkedRole"
+        Resource = "arn:aws:iam::010438493245:role/aws-service-role/*"
       }
     ]
   })
