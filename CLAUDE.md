@@ -5,6 +5,23 @@
 > explicitly asked** — though for this RDS IAM workflow the user has been
 > authorizing PR creation explicitly; re-confirm each time).
 
+## CURRENT STATE (read first)
+
+- ✅ **RDS IAM migration COMPLETE** — portfolio + ecommerce + ats all authenticate to
+  Aurora with short-lived IAM tokens (no plaintext `DB_PASSWORD`); deployed +
+  smoke-verified. Audit finding **Infra H1** resolved. (Mechanism/runbook below.)
+- ✅ **Dependency CVE remediation COMPLETE** — PR #271 merged + deployed + smoke-verified
+  (Tomcat 10.1.54 in all 4 backends; ats Tika 3.2.2 / POI 5.4.0 / commons-lang3 3.18.0;
+  frontends `npm audit` clean). Roadmap **#2** done.
+- ▶️ **NEXT WORK**: roadmap **#3** (remaining audit findings — see FULL ROADMAP), plus
+  two loose ends to fold into the next functional PR:
+  1. **`clark-development` is ahead of `main` by held docs-only commit(s)** (kept off
+     `main` so a markdown change doesn't spend a full prod deploy). **Don't expect a
+     clean `--ff-only` sync** — carry them into the next functional PR so they land.
+  2. **`.gitignore` gap**: `ats-frontend/coverage/` + `portfolio-chatbot-backend/target/`
+     aren't ignored (other modules are) — add them (`git rm --cached` + ignore) in that PR.
+- Optional IAM follow-ups (not blocking): soak; rotate the Aurora master password.
+
 ## Branch & PR workflow (REQUIRED)
 
 **Do all development work and open all PRs from the `clark-development` branch.**
@@ -20,9 +37,10 @@ The goal is to keep `clark-development` always in sync with `main`.
   git merge --ff-only origin/main   # clark-development has no unique commits post-merge
   git push origin clark-development
   ```
-- If `clark-development` ever can't fast-forward (it shouldn't, since its commits
-  land in `main` via merge), reconcile before continuing — never work on a stale
-  branch.
+- If `clark-development` can't fast-forward, it has un-merged commits — reconcile
+  before continuing, never work on a stale branch. **(That's the case right now** —
+  held docs-only commits, see CURRENT STATE. Don't try to ff past them; just keep
+  working on `clark-development` and let them ride into the next functional PR.)
 - Deploys still trigger only on merge to `main` (see Deploy below). All the usual
   "explicitly ask before git" etiquette applies; the user has standing approval to
   commit/push/PR **on `clark-development`** for this workflow.
@@ -65,10 +83,12 @@ The goal is to keep `clark-development` always in sync with `main`.
   (`fmt`/`validate` work; `validate` needs `init -backend=false`). The user is
   authenticated for **read-only + targeted** AWS CLI use.
 
-## ACTIVE WORKFLOW: RDS IAM database authentication
+## RDS IAM database authentication (✅ COMPLETE — kept as reference)
 
-Goal: remove plaintext `DB_PASSWORD` from Lambda env; authenticate to Aurora with
-short-lived IAM tokens. (Resolves audit finding "Infra H1".)
+All three apps migrated, deployed, and verified this session (see CURRENT STATE).
+Below is the mechanism + runbook, retained for rollback/operations and as the
+template for any future DB-auth work. Goal was: remove plaintext `DB_PASSWORD` from
+Lambda env; authenticate to Aurora with short-lived IAM tokens. (Resolved Infra H1.)
 
 ### Design — env-driven dual mode (same artifact, zero-downtime cutover)
 - App deps: `software.amazon.jdbc:aws-advanced-jdbc-wrapper:2.6.0` +
@@ -158,7 +178,7 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 
 1. **IAM migration — ✅ COMPLETE** (portfolio + ecommerce + ats all on IAM tokens;
    Infra H1 resolved). Only optional follow-ups remain: soak + master password rotation.
-2. **Dependency CVE remediation — ✅ DONE — PR #271 (merged/deploying)**. All verified
+2. **Dependency CVE remediation — ✅ DONE — PR #271 (merged + deployed + smoke-verified)**. All verified
    against NVD/advisories and locally built+tested before committing:
    - **Backends — `<tomcat.version>10.1.54</tomcat.version>` in all 4 poms** (portfolio,
      ecommerce [pulls Tomcat transitively via `starter-data-rest`], ats, chatbot):
@@ -251,6 +271,8 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 - Cost: the IAM-auth work adds **$0 recurring**; the Data API is the only public-path
   expansion and is gated off by default.
 - Branching: all work & PRs go on **`clark-development`** (see "Branch & PR
-  workflow" at top); fast-forward it to `main` after each merge. (History note:
-  PR #262 was `clark-development`; #266/#267 used a temporary
-  `clark-rds-iam-cutover-portfolio` branch — going forward, use `clark-development`.)
+  workflow" at top); fast-forward it to `main` after each merge — **except right now**
+  it holds un-merged docs-only commits (see CURRENT STATE). PR history:
+  #262 (scaffolding), #266/#267 (portfolio cutover, temp branch), **#269** (ecommerce
+  cutover), **#270** (ats cutover), **#271** (CVE remediation). Going forward, always
+  `clark-development`.
