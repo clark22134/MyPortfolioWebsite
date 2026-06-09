@@ -114,7 +114,7 @@ short-lived IAM tokens. (Resolves audit finding "Infra H1".)
   (incl. `flyway_schema_history`) via `REASSIGN OWNED` so Flyway can run DDL as
   `ats_app`. No pending Flyway migrations (history v1-baseline..v5 all success).
   Data API enabled → used → re-disabled (confirmed off).
-- 🚧 **ats cutover PR opened (this session)**: flips `TF_VAR_ats_db_iam_auth=true`.
+- 🚧 **PR #270 (this session): ats cutover** — flips `TF_VAR_ats_db_iam_auth=true`.
   **Not yet merged** → ats still in password mode until merge+deploy. After deploy,
   verify: Lambda env has no `DB_PASSWORD`; CloudWatch shows **Flyway clean start as
   `ats_app`** (history validate, no DDL/permission errors) + HikariCP wrapper
