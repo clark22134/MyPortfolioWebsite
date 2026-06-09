@@ -96,9 +96,11 @@ The goal is to keep `clark-development` always in sync with `main`.
   git push origin clark-development
   ```
 - If `clark-development` can't fast-forward, it has un-merged commits — reconcile
-  before continuing, never work on a stale branch. (As of the M4 PR, `clark-development`
-  **is** in sync with `main` — the previously-held docs commits all merged in #273. Next
-  session: after the M4 PR merges, `git fetch && git merge --ff-only origin/main` as above.)
+  before continuing, never work on a stale branch. (**Current state:** `clark-development`
+  is **1 commit ahead of `main`** — the carried docs-only commit `d47fece`
+  "Infra H2/M3 deployed + verified". This is the normal carried-docs state; it folds into
+  the next PR. Nothing to reconcile — just keep committing on top, and after the next merge
+  `git fetch && git merge --ff-only origin/main` as above.)
 - Deploys still trigger only on merge to `main` (see Deploy below). All the usual
   "explicitly ask before git" etiquette applies; the user has standing approval to
   commit/push/PR **on `clark-development`** for this workflow.
@@ -521,8 +523,9 @@ can't run locally (CI-only secrets), so the **first post-merge deploy is the rea
 - Cost: the IAM-auth work adds **$0 recurring**; the Data API is the only public-path
   expansion and is gated off by default.
 - Branching: all work & PRs go on **`clark-development`** (see "Branch & PR
-  workflow" at top); fast-forward it to `main` after each merge. As of the M4 PR,
-  `clark-development` is in sync with `main` (the held docs commits merged in #273). PR
+  workflow" at top); fast-forward it to `main` after each merge. **Current state:**
+  `clark-development` is 1 carried docs commit (`d47fece`) ahead of `main` (the H2/M3
+  verification note) — normal carried-docs state, folds into the next PR. PR
   history: #262 (scaffolding), #266/#267 (portfolio cutover, temp branch), **#269**
   (ecommerce cutover), **#270** (ats cutover), **#271** (CVE remediation), **#273** (security
   hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`), **#274** (Infra M4:
