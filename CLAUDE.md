@@ -45,23 +45,34 @@
   and `POST /api/chatbot/message` returns a grounded RAG answer with citations. Details in
   the **"Infra M4 — chatbot OpenAI key in Secrets Manager"** section below. Chatbot test
   baseline **12 → 20**.
-- ✅ **Frontend M4 — portfolio-frontend test coverage — PR #276 OPEN (`clark-development` →
-  `main`).** Added **14 unit spec files** for the behavior-rich portfolio-frontend files that
-  had no tests (AccessibilityService, auth interceptor/guard, TerminalLoaderService, doc-viewer,
-  ai-projects, documentation, project-gallery, accessibility-statement, kali-terminal-loader,
-  + the 4 interactive-project placeholder pages). **Test-only — no prod source changed.**
-  portfolio-frontend baseline **246 → 317** (`npm run test:ci`, 31 files all green). Details +
-  test-env gotchas in the **"Frontend M4"** section below. Frontend **M3** (auth-guard "dedup")
-  was investigated and is **NOT a real defect** — see that section.
-  **After #276 merges, resync:** `git fetch && git checkout clark-development &&
-  git merge --ff-only origin/main && git push origin clark-development`.
-- ▶️ **NEXT WORK**: remaining roadmap **#3** findings (H2/M3 IAM wildcards, M1 non-root,
-  M2 pin base tags, Backend M2 security-config standardization — see FULL ROADMAP).
-  H2/M3 is the highest-value item left but is **risky to do blind** (a wrong IAM
-  scope breaks *all* future deploys and can't be deploy-tested locally). M1/M2 are lower
-  priority: **Dependabot already tracks base-image bumps** (many `dependabot/docker/*`
-  branches open), and Docker images are **local-dev only** (prod runs as Lambda jars), so
-  they ship no prod attack surface. Frontend **M3** is a non-issue (see Frontend M4 section).
+- ✅ **Frontend M4 — portfolio-frontend test coverage — PR #276 MERGED + DEPLOYED.** Added
+  **14 unit spec files** for the behavior-rich portfolio-frontend files that had no tests
+  (AccessibilityService, auth interceptor/guard, TerminalLoaderService, doc-viewer, ai-projects,
+  documentation, project-gallery, accessibility-statement, kali-terminal-loader, + the 4
+  interactive-project placeholder pages). **Test-only — no prod source changed.** portfolio-frontend
+  baseline **246 → 317** (`npm run test:ci`, 31 files all green). Deploy run #27214380238 succeeded
+  (note: the `Build Deployment Artifacts` step took ~47 min vs ~2 min baseline — a **transient
+  Maven dependency-fetch/cache slowdown, unrelated to the change**; self-resolved). `clark-development`
+  resynced to `main`. Details + test-env gotchas in the **"Frontend M4"** section below. Frontend
+  **M3** (auth-guard "dedup") was investigated and is **NOT a real defect** — see that section.
+- 🔶 **Infra H2/M3 — CI deploy-role IAM scope-down — PR #277 OPEN (awaiting review/merge; NOT
+  merged yet because merging deploys the new policy).** Scoped the `github-actions-role` IAM
+  *write* actions from `Resource:"*"` to only the resources this stack manages (kills the
+  privilege-escalation vector: the CI role could previously create/modify/pass **any** role).
+  Done the **safe** way per CloudTrail evidence — no action removed, non-IAM wildcards untouched,
+  reads stay `*`. Verified the managed-resource set against AWS + Terraform source; `fmt`+`validate`
+  pass. Full design, evidence, no-lockout reasoning, and first-deploy watch-list in the **"Infra
+  H2/M3"** section below. **After #277 merges: resync** (`git fetch && git checkout clark-development
+  && git merge --ff-only origin/main && git push origin clark-development`) **and watch the deploy** —
+  the apply will show `aws_iam_role_policy.github_actions` changing; if any future infra change hits
+  an IAM `AccessDenied`, add the offending ARN to the relevant statement's `Resource` list.
+- ▶️ **NEXT WORK**: after #277 merges + verifies, remaining roadmap **#3** findings are lower-value:
+  **M1** (non-root containers) / **M2** (pin base tags) — Docker is **local-dev only** (prod is
+  Lambda jars) + **Dependabot already tracks base-image bumps**, so low priority; **Backend M2**
+  (security-config standardization) is locally testable but changes live auth on all 3 apps and is
+  largely cosmetic. Frontend **M3** is a non-issue (see Frontend M4 section). Optional H2/M3
+  **phase 2** (scope the non-IAM `ec2:*`/`rds:*`/… service wildcards too) needs CloudTrail-derived
+  action lists + 1-2 babysat deploy cycles — defer unless desired.
 - Optional IAM follow-ups (not blocking): soak; rotate the Aurora master password.
 
 ## Branch & PR workflow (REQUIRED)
@@ -336,6 +347,55 @@ restores auth **synchronously** from `localStorage` in its constructor (so its s
 shared Angular library across two separate npm apps — a disproportionate change for no behavioral
 win. **No change made.**
 
+## Infra H2/M3 — CI deploy-role IAM scope-down (🔶 PR #277 OPEN; awaiting review/merge)
+
+**Goal:** the `github-actions-role` inline policy (`terraform/main.tf`, `aws_iam_role_policy.github_actions`)
+granted `iam:CreateRole`/`PutRolePolicy`/`AttachRolePolicy`/`PassRole` (+ all IAM writes) on
+`Resource:"*"` → the CI deploy role could mint/rewrite/pass **any** role in the account (grant
+itself admin). That's the privilege-escalation vector behind audit finding **H2**.
+
+### The chosen approach (decided with the user) — scope resources, keep actions
+CloudTrail proved a naïve *action-level* scope-down is unsafe: the role is Terraform's
+"manage-everything" principal, and normal deploys only exercise reads + Lambda-deploy writes
+(Apply is skipped when no infra changes), so removing "unused" actions would break the next
+deploy that touches a VPC/RDS/API GW/ACM/WAF/Route53 or creates/destroys anything. So instead:
+**no action removed; non-IAM service wildcards (`ec2:*` etc.) untouched; only the IAM actions'
+`Resource` is scoped.** The catch-all `TerraformInfrastructure` statement was split into:
+- `IamReadOnly` — `iam:Get*/List*` role/policy/OIDC reads stay on `Resource:"*"` (no escalation
+  risk; keeps `terraform refresh` from tripping on anything it inspects).
+- `IamManageProjectRoles` — role create/modify/pass scoped to
+  `role/github-actions-role` + `role/${var.environment}-*`.
+- `IamManageProjectPolicies` — managed-policy writes scoped to `policy/${var.environment}-*`
+  (stack creates **no** customer-managed policies today → inert/future-proofing).
+- `IamManageOidcProvider` — OIDC writes scoped to `aws_iam_openid_connect_provider.github.arn`.
+- `IamCreateServiceLinkedRoles` — scoped to `role/aws-service-role/*`.
+
+### Why the scope is correct (verified, not guessed)
+Managed-resource set cross-checked against **AWS** (`aws iam list-roles` / `list-policies --scope Local`
+/ `list-open-id-connect-providers`) **and** the **Terraform source** (3 `aws_iam_role`: `github-actions-role`,
+`${env}-api-gateway-cloudwatch-role`, `${env}-${function_name}-lambda-role`×4; **0** customer-managed
+`aws_iam_policy`; 1 OIDC provider). All managed roles match `github-actions-role` + `prod-*`. The
+account's `DemoRoleForEC2` / `rds-monitoring-role` / `s3crr_*` roles and `MyIAMPermissions` policy are
+**not** Terraform-managed → deliberately excluded. CloudTrail (session `GitHubActions`, last few days)
+showed the role's only IAM writes were against these resources.
+- **CloudTrail recipe** (read-only, reusable): the deploy role's session name is **`GitHubActions`**;
+  `aws cloudtrail lookup-events --lookup-attributes AttributeKey=Username,AttributeValue=GitHubActions`
+  then aggregate top-level `Events[].EventName`/`EventSource`. ⚠️ Don't `echo "$RESP" | jq` — zsh's
+  `echo` mangles the backslashes in CloudTrail JSON; write the page to a file and `jq` the file.
+
+### Safety / no-lockout
+The first apply runs under the **current** `"*"` policy (so it can rewrite the role's own policy),
+and the new `IamManageProjectRoles` keeps `PutRolePolicy` on `github-actions-role`, so every later
+deploy can still manage it — no lockout at any step. `terraform fmt` + `validate` pass; `plan`/`apply`
+can't run locally (CI-only secrets), so the **first post-merge deploy is the real test**.
+- **Rollback:** revert the PR/commit and merge → restores the single `Resource:"*"` statement (the
+  policy is re-applied every deploy, so rollback = one merge).
+- **First-deploy watch-list:** Terraform shows `aws_iam_role_policy.github_actions` changing; apply
+  should succeed. If a future infra change ever hits IAM `AccessDenied`, a managed resource fell
+  outside `${var.environment}-*` → add its ARN to the relevant statement's `Resource` (one-line fix).
+- **Phase 2 (optional, deferred):** scope the non-IAM `ec2:*`/`rds:*`/… wildcards too — needs
+  CloudTrail-derived action lists + 1-2 babysat deploy cycles to catch rarely-used write actions.
+
 ## FULL ROADMAP (priority order)
 
 1. **IAM migration — ✅ COMPLETE** (portfolio + ecommerce + ats all on IAM tokens;
@@ -366,8 +426,11 @@ win. **No change made.**
      `StreamLambdaHandler`s.
    - ✅ **Backend L2** (DONE, PR #273): chatbot rate-limiter map bounded
      (`chatbot.rate-limit.max-tracked-ips`, default 10000) + test.
-   - Infra **H2/M3**: CI deploy-role IAM wildcards (`terraform/main.tf` ~771-821) — scope down.
-     *(Highest-value item left; risky — needs careful live-deploy testing.)*
+   - 🔶 **Infra H2/M3** (PR #277, open): scoped the deploy-role IAM *write* actions from
+     `Resource:"*"` to the project's own role/policy/OIDC ARNs (kills privilege-escalation).
+     Resources scoped, actions kept, non-IAM wildcards untouched. See the **"Infra H2/M3"**
+     section above. **First post-merge deploy is the real test** (can't `plan` locally).
+     Optional phase 2: scope the `ec2:*`/`rds:*`/… service wildcards too (needs CloudTrail).
    - Infra **M1**: containers run as root (all Dockerfiles); **M2**: unpinned base tags.
      *(Low priority — Docker images are local-dev only [prod is Lambda jars], and Dependabot
      already tracks base-image bumps via `dependabot/docker/*` branches.)*
@@ -459,4 +522,5 @@ win. **No change made.**
   (ecommerce cutover), **#270** (ats cutover), **#271** (CVE remediation), **#273** (security
   hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`), **#274** (Infra M4:
   chatbot OpenAI key → Secrets Manager at runtime), **#276** (Frontend M4: 14 portfolio-frontend
-  unit specs, 246→317, test-only). Going forward, always `clark-development`.
+  unit specs, 246→317, test-only), **#277** (Infra H2/M3: scope CI deploy-role IAM write actions to
+  project ARNs — OPEN, awaiting review/merge). Going forward, always `clark-development`.
