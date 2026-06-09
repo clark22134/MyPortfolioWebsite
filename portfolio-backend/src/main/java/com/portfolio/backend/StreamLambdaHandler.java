@@ -49,7 +49,7 @@ public class StreamLambdaHandler implements RequestStreamHandler {
                     .buildAndInitialize();
         } catch (ContainerInitializationException e) {
             // If we fail here, Lambda will re-throw the exception on every request
-            e.printStackTrace();
+            log.error("Failed to initialize Spring Boot Lambda container", e);
             throw new IllegalStateException("Could not initialize Spring Boot application", e);
         }
     }
