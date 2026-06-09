@@ -32,7 +32,7 @@
     154 tracked artifacts (59 coverage + 95 target).
   - **Loose end #1 (held docs commits)** — the 2 held docs-only commits (752d62a, 699691e)
     landed in #273.
-- ✅ **Infra M4 — chatbot OpenAI key → Secrets Manager at runtime (PR #__M4__) — built +
+- ✅ **Infra M4 — chatbot OpenAI key → Secrets Manager at runtime (PR #274) — built +
   tested locally** (awaiting merge/deploy at time of writing). The chatbot Lambda now
   fetches the OpenAI key from Secrets Manager **at startup** instead of receiving it as a
   plaintext `OPENAI_API_KEY` env var, so the key no longer appears in
@@ -202,7 +202,7 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 # Rollback: remove/false TF_VAR_<app>_db_iam_auth, merge -> password mode, same artifact.
 ```
 
-## Infra M4 — chatbot OpenAI key in Secrets Manager (✅ built + tested locally; PR #__M4__)
+## Infra M4 — chatbot OpenAI key in Secrets Manager (✅ built + tested locally; PR #274)
 
 **Goal:** stop shipping the OpenAI API key as a plaintext `OPENAI_API_KEY` Lambda env var
 (readable via `lambda:GetFunctionConfiguration`); have the chatbot fetch it from Secrets
@@ -304,7 +304,7 @@ stale is snapshotted (a pooled Apache/Netty client could be — another reason f
    - Infra **M1**: containers run as root (all Dockerfiles); **M2**: unpinned base tags.
      *(Low priority — Docker images are local-dev only [prod is Lambda jars], and Dependabot
      already tracks base-image bumps via `dependabot/docker/*` branches.)*
-   - ✅ **Infra M4** (DONE, PR #__M4__): chatbot OpenAI key fetched from Secrets Manager at
+   - ✅ **Infra M4** (DONE, PR #274): chatbot OpenAI key fetched from Secrets Manager at
      runtime instead of a plaintext `OPENAI_API_KEY` Lambda env var. See the **"Infra M4"**
      section below.
    - Backend **M2**: inconsistent security config (CORS/CSRF, `JwtUtil` vs `JwtUtils`)
@@ -384,5 +384,5 @@ stale is snapshotted (a pooled Apache/Netty client could be — another reason f
   `clark-development` is in sync with `main` (the held docs commits merged in #273). PR
   history: #262 (scaffolding), #266/#267 (portfolio cutover, temp branch), **#269**
   (ecommerce cutover), **#270** (ats cutover), **#271** (CVE remediation), **#273** (security
-  hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`), **#__M4__** (Infra M4:
+  hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`), **#274** (Infra M4:
   chatbot OpenAI key → Secrets Manager at runtime). Going forward, always `clark-development`.
