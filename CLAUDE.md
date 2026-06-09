@@ -71,7 +71,9 @@
   policy — if one ever hits IAM `AccessDenied`, a managed resource fell outside `prod-*`; add its
   ARN to the relevant statement's `Resource` (one-line fix). Optional **phase 2**: scope the
   non-IAM `ec2:*`/`rds:*`/… service wildcards too (needs CloudTrail-derived action lists).
-- ✅ **Infra M1/M2 — Docker hardening — PR #278 OPEN; clark-development → main.** All 8
+- ✅ **Infra M1/M2 — Docker hardening — PR #278 MERGED** (deploy triggers on merge to `main`;
+  these images are local-dev-only so the deploy doesn't build/ship them — no prod impact either
+  way). All 8
   Dockerfiles: (**M2**) every base image is pinned by digest for reproducible builds — the
   human-readable tag is kept and Dependabot still bumps tag+digest; (**M1**) the **3 backend**
   images now run as a non-root `app` user (`addgroup -S app && adduser -S -G app -H app` +
@@ -86,13 +88,30 @@
   reads the `644 root:root` app.jar, and runs `java -version` as `app`. **Test-only/infra — no
   app source changed.** Details in the **"Infra M1/M2"** section below. Closes the last
   actionable roadmap **#3** Infra findings.
-- ▶️ **NEXT WORK**: only lower-value / deferred items remain:
-  **Backend M2** (security-config standardization — CORS/CSRF + `JwtUtil`/`JwtUtils` naming
-  across the 3 backends) is locally testable but changes live auth on all 3 apps and is largely
-  cosmetic; Frontend **M3** is a non-issue (see Frontend M4 section); optional H2/M3 **phase 2**
-  (scope the non-IAM `ec2:*`/`rds:*`/… service wildcards) needs CloudTrail-derived action lists +
-  1-2 babysat deploy cycles — defer unless desired.
-- Optional IAM follow-ups (not blocking): soak; rotate the Aurora master password.
+- ✅ **Backend M2 — security-config "inconsistency" INVESTIGATED — NOT a real defect — PR #279
+  (docs + 2 clarifying comments).** Like Frontend M3, the apparent inconsistency is **intentional,
+  not an oversight**. All 3 backends auth via an **HTTP-only JWT cookie** (Bearer-header fallback
+  for non-browser clients), so the cookie is the CSRF-relevant credential — and **each app already
+  has a valid CSRF defense via a different mechanism**: portfolio = explicit double-submit **token**
+  (`CookieCsrfTokenRepository`, default-on); ats = `csrf.disable()` **+ `SameSite=Lax` cookie**
+  (not sent on cross-site mutations); ecommerce = `csrf.disable()` **+ `SameSite=Strict` cookie**
+  (never sent cross-site, strongest). Standardizing would change **live auth on all 3 apps** (and
+  need coordinated frontend changes) for **zero security gain** → violates "preserve behavior /
+  simplest solution." The `JwtUtil`/`JwtUtils`/`SecurityConfig(uration)` **naming** difference is
+  cosmetic churn across **separate deployables** → deliberately **not** renamed. **Only change made
+  (safe, non-behavioral):** added accurate "why" comments at the two `csrf.disable()` lines (ats +
+  ecommerce) documenting the SameSite defense — the prior ats comment was misleading (credited the
+  CORS allowlist, which does **not** stop CSRF). Backend test baselines **unchanged** (ats 222,
+  ecommerce 84, both green). See the **"Backend M2"** section below.
+- ▶️ **NEXT WORK**: **the roadmap's actionable findings are now all resolved.** Only optional /
+  deferred items remain, none a clean unattended task:
+  - **H2/M3 phase 2** (scope the non-IAM `ec2:*`/`rds:*`/… deploy-role service wildcards) — needs
+    CloudTrail-derived action lists + 1-2 **babysat** deploy cycles; defer unless desired.
+  - **Optional IAM follow-ups** (not blocking): soak (observation only); **rotate the Aurora
+    master password** — real op task but risky (break-glass / Data-API provisioning) + needs AWS
+    write access; do attended.
+  - Frontend **M3** + Backend **M2** = closed as non-defects (above). If a *new* audit pass is
+    wanted, that's a fresh scope — ask the user.
 
 ## Branch & PR workflow (REQUIRED)
 
@@ -110,12 +129,11 @@ The goal is to keep `clark-development` always in sync with `main`.
   git push origin clark-development
   ```
 - If `clark-development` can't fast-forward, it has un-merged commits — reconcile
-  before continuing, never work on a stale branch. (**Current state:** `clark-development`
-  is ahead of `main` by a few **carried docs-only commits** (CLAUDE.md updates this session
-  appended after the last feature merge — Infra H2/M3 verification + this sync note). This is
-  the normal carried-docs state, **not** a divergence to reconcile: keep committing on top,
-  and they fold into the next PR. After the next feature merge, `git fetch && git merge
-  --ff-only origin/main` as above.)
+  before continuing, never work on a stale branch. (**Current state:** this session resynced
+  `clark-development` to `main` (`--ff-only` to the PR #278 merge commit), then began the
+  Backend M2 work on top — so it's now ahead of `main` by the Backend M2 commit(s) (2 comments +
+  this CLAUDE.md update), which become **PR #279**. Normal carried-work state, not a divergence:
+  after #279 merges, `git fetch && git merge --ff-only origin/main` as above.)
 - Deploys still trigger only on merge to `main` (see Deploy below). All the usual
   "explicitly ask before git" etiquette applies; the user has standing approval to
   commit/push/PR **on `clark-development`** for this workflow.
@@ -418,7 +436,7 @@ can't run locally (CI-only secrets), so the **first post-merge deploy is the rea
 - **Phase 2 (optional, deferred):** scope the non-IAM `ec2:*`/`rds:*`/… wildcards too — needs
   CloudTrail-derived action lists + 1-2 babysat deploy cycles to catch rarely-used write actions.
 
-## Infra M1/M2 — Docker hardening (✅ PR #278 OPEN; clark-development → main)
+## Infra M1/M2 — Docker hardening (✅ PR #278 MERGED)
 
 **Goal:** close the last actionable roadmap **#3** Infra findings — **M1** (containers run as
 root) and **M2** (unpinned base tags) — across all 8 Dockerfiles. **Scope reminder:** these
@@ -475,6 +493,55 @@ risk; the value is local-dev supply-chain hygiene + defense-in-depth.
   re-target the new `tag@digest` format and can be taken individually if/when the major bumps are
   vetted. Don't fold the major bumps into this PR.
 
+## Backend M2 — security-config "inconsistency" (✅ INVESTIGATED — NOT a real defect; PR #279)
+
+**Goal of the audit finding:** the 3 backends' security configs looked inconsistent (CORS/CSRF
+setup + `JwtUtil` vs `JwtUtils` naming) and the roadmap said "standardize." On investigation
+(this session) the differences are **intentional and correct** — exactly like **Frontend M3**.
+Forcing standardization would change **live auth behaviour on all 3 apps** for **no security
+gain**, so the behavioural change was **deliberately not made**. The only change shipped is two
+**clarifying comments** (zero behaviour change).
+
+### Evidence — all 3 apps already have a valid (different) CSRF defense
+Every backend authenticates with an **HTTP-only JWT cookie** (with a `Bearer` Authorization-header
+*fallback* for non-browser API clients — verified in each filter). Because the **cookie** is the
+credential the browser auto-attaches, the cookie's cross-site behaviour *is* the CSRF control:
+
+| App | Config file / filter / util names | CSRF mechanism | Why it's safe |
+|-----|-----------------------------------|----------------|---------------|
+| portfolio | `config/SecurityConfig` · `JwtRequestFilter` · `JwtUtil` | **CSRF enabled** — double-submit token (`CookieCsrfTokenRepository.withHttpOnlyFalse()`, `X-XSRF-TOKEN`), default-on via `csrf.enabled:true`; login/register/h2 ignored (refresh is **not** ignored → still protected) | Classic anti-CSRF token |
+| ats | `config/SecurityConfig` · `JwtRequestFilter` · `JwtUtil` | **CSRF disabled** + cookie **`SameSite=Lax`** (`CookieUtil`) | Lax cookie is **not** sent on cross-site POST/PUT/PATCH/DELETE → forged mutations arrive unauthenticated; all ats mutations are non-GET |
+| ecommerce | `security/SecurityConfiguration` · `security/jwt/JwtAuthenticationFilter` · `JwtUtils` | **CSRF disabled** + cookie **`SameSite=Strict`** (`CookieUtil`, `app.cookie.same-site:Strict`) | Strict cookie is **never** sent cross-site → strongest of the three |
+
+Key correctness point: **CORS does not prevent CSRF** (it only blocks the attacker from *reading*
+the cross-origin response, not from *sending* a simple state-changing request). The real CSRF
+defense in ats/ecommerce is the **SameSite cookie attribute**, not the CORS allowlist — the ats
+inline comment used to imply otherwise and was corrected.
+
+### What was (and wasn't) changed
+- **NOT changed (deliberately):**
+  - CSRF posture of any app — all three are already protected; standardizing (e.g. enabling tokens
+    on ats/ecommerce) would force the SPAs to read+echo `X-XSRF-TOKEN` and risks breaking live auth
+    for **zero** security benefit.
+  - The `JwtUtil`/`JwtUtils` · `JwtRequestFilter`/`JwtAuthenticationFilter` ·
+    `SecurityConfig`/`SecurityConfiguration` **names** — they live in **separate deployable apps**,
+    each internally consistent; a cross-app rename is pure churn (no dedup possible without a shared
+    library) with real risk of breaking imports/tests. Skipped.
+- **Changed (safe, non-behavioural — comments only):**
+  - `ecommerce-backend/.../security/SecurityConfiguration.java` — added a comment at `csrf.disable()`
+    documenting the `SameSite=Strict` cookie as the CSRF defense.
+  - `ats-backend/.../config/SecurityConfig.java` — replaced the misleading
+    `// SPA uses HTTP-only cookie + CORS allowlist; no form posts` with an accurate note that
+    **`SameSite=Lax`** is the CSRF defense (and that CORS alone does not stop CSRF).
+  - portfolio left untouched — its CSRF-token code is already self-documenting.
+
+### Verification
+`mvn -f ats-backend/pom.xml test` → **222/0/0**; `mvn -f ecommerce-backend/pom.xml test` → **84/0/0**
+(both BUILD SUCCESS on JDK 26) — baselines unchanged, proving the comment-only change is inert.
+- **Rollback:** revert PR #279 (comments only; nothing to un-deploy).
+- **If a future audit re-flags this:** point at this section + the inline comments — the SameSite
+  attributes (in each `CookieUtil`) are the proof the `csrf.disable()` calls are safe.
+
 ## FULL ROADMAP (priority order)
 
 1. **IAM migration — ✅ COMPLETE** (portfolio + ecommerce + ats all on IAM tokens;
@@ -510,7 +577,7 @@ risk; the value is local-dev supply-chain hygiene + defense-in-depth.
      privilege-escalation). Resources scoped, actions kept, non-IAM wildcards untouched. Live
      policy confirmed via `aws iam get-role-policy`. See the **"Infra H2/M3"** section above.
      Optional phase 2: scope the `ec2:*`/`rds:*`/… service wildcards too (needs CloudTrail).
-   - ✅ **Infra M1/M2** (PR #278, open): **M2** — all 8 Dockerfiles' base images pinned by
+   - ✅ **Infra M1/M2** (PR #278, MERGED): **M2** — all 8 Dockerfiles' base images pinned by
      digest (tag kept; Dependabot still bumps tag+digest); **M1** — the 3 backend images run as
      a non-root `app` user. nginx frontends + DB images keep root by design (documented inline).
      Local-dev-only, verified via `docker build` + non-root `docker run id`. See the **"Infra
@@ -518,9 +585,13 @@ risk; the value is local-dev supply-chain hygiene + defense-in-depth.
    - ✅ **Infra M4** (DONE, PR #274): chatbot OpenAI key fetched from Secrets Manager at
      runtime instead of a plaintext `OPENAI_API_KEY` Lambda env var. See the **"Infra M4"**
      section below.
-   - Backend **M2**: inconsistent security config (CORS/CSRF, `JwtUtil` vs `JwtUtils`)
-     across modules — standardize. *(Locally testable, but it changes live auth behaviour
-     on all 3 apps and is largely cosmetic — modest security value.)*
+   - ✅ **Backend M2** (PR #279, INVESTIGATED — NOT a real defect): the CORS/CSRF + `JwtUtil`/
+     `JwtUtils` "inconsistency" is **intentional** — all 3 apps already have a valid CSRF defense
+     (portfolio = double-submit **token**; ats = `SameSite=Lax` cookie; ecommerce = `SameSite=Strict`
+     cookie), so standardizing would change live auth for **zero** security gain; naming differs
+     across **separate deployables** (no dedup possible). Shipped only 2 clarifying comments on the
+     `csrf.disable()` lines (the ats one was misleadingly crediting CORS). Tests unchanged (ats 222,
+     ecommerce 84). See the **"Backend M2"** section above.
    - ✅ **Frontend M4** (PR #276, open): added 14 unit specs for the previously-untested
      portfolio-frontend files (a11y service, interactive-project pages, doc-viewer, auth
      interceptor/guard, documentation, etc.); baseline 246 → 317. **Test-only.** See the
@@ -598,13 +669,14 @@ risk; the value is local-dev supply-chain hygiene + defense-in-depth.
   expansion and is gated off by default.
 - Branching: all work & PRs go on **`clark-development`** (see "Branch & PR
   workflow" at top); fast-forward it to `main` after each merge. **Current state:**
-  `clark-development` is ahead of `main` by a few carried docs-only commits (this session's
-  CLAUDE.md updates) — normal carried-docs state, folds into the next PR. PR
+  `clark-development` was resynced to `main` this session, then advanced by the Backend M2
+  commit(s) (→ PR #279) — normal carried-work state, folds into that PR. PR
   history: #262 (scaffolding), #266/#267 (portfolio cutover, temp branch), **#269**
   (ecommerce cutover), **#270** (ats cutover), **#271** (CVE remediation), **#273** (security
   hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`), **#274** (Infra M4:
   chatbot OpenAI key → Secrets Manager at runtime), **#276** (Frontend M4: 14 portfolio-frontend
   unit specs, 246→317, test-only), **#277** (Infra H2/M3: scope CI deploy-role IAM write actions to
   project ARNs — merged + deployed + verified), **#278** (Infra M1/M2: Docker hardening — digest-pin
-  all 8 base images + non-root `app` user on the 3 backends; local-dev-only, OPEN). Going forward,
-  always `clark-development`.
+  all 8 base images + non-root `app` user on the 3 backends; local-dev-only, merged), **#279**
+  (Backend M2: investigated — not a real defect; 2 clarifying CSRF comments + docs, behaviour
+  unchanged). Going forward, always `clark-development`.

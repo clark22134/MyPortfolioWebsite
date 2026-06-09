@@ -49,7 +49,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())   // SPA uses HTTP-only cookie + CORS allowlist; no form posts
+                // CSRF protection is provided by the SameSite=Lax auth cookie (see CookieUtil):
+                // it is not sent on cross-site POST/PUT/PATCH/DELETE, so forged mutations arrive
+                // unauthenticated. (CORS does not stop CSRF on its own — it only blocks reading
+                // the response, not sending the request.)
+                .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .httpBasic(b -> b.disable())
                 .formLogin(f -> f.disable())

@@ -38,6 +38,9 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+            // CSRF protection is provided by the SameSite=Strict auth cookie (see CookieUtil):
+            // the browser does not attach it to cross-site requests, so a forged request arrives
+            // unauthenticated. An explicit CSRF token would be redundant for this cookie model.
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
