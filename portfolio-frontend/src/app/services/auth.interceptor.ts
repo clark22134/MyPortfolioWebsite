@@ -20,7 +20,6 @@ export const authInterceptor: HttpInterceptorFn = (
 ): Observable<HttpEvent<unknown>> => {
   const authService = inject(AuthService);
 
-  // Only intercept API requests
   if (!req.url.startsWith('/api')) {
     return next(req);
   }
@@ -93,7 +92,6 @@ function handle401Error(
         refreshTokenSubject.next(true);
 
         if (result) {
-          // Retry the original request
           return next(addCredentialsAndCsrf(req));
         }
 

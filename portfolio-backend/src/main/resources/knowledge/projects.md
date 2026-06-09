@@ -28,10 +28,13 @@ managers.
   note, tag change, and task completion.
 - **Database**: PostgreSQL with **Flyway migrations** in
   `ats-backend/src/main/resources/db/migration/` (`V1__initial_schema`,
-  `V2__auth_users`, `V3__notes_activities_tasks_tags`). Tests use H2 with
-  `MODE=PostgreSQL` and Flyway disabled.
-- **Demo accounts** (seeded on startup, configurable via `ATS_*_PASSWORD` env):
-  `admin` / `admin123`, `recruiter` / `recruiter123`, `manager` / `manager123`.
+  `V2__auth_users`, `V3__notes_activities_tasks_tags`, `V4__catchup_idempotent`,
+  `V5__ensure_activity_table_exists`). Tests use H2 with `MODE=PostgreSQL` and
+  Flyway disabled.
+- **Demo accounts**: `admin`, `recruiter`, and `manager` users for local
+  development only. **Disabled in production** (`ATS_DEMO_ACCOUNTS_ENABLED=false`);
+  seeded locally only when explicitly enabled with strong `ATS_*_PASSWORD` values
+  (the initializer refuses to seed any account whose password is blank).
 - **URL on this site**: `/ats/`
 - **Source**: `ats-backend/`, `ats-frontend/`, `ats-db/`
 

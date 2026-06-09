@@ -52,7 +52,6 @@ public class ProjectController {
     public ResponseEntity<Project> updateProject(
             @PathVariable Long id,
             @Valid @RequestBody Project project) {
-        // Verify project exists
         projectService.getProjectById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(PROJECT_RESOURCE, "id", id));
         
@@ -62,7 +61,6 @@ public class ProjectController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
-        // Verify project exists
         projectService.getProjectById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(PROJECT_RESOURCE, "id", id));
         

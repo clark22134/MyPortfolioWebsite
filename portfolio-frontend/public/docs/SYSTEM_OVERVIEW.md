@@ -156,7 +156,7 @@ Covers the core workflow of applicant tracking: posting roles, collecting candid
 | Frontend | Angular 21, TypeScript 5.9, Angular CDK (drag-drop) |
 | Backend | Spring Boot 3.5.14, Java 21, Spring Data JPA, Apache Tika/PDFBox/POI |
 | Database | Aurora Serverless v2 (PostgreSQL 15.17) |
-| Auth | Stateless API, CORS configured (demo mode — no auth enforcement) |
+| Auth | JWT via HTTP-only cookie + role-based authorization (ADMIN/RECRUITER/HIRING_MANAGER); demo accounts disabled in prod (`ATS_DEMO_ACCOUNTS_ENABLED=false`) |
 | Infrastructure | AWS Lambda (Java 21), API Gateway, CloudFront, S3, Route53, ACM |
 
 ```
@@ -171,7 +171,7 @@ Database is seeded with 6 jobs and 100 candidates across realistic profiles (ski
 
 ## 4. Shared Cloud Infrastructure
 
-All three systems run on a single AWS infrastructure stack, managed entirely through Terraform (~2,190 lines across 8 modules) with remote state in S3 and DynamoDB locking.
+All three systems run on a single AWS infrastructure stack, managed entirely through Terraform (~2,900 lines across 8 modules) with remote state in S3 and DynamoDB locking.
 
 ### Compute
 
@@ -191,7 +191,7 @@ All three systems run on a single AWS infrastructure stack, managed entirely thr
 - **CloudFront WAF** (us-east-1) with 5 rules: general rate limiting (2000 req/5 min), auth endpoint rate limiting (20 req/5 min), and three AWS managed rule sets (common vulnerabilities, known bad inputs, SQL injection)
 - **Security groups** restrict Lambda ingress to API Gateway and Aurora egress to the database security group only
 - **Nginx** (CloudFront response headers policy) adds security headers: HSTS, CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff
-- **Secrets Manager** stores database credentials only (Aurora-managed rotation); JWT signing keys, admin password, and SMTP credentials are Terraform variables injected directly as Lambda environment variables
+- **Database authentication** uses short-lived RDS IAM tokens (signed locally via SigV4 — no `DB_PASSWORD` in any Lambda env); the Aurora master credential is kept in **Secrets Manager** only as break-glass / for one-time provisioning, not read by running apps. The chatbot's OpenAI key is fetched from Secrets Manager at startup (`OPENAI_SECRET_ARN`). JWT signing keys, admin password, and SMTP credentials are Terraform variables injected directly as Lambda environment variables
 
 ### CI/CD
 

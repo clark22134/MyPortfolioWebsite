@@ -40,7 +40,6 @@ export class ContactComponent {
     this.successMessage = '';
     this.errorMessage = '';
 
-    // Basic validation check
     if (!this.formData.name || !this.formData.email || !this.formData.subject || !this.formData.message) {
       return;
     }

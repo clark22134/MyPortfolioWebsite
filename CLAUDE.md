@@ -103,6 +103,28 @@
   ecommerce) documenting the SameSite defense — the prior ats comment was misleading (credited the
   CORS allowlist, which does **not** stop CSRF). Backend test baselines **unchanged** (ats 222,
   ecommerce 84, both green). See the **"Backend M2"** section below.
+- ✅ **Repo-hygiene + documentation-currency pass (this PR)** — cleanup sweep, **no behavior
+  change**. (a) **`terraform/main.tf` audited → kept as-is** (verbose-by-design: explicit per-app
+  blocks + load-bearing "why" comments; a DRY/`for_each` refactor would migrate state addresses on
+  live-prod CloudFront/Route53/Lambda and **can't be `plan`-verified locally** → risk ≫ benefit).
+  `terraform fmt` clean. (b) **CSS audited → already clean**; removed exactly **1** byte-identical
+  duplicate (`.price` in `ecommerce-frontend/src/styles.css`; the global `.price` still styles it).
+  (c) **Comments minimized** — deleted ~17 "restates-the-next-line" noise comments (Java + Angular);
+  **zero** commented-out code existed repo-wide; kept all "why"/security/AAA-test/divider comments.
+  (d) **Dependabot triaged** — **23 closed** (5 stale: removed `/frontend`+`/backend` dirs + Jasmine,
+  which Vitest replaced; 18 deferred majors closed with `@dependabot ignore this major version` so
+  they don't churn back — Spring Boot 4.x, npm/docker majors, TS 6); **8 safe minor/patch PRs left
+  OPEN** for the user to merge (#263/#264/#272/#275 backend groups, #259 portfolio-frontend, #254/#257
+  AWS provider 6.47→6.49, #174 github-actions) — **not** auto-merged (merge→`main` = prod deploy).
+  (e) **Docs + chatbot knowledge + portfolio frontend brought current** vs the post-IAM /
+  post-chatbot-extraction reality: DB auth = **RDS IAM tokens** (not Secrets-Manager creds), OpenAI
+  key from **Secrets Manager at startup**, **no NAT** gateway, **ATS has JWT + role auth**
+  (ADMIN/RECRUITER/HIRING_MANAGER; demo accounts off in prod), RAG **TOP_K=12 / CONTEXT_PASSAGES=6**,
+  Terraform **~2,900 lines / 8 modules (no `route53` module — records are in root `main.tf`)**, Vitest
+  (not Karma/Jasmine), Aurora PG **15.17**, API GW **REST**; fixed `RagService` Javadoc (top-k 8→12),
+  removed the phantom **NAT cost line** + rewrote TECHNICAL_DESIGN §8.3, and **re-synced all 13
+  `portfolio-frontend/public/docs/*` to canonical `/docs`** (3 had drifted). Verified: both touched
+  frontends **build green**, the 3 touched backends **compile green**, no test asserts changed copy.
 - ▶️ **NEXT WORK**: **the roadmap's actionable findings are now all resolved.** Only optional /
   deferred items remain, none a clean unattended task:
   - **H2/M3 phase 2** (scope the non-IAM `ec2:*`/`rds:*`/… deploy-role service wildcards) — needs
@@ -485,13 +507,14 @@ risk; the value is local-dev supply-chain hygiene + defense-in-depth.
   digest pin — no `USER` change), so the resolve-check is sufficient evidence for them.
 - **Rollback:** revert the PR — restores the floating tags / root `USER`. (No deploy impact either
   way; these images are never built by `deploy-production.yml`.)
-- ⚠️ **Open Dependabot PRs conflict with this one** (they edit the same `FROM` lines, proposing
-  *major* bumps): node 24→26 (#237/#234/#229), postgres 16→18 (#232), mysql 8.0→9.7 (#239),
-  eclipse-temurin 21→25 (#223/#224/#228), maven →26 (#225/#227/#230), `all-docker` (#211). This PR
-  deliberately pins the **current, tested** versions (M2 = pin, *not* upgrade — major bumps are a
-  separate, higher-risk decision). After this merges, those Dependabot PRs need a rebase; they'll
-  re-target the new `tag@digest` format and can be taken individually if/when the major bumps are
-  vetted. Don't fold the major bumps into this PR.
+- ✅ **Conflicting Dependabot major-bump PRs CLOSED** (resolved in the repo-hygiene PR above):
+  node 24→26 (#237/#234/#229), postgres 16→18 (#232), mysql 8.0→9.7 (#239), eclipse-temurin 21→25
+  (#223/#224/#228), maven →26 (#225/#227/#230), `all-docker` (#211) were each closed with
+  `@dependabot ignore this major version` (single-dep ones) / a plain close (the grouped `all-docker`)
+  — so Dependabot stays on the **current, tested** majors this PR pinned and keeps offering patch +
+  digest bumps within them. To revisit a major later: comment `@dependabot unignore <dependency>` on
+  the repo (or bump the `FROM` tag+digest manually). M2 = pin, *not* upgrade; majors remain a
+  separate, vetted decision.
 
 ## Backend M2 — security-config "inconsistency" (✅ INVESTIGATED — NOT a real defect; PR #279)
 

@@ -105,7 +105,6 @@ export class ProductListComponent implements OnInit, OnDestroy {
     return { hours, minutes, seconds };
   });
 
-  // new properties for pagination
   thePageNumber = signal<number>(1);
   thePageSize = signal<number>(8);
   theTotalElements = signal<number>(0);

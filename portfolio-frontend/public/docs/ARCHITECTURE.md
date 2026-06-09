@@ -27,7 +27,7 @@ graph TB
             end
         end
 
-        SM["Secrets Manager<br/>DB Credentials (Aurora-managed)"]
+        SM["Secrets Manager<br/>Aurora master (break-glass only)<br/>DB auth via RDS IAM tokens"]
         CW["CloudWatch Logs<br/>7-day retention"]
         EB["EventBridge<br/>Warming rule (every 2 min)"]
     end
@@ -43,9 +43,8 @@ graph TB
     CF -->|"/* → S3 origin"| S3
     CF -->|"/api/* → API Gateway"| APIGW
     APIGW -->|Lambda proxy integration| Lambda
-    Lambda -->|SQL| Aurora
+    Lambda -->|"RDS IAM token (SigV4)"| Aurora
     Lambda -->|Send Email| SMTP
-    SM -.->|Inject Secrets| Lambda
     Lambda -->|Logs| CW
     EB -.->|Warm invocation| Lambda
 ```
@@ -122,7 +121,7 @@ sequenceDiagram
     participant SMTP as SMTP (AWS SES / Gmail)
     participant SM as Secrets Manager
 
-    Note over SM,API: Startup: Secrets injected as Lambda env vars
+    Note over SM,API: DB auth via locally-signed RDS IAM tokens (no DB creds from Secrets Manager); JWT/SMTP secrets injected as Lambda env vars
 
     rect rgb(240, 248, 255)
         Note over B,CF: Public Browsing
@@ -169,7 +168,7 @@ sequenceDiagram
 | **Angular SPA** | Single-page application with standalone components. Lazy-loads interactive project routes. Manages JWT lifecycle via interceptors and guards. Served as static files from S3. |
 | **Spring Boot API (Lambda)** | Stateless REST backend packaged as a Lambda function using `aws-serverless-java-container-springboot3`. Handles authentication, project CRUD, and contact form submission. JWT filter chain validates every request. |
 | **Aurora Serverless v2** | Managed PostgreSQL 15.17 database (0.5–4 ACU). Stores users, projects, and refresh tokens. Scales toward zero during idle periods; auto-scales ACU under load. |
-| **Secrets Manager** | Aurora-managed database credentials stored in Secrets Manager and accessed by Lambda at runtime. JWT signing key, admin password, and SMTP credentials are passed as Terraform variables to Lambda environment variables — no application secrets stored in Secrets Manager. |
+| **Secrets Manager** | Stores the Aurora master credential only as a break-glass / one-time provisioning credential — the Lambda does **not** read database credentials from Secrets Manager at runtime. Instead it authenticates to Aurora with short-lived RDS IAM tokens signed locally via SigV4 (no network call, no plaintext `DB_PASSWORD`). JWT signing key, admin password, and SMTP credentials are passed as Terraform variables to Lambda environment variables. |
 | **SMTP (AWS SES)** | Email relay for contact form submissions. AWS SES (`email-smtp.us-east-1.amazonaws.com`) in production; Gmail SMTP by default for local development. Configured via Spring Mail with environment-injected credentials. |
 | **RefreshTokenService** | Enforces a maximum of 5 active refresh tokens per user. Tracks device (user agent) and IP address per session. Supports single-device and all-device logout. |
 
@@ -294,11 +293,11 @@ sequenceDiagram
     Note over R: Semantic retrieval
     R->>E: embed(expandedQuery)
     E-->>R: 1536-dim query vector
-    R->>V: similaritySearch(queryVector, topK=8)
-    V-->>R: Top-8 matching chunks
+    R->>V: similaritySearch(queryVector, TOP_K=12)
+    V-->>R: Top-12 matching chunks
 
     Note over R: Reranking + deduplication
-    R->>R: Deduplicate by (source, section)<br/>Category-aware priority weights<br/>Keep top CONTEXT_PASSAGES=4
+    R->>R: Deduplicate by (source, section)<br/>Category-aware priority weights<br/>Keep top CONTEXT_PASSAGES=6
 
     Note over R: Prompt assembly
     R->>R: Build system prompt + numbered context passages
@@ -373,7 +372,7 @@ graph TB
             end
         end
 
-        SM["Secrets Manager"]
+        SM["Secrets Manager<br/>Aurora master (break-glass only)<br/>DB auth via RDS IAM tokens"]
         CW["CloudWatch Logs"]
         EB["EventBridge<br/>Warming rule"]
     end
@@ -384,8 +383,7 @@ graph TB
     CF -->|"/* → S3 origin"| S3
     CF -->|"/api/* → API Gateway"| APIGW
     APIGW -->|Lambda proxy integration| Lambda
-    Lambda -->|SQL| Aurora
-    SM -.->|Inject Secrets| Lambda
+    Lambda -->|"RDS IAM token (SigV4)"| Aurora
     Lambda -->|Logs| CW
     EB -.->|Warm invocation| Lambda
 ```
@@ -604,7 +602,7 @@ graph LR
         MatchAlgo["Matching Algorithm<br/>Skills: 50%<br/>Availability: 25%<br/>Proximity: 25%"]
     end
 
-    subgraph Database["PostgreSQL 16"]
+    subgraph Database["PostgreSQL 15.17"]
         JobTbl["job<br/>idx: status"]
         CandTbl["candidate<br/>idx: job_id, stage"]
     end
@@ -713,7 +711,7 @@ An ATS is inherently relational — jobs have candidates, candidates have stages
 | In-process resume parsing (Tika/PDFBox/POI) vs. external service | No external dependencies, no API costs, deterministic behavior | Limited extraction quality — regex-based name/email parsing is brittle for non-standard resume formats. No OCR for scanned PDFs. |
 | Resume content stored in Aurora vs. S3 | Simple implementation, content immediately queryable from DB | Less efficient for large binary files; at scale, S3 with pre-signed URLs would be preferred |
 | Haversine distance for proximity vs. geocoding API | No external API calls, no rate limits, deterministic | Requires lat/lng to be pre-populated on both jobs and candidates. Straight-line distance, not driving distance. |
-| No authentication (demo mode) vs. full auth | Faster to demonstrate, no login friction | Not production-safe. Any user can modify any data. Acceptable for a portfolio demonstration. |
+| Role-based JWT auth (HTTP-only cookie) vs. open access | Cookie-based JWT with role-based authorization (ADMIN/RECRUITER/HIRING_MANAGER) gates reads and mutations; demo accounts are disabled in production | Adds login/authorization plumbing; demo accounts are seeded only in local dev when explicitly enabled with strong passwords |
 | Optimistic UI for drag-and-drop vs. wait for server | Immediate visual feedback, snappier UX | Must handle rollback on failure; risk of brief inconsistent state if API errors |
 
 ---
@@ -767,7 +765,7 @@ graph TB
         L_C["Lambda — portfolio-chatbot<br/>(No VPC)"]
 
         subgraph Services["AWS Services"]
-            SM["Secrets Manager<br/>DB Credentials (Aurora-managed)"]
+            SM["Secrets Manager<br/>Aurora master (break-glass only)<br/>+ chatbot OpenAI key<br/>App DB auth via RDS IAM tokens"]
             CW["CloudWatch<br/>7 Log Groups"]
             IAM["IAM<br/>OIDC Provider<br/>Lambda Execution Roles<br/>GH Actions Role"]
             EB["EventBridge<br/>4 Warming Rules"]
@@ -800,7 +798,8 @@ graph TB
     GHA -->|Read/Write State| TF_S3
     GHA -->|Lock State| DDB
 
-    SM -.->|Inject Secrets| L_P & L_C & L_E & L_A
+    SM -.->|OpenAI key at startup| L_C
+    L_P & L_E & L_A -.->|"RDS IAM token (SigV4)"| Aurora
     L_P & L_C & L_E & L_A -->|Logs| CW
     EB -.->|Warm invocations| L_P & L_C & L_E & L_A
 ```
@@ -935,7 +934,7 @@ graph LR
 | **Lambda (4 functions)** | Spring Boot 3.5.14 on Java 21 packaged as flat uber JARs via maven-shade-plugin. Uses `aws-serverless-java-container-springboot3` adapter (`StreamLambdaHandler`). SnapStart reduces cold start times. EventBridge warming rules invoke each function every 2 minutes. |
 | **S3 (3 static hosting buckets)** | Hosts the compiled Angular SPA for each application. Versioned hashed filenames enable aggressive cache-control headers. Bucket policy restricts access to CloudFront origin access control only — no public direct access. |
 | **Aurora Serverless v2 (1 shared cluster, 3 databases)** | PostgreSQL 15.17, 0.5–4 ACU. Single shared cluster hosts three databases (portfolio, ecommerce, ats). Scales to near-zero when idle. Cluster is in private VPC subnets; Lambda functions connect via security group rules. |
-| **Secrets Manager** | Stores Aurora-managed database credentials only. JWT signing key, admin password, and SMTP credentials are now Terraform variables injected as Lambda environment variables. No long-lived application secrets stored in Secrets Manager. |
+| **Secrets Manager** | Stores the Aurora master credential as a break-glass / provisioning credential (the app backends do not read it at runtime — they authenticate to Aurora with locally-signed RDS IAM tokens), plus the chatbot's OpenAI API key, which the chatbot Lambda fetches at startup via `OPENAI_SECRET_ARN`. JWT signing key, admin password, and SMTP credentials are Terraform variables injected as Lambda environment variables. |
 | **EventBridge (4 rules)** | Scheduled rules invoke each Lambda function every 2 minutes to keep the JVM warm and prevent cold starts. |
 | **CloudWatch** | Centralized logging for Lambda invocations and API Gateway access logs. 7-day retention balances troubleshooting access with storage cost. |
 | **GitHub Actions (OIDC)** | CI/CD pipeline with keyless AWS authentication. The OIDC provider trusts the GitHub repository and branch. No long-lived AWS access keys stored in GitHub. The IAM role grants permissions for Lambda updates, S3 sync, CloudFront invalidation, and Terraform state access. |

@@ -104,7 +104,7 @@ The key design principle: **everything is hidden behind the `VectorStore` interf
 
 **Per-query reranking — why not a cross-encoder:**
 
-Cross-encoder rerankers (e.g., `ms-marco-MiniLM-L-6-v2`) improve retrieval precision by scoring each candidate passage against the query jointly, rather than independently. At portfolio scale (topK=8 candidates over a bounded corpus), the quality difference versus category-aware heuristic reranking is minimal — and cross-encoders require either an additional model download or an external inference endpoint. The implemented reranking strategy (deduplication by `(source, section)` key + category priority weights) eliminates the most common failure mode — duplicate passages from the same document — without adding infrastructure.
+Cross-encoder rerankers (e.g., `ms-marco-MiniLM-L-6-v2`) improve retrieval precision by scoring each candidate passage against the query jointly, rather than independently. At portfolio scale (topK=12 candidates over a bounded corpus), the quality difference versus category-aware heuristic reranking is minimal — and cross-encoders require either an additional model download or an external inference endpoint. The implemented reranking strategy (deduplication by `(source, section)` key + category priority weights) eliminates the most common failure mode — duplicate passages from the same document — without adding infrastructure.
 
 **`@ConditionalOnExpression` graceful degradation:**
 
@@ -220,11 +220,11 @@ All three backends connect to a single shared Aurora Serverless v2 cluster over 
 
 ### 4.2 Infrastructure as Code — Terraform
 
-The entire infrastructure is defined in Terraform (~2,190 lines across 8 modules):
+The entire infrastructure is defined in Terraform (~2,900 lines across 8 modules):
 
 | Module | Resources |
 |--------|-----------|
-| `networking` | VPC, 2 public + 2 private subnets, IGW, NAT Gateway, route tables |
+| `networking` | VPC, 2 public + 2 private subnets, IGW, route tables (no NAT — in-VPC Lambdas have no public egress) |
 | `acm` | SSL certificate with DNS validation for 4 domains |
 | `aurora` | 1 shared Aurora Serverless v2 cluster (3 databases, PostgreSQL 15.17, 0.5–4 ACU) |
 | `lambda` | 4 Lambda functions (Java 21, SnapStart, 1024–2048 MB), IAM execution roles, EventBridge warm-up rules |
@@ -338,9 +338,9 @@ Sensitive configuration is never stored in code, environment files, or Docker im
 | SMTP credentials | Terraform variable | Lambda environment variable |
 | Database passwords | AWS Secrets Manager (Aurora-managed) | Lambda environment variable via Secrets Manager ARN |
 
-**Why Terraform variables over Secrets Manager for most secrets:** JWT signing keys, admin password, and SMTP credentials are injected as Lambda environment variables directly from Terraform variables defined at apply time. This simplifies the architecture — no runtime Secrets Manager API calls, no IAM policies for `secretsmanager:GetSecretValue`, and no cold-start latency from fetching secrets. Only database credentials remain in Secrets Manager because Aurora manages its own master password rotation natively.
+**Why Terraform variables over Secrets Manager for most secrets:** JWT signing keys, admin password, and SMTP credentials are injected as Lambda environment variables directly from Terraform variables defined at apply time. This simplifies the architecture — no runtime Secrets Manager API calls for these values, no cold-start latency from fetching them. Database access avoids stored credentials entirely: the backends authenticate to Aurora with short-lived RDS IAM tokens (signed locally via SigV4, no runtime Secrets Manager call). The Aurora master credential stays in Secrets Manager only as break-glass / for one-time provisioning, and the chatbot's OpenAI key is fetched from Secrets Manager once at startup.
 
-The Lambda execution role has a scoped IAM policy for Secrets Manager access limited to `arn:aws:secretsmanager:*:*:secret:rds!*` for Aurora-managed credentials only.
+The backend Lambda execution roles carry a scoped `rds-db:connect` permission for RDS IAM authentication and need no `secretsmanager:GetSecretValue` at runtime. The chatbot Lambda's role is the only one granted `secretsmanager:GetSecretValue`, scoped to the single OpenAI key secret it reads at startup.
 
 ### 5.3 Network Security
 
@@ -406,12 +406,11 @@ Concurrency limits can be set per-function if linear cost scaling becomes a conc
 | **Route53 Hosted Zone** | 1 zone | $0.50/month | ~$1 |
 | **ACM Certificate** | 1 cert | Free | $0 |
 | **CloudWatch Logs** | 7 log groups (4 Lambda + 3 API Gateway), 7-day retention | $0.50/GB ingested | ~$1–2 |
-| **Secrets Manager** | Aurora-managed DB credentials | $0.40/secret/month | ~$1 |
-| **NAT Gateway** | 1 (single AZ, Lambda VPC egress) | $0.045/hr + data | ~$33 |
+| **Secrets Manager** | Aurora master credential (break-glass) + chatbot OpenAI key | $0.40/secret/month | ~$1 |
 | **S3 + DynamoDB (Terraform State)** | <1MB | Negligible | <$1 |
-| | | **Estimated Total** | **~$63/month** |
+| | | **Estimated Total** | **~$30/month** |
 
-**Previous ECS Fargate architecture: ~$200/month. Cost reduction: ~68% (~$137/month saved).**
+**Previous ECS Fargate architecture: ~$200/month. Cost reduction: ~85% (~$170/month saved).**
 
 ### 7.2 Cost Optimization Decisions
 
@@ -423,7 +422,7 @@ Concurrency limits can be set per-function if linear cost scaling becomes a conc
 
 **7-day CloudWatch log retention: ~$8–10/month saved.** Default retention is indefinite. For a portfolio site, logs older than a week have no debugging value. Long-term storage uses S3 at $0.023/GB/month if needed.
 
-**Terraform-injected secrets: ~$2–3/month saved.** Moving JWT keys, admin password, and SMTP credentials from Secrets Manager to Terraform variables reduced per-secret charges. Only Aurora-managed database credentials remain in Secrets Manager.
+**Terraform-injected secrets: ~$2–3/month saved.** Moving JWT keys, admin password, and SMTP credentials from Secrets Manager to Terraform variables reduced per-secret charges. Database access uses RDS IAM tokens (no stored app credential); the Aurora master credential in Secrets Manager is break-glass only, and the chatbot's OpenAI key is the one secret read at runtime.
 
 ---
 
@@ -443,11 +442,11 @@ Every architecture involves trade-offs. Here are the ones I made deliberately:
 
 **Why it's acceptable:** The ATS is a demonstration of the parsing pipeline, not a high-volume production system. At the expected usage (single recruiter, tens of resumes), synchronous parsing completes in under 2 seconds. An SQS + Lambda architecture would add operational complexity (dead letter queues, retry policies, eventual consistency) for a problem that doesn't exist at this scale.
 
-### 8.3 NAT Gateway Cost — Network Security Over Cost
+### 8.3 No NAT Gateway — Cost Over In-VPC Egress
 
-**Trade-off:** A single NAT Gateway costs ~$33/month — the largest single line item. This is required for Lambda functions in private subnets to reach external services (Secrets Manager, SMTP, etc.).
+**Trade-off:** The backend Lambdas run in private subnets with **no NAT Gateway and no VPC endpoints**, avoiding what would be the single largest line item (~$33/month). The cost of that choice is that in-VPC components have no general outbound internet path, so anything needing egress must be designed around the constraint.
 
-**Why it's acceptable:** Private subnets are the production-correct network architecture. Lambda functions and Aurora clusters are unreachable from the public internet. The NAT Gateway cost is the price of proper network isolation. A single NAT Gateway (one AZ) reduces cost versus two (multi-AZ), accepting reduced availability during an AZ outage — acceptable for a portfolio site.
+**Why it's acceptable:** Database authentication uses **RDS IAM tokens** signed locally via SigV4 — no Secrets Manager or other public-AWS call — so the backends need no egress to reach Aurora. The RAG chatbot, which must reach `api.openai.com`, runs as a **separate Lambda outside the VPC** instead of forcing a NAT Gateway on the whole stack for one function. Aurora and the backend Lambdas stay unreachable from the public internet, preserving private-subnet isolation without the NAT cost.
 
 ### 8.4 Shared Aurora Cluster — Cost Over Isolation
 

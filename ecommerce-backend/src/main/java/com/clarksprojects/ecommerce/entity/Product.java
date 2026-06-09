@@ -18,12 +18,7 @@ public class Product {
     @Column(name = "id")
     private Long id;
 
-    @ManyToOne // Many Products entities can belong to a ProductCategory
-    // Below annotation specifies the foreign key column in the "product"
-    // table that references the primary key of the "product_category" table.
-    // The nullable = false attribute indicates that this relationship is
-    // mandatory, meaning that every Product must be associated with a
-    // ProductCategory.
+    @ManyToOne
     @JoinColumn(name = "category_id", nullable = false)
     private ProductCategory category;
 

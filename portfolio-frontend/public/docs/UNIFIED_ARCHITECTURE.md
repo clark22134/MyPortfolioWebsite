@@ -89,7 +89,7 @@ The deliberate selection of three distinct business domains — content manageme
 │ │  • Rate Limit   │   │   │ │  • PCI-aware card     │  │   │ │    Scoring         │  │
 │ │  • CSRF Tokens  │   │   │ │    truncation         │  │   │ │  • Pipeline CRUD   │  │
 │ │  • Contact/SMTP │   │   │ │                       │  │   │ │  • Analytics API   │  │
-│ │  • Session Caps │   │   │ │                       │  │   │ │  • CORS-restricted │  │
+│ │  • Session Caps │   │   │ │                       │  │   │ │  • JWT cookie auth │  │
 │ │  • EventBridge  │   │   │ │  • EventBridge        │  │   │ │  • EventBridge     │  │
 │ │    Warmer       │   │   │ │    Warmer             │  │   │ │    Warmer          │  │
 │ └───────┬─────────┘   │   │ └──────────┬───────────┘  │   │ └──────────┬────────┘  │
@@ -133,7 +133,9 @@ The deliberate selection of three distinct business domains — content manageme
                     │  ┌──────────────────────────────┐    │
                     │  │  VPC (10.0.0.0/16)            │    │
                     │  │  2 Public + 2 Private Subnets │    │
-                    │  │  Internet Gateway + NAT       │    │
+                    │  │  Internet Gateway (no NAT;    │    │
+                    │  │  in-VPC Lambdas have no egress,│   │
+                    │  │  DB auth via RDS IAM)         │    │
                     │  │  Security Groups (Lambda→DB)  │    │
                     │  └──────────────────────────────┘    │
                     │                                      │
@@ -146,8 +148,12 @@ The deliberate selection of three distinct business domains — content manageme
                     │                                      │
                     │  ┌──────────────────────────────┐    │
                     │  │  Secrets & Configuration       │    │
-                    │  │  • DB Creds (Secrets Manager,  │    │
-                    │  │    Aurora-managed auto-rotate) │    │
+                    │  │  • DB Auth: RDS IAM tokens     │    │
+                    │  │    (no DB password in env;     │    │
+                    │  │    master cred in SM = break-  │    │
+                    │  │    glass / provisioning only)  │    │
+                    │  │  • OpenAI key (chatbot): SM    │    │
+                    │  │    fetched at startup          │    │
                     │  │  • JWT/Admin/SMTP: Terraform   │    │
                     │  │    vars → Lambda env vars      │    │
                     │  └──────────────────────────────┘    │
@@ -196,7 +202,7 @@ The deliberate selection of three distinct business domains — content manageme
                     │  SonarCloud, npm audit,              │
                     │  mvn dependency-check                │
                     │                                      │
-                    │  IaC: Terraform (8 modules, ~2190 LOC)│
+                    │  IaC: Terraform (8 modules, ~2900 LOC)│
                     │  State: S3 + DynamoDB Locking        │
                     └──────────────────────────────────────┘
 ```
@@ -232,7 +238,7 @@ The cost-optimized serverless infrastructure (~$63/month for three production ap
 - **Lambda SnapStart**: All four Java Lambda functions (portfolio, portfolio-chatbot, e-commerce, ATS) use SnapStart to reduce cold starts from ~8s to 1-2s by creating snapshots of initialized Spring Boot contexts.
 - **CloudFront global CDN**: Three distributions serve static frontends from S3 with edge caching and proxy `/api/*` requests to regional API Gateways. This eliminates the ALB (~$16/month) and reduces data transfer costs.
 - **EventBridge warming**: Each Lambda function has a scheduled rule that triggers every 2 minutes to maintain warm execution environments and prevent cold starts during low-traffic periods.
-- **Terraform modules** (networking, ACM, S3, CloudFront, CloudFront WAF, API Gateway, Lambda, Aurora, Route53) are reusable across all three apps with ~2190 lines of modular infrastructure code.
+- **Terraform modules** (networking, ACM, S3, CloudFront, CloudFront WAF, API Gateway, Lambda, Aurora) are reusable across all three apps with ~2900 lines of modular infrastructure code. Route 53 records live in the root `main.tf` rather than a dedicated module.
 
 ---
 
@@ -242,11 +248,11 @@ The following table maps engineering capabilities across the three projects, sho
 
 | Skill Area | Portfolio | E-Commerce | ATS |
 |------------|-----------|------------|-----|
-| **Authentication** | Dual JWT + refresh rotation + session caps + CSRF | Single JWT + HTTP-only cookies + guest→auth merge | CORS-restricted public demo |
+| **Authentication** | Dual JWT + refresh rotation + session caps + CSRF | Single JWT + HTTP-only cookies + guest→auth merge | JWT (HTTP-only cookie) + role-based authorization (ADMIN/RECRUITER/HIRING_MANAGER) |
 | **API Design** | RESTful controllers, DTOs, validation | Spring Data REST auto-exposition + custom controllers | CRUD + file upload + scoring endpoints |
 | **Data Modeling** | Users, Projects, RefreshTokens (simple) | Products, Orders, Cart, Customers, Countries (3NF normalized) | Jobs, Candidates, Pipeline stages (geographic + temporal) |
 | **Frontend Architecture** | Accessibility-first (WCAG 2.1 AA, TTS, screen reader mode) | State management (cart sync, order tracking) | Interactive UI (drag-drop Kanban, file upload, dashboard KPIs) |
-| **Security** | 3-layer rate limiting, CSRF, HSTS preload, per-IP lockout | PCI-aware truncation, input validation, secure cookies | CORS restriction, input validation |
+| **Security** | 3-layer rate limiting, CSRF, HSTS preload, per-IP lockout | PCI-aware truncation, input validation, secure cookies | Role-based authorization, JWT HTTP-only cookies, input validation |
 | **Database** | Aurora Serverless v2 PostgreSQL 15.17 — profile-based table creation | Aurora Serverless v2 PostgreSQL 15.17 — catalog reads, transactional writes, seed scripts | Aurora Serverless v2 PostgreSQL 15.17 — geographic queries, indexed pipeline stages |
 | **Document Processing** | — | — | Apache Tika, PDFBox, POI (PDF + DOCX parsing) |
 | **Algorithms** | — | Guest-to-auth cart merge logic | Multi-factor candidate scoring (weighted: skills, availability, geography) |
@@ -280,11 +286,11 @@ Bootstrap 5.3     Spring Data REST                            CloudFront WAF (us
 Angular CDK       JWT (jjwt 0.13)                             Route 53
 axe-core          Apache Tika 3.0                             CloudWatch
 Puppeteer         Apache PDFBox 3.0                           Secrets Manager
-                  Apache POI 5.3                              Terraform (~2190 LOC, 8 modules)
+                  Apache POI 5.3                              Terraform (~2900 LOC, 8 modules)
                   Lombok 1.18                                 GitHub Actions (OIDC)
                   JaCoCo                                      SnapStart (Lambda optimization)
                                                               EventBridge (warming)
-                                                              NAT Gateway (VPC)
+                                                              RDS IAM DB Auth (no NAT)
                                                               SonarCloud
                                                               Trivy / TruffleHog
 ```
@@ -302,7 +308,6 @@ Puppeteer         Apache PDFBox 3.0                           Secrets Manager
 | S3 (3 buckets, static hosting + versioning) | ~$1–2 | All 3 apps |
 | API Gateway (3 REST APIs, regional) | ~$1–2 | All 3 apps |
 | CloudWatch Logs (7 log groups) | ~$1–2 | All 3 apps + chatbot route |
-| NAT Gateway (Lambda VPC) | ~$3–4 | All 3 apps |
 | Route 53 (hosted zone + queries) | ~$0.50 | All 3 apps |
 | S3 + DynamoDB (Terraform state) | <$1 | IaC state |
 | **Total** | **~$63/month** | — |
