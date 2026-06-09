@@ -179,8 +179,10 @@ The serverless architecture eliminates Docker images in favor of direct Lambda d
 │   Runtime: Java 21 with SnapStart enabled  │
 │   Configuration: 1024–2048 MB memory (portfolio/ATS/chatbot: 1024 MB; e-commerce: 2048 MB) │
 │   Warm-up: EventBridge rule (2min interval) │
-│   Environment: OPENAI_API_KEY (chatbot)     │
-│                DB secrets (others)          │
+│   Environment: OPENAI_SECRET_ARN (chatbot;  │
+│                key fetched from Secrets Mgr) │
+│                RDS IAM token auth (others;  │
+│                no DB_PASSWORD)              │
 └─────────────────────────────────────────────┘
 ```
 
@@ -214,7 +216,7 @@ The serverless architecture eliminates Docker images in favor of direct Lambda d
 │   - Backup retention: 7 days                │
 │   - Encryption at rest: AES-256             │
 │   - Connection: Via VPC from Lambda         │
-│   - Credentials: Secrets Manager rotation   │
+│   - Auth: RDS IAM tokens (no DB_PASSWORD)   │
 └─────────────────────────────────────────────┘
 ```
 
@@ -230,7 +232,7 @@ The serverless architecture eliminates Docker images in favor of direct Lambda d
 | **VPC** | Private subnets | Private subnets | Private subnets | **None** (outside VPC — needs direct egress to api.openai.com; no DB access) |
 | **Warm-up** | EventBridge (2min) | EventBridge (2min) | EventBridge (2min) | EventBridge (2min) |
 | **Database** | Aurora (portfolio) | Aurora (ecommerce) | Aurora (ats) | **None** (no JPA/JDBC) |
-| **Key env vars** | `SPRING_DATASOURCE_*`, `JWT_SECRET` | `SPRING_DATASOURCE_*`, `JWT_SECRET` | `SPRING_DATASOURCE_*` | `OPENAI_API_KEY`, `CHATBOT_ENABLED`, `CHATBOT_RATE_LIMIT_PER_MIN`, `CHATBOT_DOCS_PATH` |
+| **Key env vars** | `SPRING_DATASOURCE_*` (RDS IAM, no `DB_PASSWORD`), `JWT_SECRET` | `SPRING_DATASOURCE_*` (RDS IAM, no `DB_PASSWORD`), `JWT_SECRET` | `SPRING_DATASOURCE_*` (RDS IAM, no `DB_PASSWORD`) | `OPENAI_SECRET_ARN` (key fetched from Secrets Manager at startup), `CHATBOT_ENABLED`, `CHATBOT_RATE_LIMIT_PER_MIN`, `CHATBOT_DOCS_PATH` |
 
 ### 2.3 Versioning & Tagging
 
@@ -450,9 +452,9 @@ graph TB
 
         subgraph "VPC — 10.0.0.0/16"
             subgraph "Private Subnets (2 AZs)"
-                L1["Lambda Function<br/>portfolio-backend<br/>Java 21 · SnapStart<br/>2048MB · 30s timeout<br/>EventBridge warmer"]
+                L1["Lambda Function<br/>portfolio-backend<br/>Java 21 · SnapStart<br/>1024MB · 30s timeout<br/>EventBridge warmer"]
                 L2["Lambda Function<br/>ecommerce-backend<br/>Java 21 · SnapStart<br/>2048MB · 30s timeout"]
-                L3["Lambda Function<br/>ats-backend<br/>Java 21 · SnapStart<br/>2048MB · 30s timeout"]
+                L3["Lambda Function<br/>ats-backend<br/>Java 21 · SnapStart<br/>1024MB · 30s timeout"]
             end
 
             subgraph "Database Layer (Private Subnets)"
@@ -460,7 +462,7 @@ graph TB
             end
         end
 
-        SM["Secrets Manager<br/>DB credentials<br/>Auto-rotation enabled"]
+        SM["Secrets Manager<br/>Aurora master credential (break-glass /<br/>provisioning only — apps use RDS IAM)<br/>OpenAI key (fetched by chatbot at startup)"]
         CW["CloudWatch Logs<br/>6 log groups (Lambda + API Gateway)<br/>7-day retention"]
     end
 
@@ -485,11 +487,10 @@ graph TB
     API2 --> L2
     API3 --> L3
 
-    L1 --> DB
-    L2 --> DB
-    L3 --> DB
+    L1 -->|RDS IAM token| DB
+    L2 -->|RDS IAM token| DB
+    L3 -->|RDS IAM token| DB
 
-    SM -.->|Environment vars| L1 & L2 & L3
     L1 -->|Send email| SMTP
     GH -->|Deploy JARs| L1 & L2 & L3
     GH -->|Deploy static assets| S31 & S32 & S33
@@ -499,19 +500,20 @@ graph TB
 
 ### 4.2 Terraform Modules
 
-The serverless infrastructure is defined across 8 Terraform modules (~2190 lines, Terraform >= 1.10, AWS Provider `~> 6.47`, Random Provider `~> 3.9`):
+The serverless infrastructure is defined across 8 Terraform modules (~2900 lines, Terraform >= 1.10, AWS Provider `~> 6.47`, Random Provider `~> 3.9`):
 
 | Module | Key Resources | Lines |
 |--------|--------------|-------|
-| `modules/networking` | VPC, 2 public + 2 private subnets, IGW, NAT gateways, route tables | ~100 |
+| `modules/networking` | VPC, 2 public + 2 private subnets, IGW, route tables (no NAT — in-VPC Lambdas have no public egress) | ~100 |
 | `modules/acm` | SSL certificate (4 SANs), DNS validation records, **us-east-1 provider** | ~60 |
 | `modules/s3-static` | S3 bucket, versioning, encryption, lifecycle policy, optional CloudFront OAC policy | ~80 |
 | `modules/cloudfront` | CloudFront distribution, OAC, cache behaviors (S3 + API origins), SPA error responses | ~120 |
 | `modules/cloudfront-waf` | WAF WebACL (2 rate limits, 3 AWS managed rules), **us-east-1 provider** | ~100 |
 | `modules/api-gateway` | REST API, Lambda proxy integration, deployment, stage, CloudWatch logging | ~90 |
 | `modules/lambda` | Lambda function, VPC config, SnapStart, IAM role, security groups, EventBridge warmer, placeholder ZIP | ~280 |
-| `modules/aurora` | Aurora Serverless v2 cluster, subnet group, Secrets Manager integration, auto-scaling (0.5–4 ACU) | ~150 |
-| `modules/route53` | 3 A records (aliased to CloudFront distributions) | ~40 |
+| `modules/aurora` | Aurora Serverless v2 cluster, subnet group, RDS IAM auth, master credential in Secrets Manager (break-glass), auto-scaling (0.5–4 ACU) | ~150 |
+
+Route 53 A records (aliased to the CloudFront distributions) are defined in the root `main.tf`, not a dedicated module.
 
 **Remote state backend:** S3 bucket (`clarkfoster-portfolio-tf-state`) with DynamoDB locking (`portfolio-terraform-locks`), provisioned separately via `terraform/bootstrap/`. The bootstrap resources use `prevent_destroy = true` and `PAY_PER_REQUEST` billing.
 
@@ -521,13 +523,12 @@ The serverless infrastructure is defined across 8 Terraform modules (~2190 lines
 
 ```
 terraform/
-├── main.tf                          # Root module: 3 application stacks + dedicated chatbot lambda route
+├── main.tf                          # Root module: provider config + alias (us-east-1), Route 53 records, 3 application stacks + dedicated chatbot lambda route
 ├── variables.tf                     # Input variables (domain, environment, region)
-├── providers.tf                     # AWS provider (us-east-1) + alias (us-east-1)
 ├── outputs.tf                       # Outputs (CloudFront URLs, Lambda ARNs, DB endpoints)
 ├── bootstrap/                       # S3 + DynamoDB for remote state (one-time setup)
 └── modules/
-    ├── networking/                  # VPC, subnets, gateways
+    ├── networking/                  # VPC, subnets, IGW, route tables (no NAT)
     ├── acm/                         # SSL certificates (us-east-1)
     ├── s3-static/                   # S3 buckets for frontend hosting
     ├── cloudfront/                  # CloudFront distributions
@@ -535,8 +536,7 @@ terraform/
     ├── api-gateway/                 # API Gateway REST APIs
     ├── lambda/                      # Lambda functions
     │   └── placeholder.zip          # Empty ZIP for initial Lambda creation
-    ├── aurora/                      # Aurora Serverless v2 clusters
-    └── route53/                     # DNS records
+    └── aurora/                      # Aurora Serverless v2 clusters
 ```
 
 ### 4.4 Stale Lock Handling
@@ -565,7 +565,7 @@ Most deployments exit 0 — infrastructure rarely changes between application de
 |---------|---------------------|---------|
 | **Local (bare metal)** | `make preview-all` → Spring Boot defaults + `ng serve` with `proxy.conf.json` | `default` |
 | **Local (Docker Compose)** | `.env` file + `docker-compose.yml` environment variables + Nginx local config overrides | `prod` |
-| **Production (AWS)** | Terraform variables → Lambda environment variables + Secrets Manager (DB creds only) | `prod` |
+| **Production (AWS)** | Terraform variables → Lambda environment variables; Aurora DB auth via RDS IAM tokens (no DB password in env); chatbot OpenAI key fetched from Secrets Manager at startup | `prod` |
 
 ### 5.2 Docker Compose (Local)
 
@@ -623,8 +623,8 @@ The default profile (no `SPRING_PROFILES_ACTIVE`) uses H2 in-memory databases an
 | **Authentication** | JWT signing key | Terraform variables → Lambda env vars | Lambda env var `JWT_SECRET` |
 | **Admin account** | Username, password, email, full name | Terraform variables → Lambda env vars | Lambda env vars `ADMIN_*` |
 | **Email (SMTP)** | Gmail username, app password, contact email | Terraform variables → Lambda env vars | Lambda env vars `MAIL_*`, `CONTACT_EMAIL` |
-| **Database** | PostgreSQL username, password (shared Aurora cluster) | AWS Secrets Manager (auto-rotation) | Lambda env vars via Secrets Manager ARN |
-| **AI / Chatbot** | OpenAI API key | Terraform variables → Lambda env var | Lambda env var `OPENAI_API_KEY` (chatbot Lambda only) |
+| **Database** | RDS IAM authentication (no stored app password); Aurora master credential kept in Secrets Manager for break-glass / provisioning only | Backends authenticate with short-lived RDS IAM tokens (signed locally via SigV4 — no runtime Secrets Manager call); master credential in Secrets Manager | Lambda env vars `SPRING_DATASOURCE_*` (URL/username only, no `DB_PASSWORD`) |
+| **AI / Chatbot** | OpenAI API key | AWS Secrets Manager (`prod/portfolio/openai-api-key`) | Fetched at startup via `OPENAI_SECRET_ARN` → `OpenAiKeyResolver` (never a plaintext env var) |
 | **CI/CD** | AWS role ARN, SonarCloud token, OpenAI API key | GitHub Secrets | GitHub Actions env |
 
 ### 6.2 Secrets Flow
@@ -639,18 +639,21 @@ graph LR
 
     subgraph Storage["Secret Storage"]
         TFV["Terraform Variables<br/>JWT secret, admin credentials,<br/>SMTP credentials"]
-        SM["Secrets Manager<br/>DB credentials only<br/>(auto-rotation)"]
+        SM["Secrets Manager<br/>Aurora master cred (break-glass /<br/>provisioning only)<br/>OpenAI key (chatbot)"]
     end
 
     subgraph Runtime["Lambda Function Start"]
         LEnv["Lambda env vars<br/>(set by Terraform)"]
         App["Spring Boot reads<br/>from System.getenv()"]
+        IAM["Backends: RDS IAM token<br/>(SigV4-signed locally)"]
+        Resolver["Chatbot: OpenAiKeyResolver<br/>fetches OpenAI key at startup"]
     end
 
     S1 & S2 & S3 -->|set as terraform<br/>variables| TFV
     TFV -->|Lambda env config| LEnv
-    SM -->|Secrets Manager ARN<br/>in Lambda config| LEnv
     LEnv --> App
+    LEnv -->|"SPRING_DATASOURCE_* (no password)"| IAM
+    SM -->|OPENAI_SECRET_ARN<br/>GetSecretValue at startup| Resolver
 ```
 
 ### 6.3 Secret Rotation
@@ -660,18 +663,18 @@ There is no one-shot `rotate-all-secrets.sh` script in the current repo. Rotatio
 | Secret Category | Rotation Method |
 |----------------|-----------------|
 | JWT/admin/SMTP env vars | Update `TF_VAR_*` values (or CI secrets), run Terraform apply, then publish new Lambda versions/aliases |
-| Aurora DB credentials | Rotate the Aurora-managed secret in Secrets Manager, then verify application connectivity |
-| OpenAI API key (chatbot) | Update `TF_VAR_openai_api_key`, apply Terraform, and publish a new `portfolio-chatbot` Lambda version |
+| Aurora DB access | No app password to rotate — backends authenticate with short-lived RDS IAM tokens. Rotating the Aurora master credential in Secrets Manager (break-glass only) does not affect running apps |
+| OpenAI API key (chatbot) | Update the `prod/portfolio/openai-api-key` secret value, then publish a new `portfolio-chatbot` Lambda version so it re-fetches the key at startup |
 
 After rotation, publish new Lambda versions (or run the production deployment workflow) so the updated environment variables and secret references are active on `current` aliases.
 
 ### 6.4 IAM Scoping
 
-The Lambda execution role's Secrets Manager policy is scoped to `arn:aws:secretsmanager:*:*:secret:portfolio/*`. Functions cannot read secrets from other namespaces. Most application secrets (JWT, admin, SMTP) are passed as Terraform variables directly into Lambda environment configuration — only DB credentials use Secrets Manager. The GitHub Actions OIDC role has `secretsmanager:*` access — broader than necessary, but scoped by the OIDC trust policy to only the specific GitHub repository and allowed branches.
+The Lambda execution role's Secrets Manager policy is scoped to the project's `portfolio/*` secret namespace. Functions cannot read secrets from other namespaces. Most application secrets (JWT, admin, SMTP) are passed as Terraform variables directly into Lambda environment configuration. Database access uses RDS IAM tokens (no Secrets Manager call at runtime); the chatbot's OpenAI key is the only secret read from Secrets Manager at runtime, fetched at startup. The GitHub Actions OIDC role has `secretsmanager:*` access — broader than necessary, but scoped by the OIDC trust policy to only the specific GitHub repository and allowed branches.
 
 ### 6.5 Secrets Not in Secrets Manager
 
-JWT signing keys, admin credentials, and SMTP credentials are defined as Terraform variables and injected directly into Lambda environment configuration. These values are visible to anyone with Lambda read access (already an elevated IAM permission). Only database credentials use Secrets Manager with auto-rotation, since Aurora Serverless v2 supports native Secrets Manager integration.
+JWT signing keys, admin credentials, and SMTP credentials are defined as Terraform variables and injected directly into Lambda environment configuration. These values are visible to anyone with Lambda read access (already an elevated IAM permission). Database access avoids stored credentials entirely: backends authenticate to Aurora with short-lived RDS IAM tokens (signed locally via SigV4 — no `DB_PASSWORD` in any Lambda env). The Aurora master credential lives in Secrets Manager but is used only as break-glass / for one-time provisioning, not by running apps. The chatbot's OpenAI key is the one secret read from Secrets Manager at runtime — fetched once at startup via `OPENAI_SECRET_ARN` rather than shipped as a plaintext env var.
 
 ---
 
@@ -785,7 +788,7 @@ Previous Lambda versions are immutable and retained indefinitely. Manual rollbac
 | Smoke test fails after deploy | Version mismatch or HTTP error | Alias remains on previous version | None (previous version serves traffic) |
 | Function deploys but has logic bug | Post-deploy smoke test or user report | Manual rollback via alias update | Partial (bug is live until rollback) |
 | Terraform apply partially fails | Apply error in logs | Re-run apply or revert Git change | Depends on resource |
-| Secrets Manager secret deleted | Lambda can't read DB credentials on cold start | Re-create secret, publish new Lambda version | Until secret restored |
+| OpenAI secret deleted/unreadable | Chatbot can't fetch the key at startup → auto-disables (`/api/chatbot/health` reports unavailable); backends unaffected (they use RDS IAM, not Secrets Manager) | Re-create secret, publish new chatbot Lambda version | Chatbot only, until secret restored |
 
 ---
 

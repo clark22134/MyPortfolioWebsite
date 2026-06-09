@@ -117,7 +117,6 @@ export class InteractiveProjectsComponent implements OnInit {
     const project = this.projects.find((p: InteractiveProject) => p.id === projectId);
     if (!project) return;
 
-    // Check file size
     if (file.size > project.maxFileSize) {
       this.uploadStatus[projectId] = {
         type: 'error',
@@ -126,7 +125,6 @@ export class InteractiveProjectsComponent implements OnInit {
       return;
     }
 
-    // Check file type
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!project.uploadTypes.includes(fileExtension)) {
       this.uploadStatus[projectId] = {
@@ -151,7 +149,6 @@ export class InteractiveProjectsComponent implements OnInit {
     setTimeout(() => {
       this.uploading[projectId] = false;
 
-      // Add to uploaded files list
       if (!this.uploadedFiles[projectId]) {
         this.uploadedFiles[projectId] = [];
       }
@@ -165,7 +162,6 @@ export class InteractiveProjectsComponent implements OnInit {
         message: `✓ ${file.name} uploaded successfully!`
       };
 
-      // Clear selected file
       this.selectedFiles[projectId] = null;
 
       // Clear status after 3 seconds

@@ -100,7 +100,6 @@
 
       <div class="row">
 
-        <!--loop over the collection of products -->
         @for (product of products(); track product.sku; let index = $index) {
         <div class="col-md-3">
           <div class="product-box" [class.product-box-vip]="authService.isAuthenticated()" (click)="openProductModal(product)">

@@ -18,7 +18,7 @@ enterprise and U.S. federal environments.
   component design, Web Speech API (Text-to-Speech).
 - **Data**: PostgreSQL, Aurora Serverless v2 (PostgreSQL 15.17), H2, Redis, MySQL, basic warehouse work.
 - **Cloud / IaC**: AWS (Lambda with SnapStart, API Gateway, CloudFront, S3, WAF, ACM, Secrets Manager,
-  Aurora Serverless, Route 53, CloudWatch, EC2), Terraform (~2,190 lines, 8 modules), Docker,
+  Aurora Serverless, Route 53, CloudWatch, EC2), Terraform (~2,900 lines, 8 modules), Docker,
   GitHub Actions CI/CD.
 - **Observability**: Splunk and the ELK stack for log aggregation, metrics, and alerting.
 - **Security / DevSecOps**: JWT, OAuth2, OWASP Top 10 controls, automated SCA, SAST, Jenkins,
@@ -66,6 +66,6 @@ This site is itself a production-grade application. It uses:
 - Automated accessibility testing (axe-core + Puppeteer), Web Speech API (TTS)
 - AWS Lambda with SnapStart, Aurora Serverless v2 (PostgreSQL 15.17), CloudFront CDN,
   API Gateway (REST APIs), WAF, S3, Route 53, ACM
-- Terraform Infrastructure as Code (~2,190 lines, 8 modules in `terraform/`)
+- Terraform Infrastructure as Code (~2,900 lines, 8 modules in `terraform/`)
 - GitHub Actions CI/CD (DevSecOps pipeline with Trivy, TruffleHog, SonarCloud, OWASP Dependency-Check)
 - Nginx-fronted Docker locally; fully serverless in production

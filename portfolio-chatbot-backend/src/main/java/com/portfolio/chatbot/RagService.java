@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
  * <ol>
  *   <li><b>Query expansion</b> — expand a small set of acronyms (ATS, RAG,
  *       IaC, etc.) so short queries embed closer to the curated text.</li>
- *   <li><b>Semantic retrieval</b> — top-k=8 from the {@link VectorStore}.</li>
+ *   <li><b>Semantic retrieval</b> — top-k=12 from the {@link VectorStore}.</li>
  *   <li><b>Rerank + dedupe</b> — keep best chunk per source/section, prefer
  *       higher-priority categories ({@code about}, {@code projects},
  *       {@code ai-projects}, {@code skills}) on ties.</li>

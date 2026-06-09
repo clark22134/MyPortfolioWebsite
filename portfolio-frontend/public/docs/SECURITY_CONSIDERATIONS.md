@@ -39,9 +39,24 @@ Key properties:
 
 The E-Commerce backend uses a single JWT with a 1-hour expiration, stored in an HTTP-only cookie (`ecommerce_jwt`). The simpler model is appropriate for a storefront where session state is less sensitive.
 
-### 1.3 Demo Mode (ATS)
+### 1.3 ATS (HireFlow) — Role-Based JWT Auth
 
-The Applicant Tracking System is deployed as a public demo — all endpoints are unauthenticated, with CORS restricted to known origins. This is an intentional trade-off for portfolio demonstration purposes.
+The Applicant Tracking System now ships with **cookie-based JWT authentication mirroring the Portfolio's pattern**, plus role-based authorization:
+
+| Cookie | TTL | Notes |
+|--------|----:|-------|
+| `ats_access_token` | 15 min | `HttpOnly`, `Secure` (in prod), `SameSite=Lax`. |
+| `ats_refresh_token` | 7 days | Server-side `refresh_token` table tracks revocation; rotated on every refresh; max 5 active sessions per user. |
+
+**Roles** (`Role` enum): `ADMIN`, `RECRUITER`, `HIRING_MANAGER`. Authorization is path-based in `SecurityConfig`. Reads on operational data are open to all three roles; mutations require `ADMIN` or `RECRUITER`; user management is `ADMIN` only via `@PreAuthorize("hasRole('ADMIN')")` on `UserController`. Hiring managers can post notes and complete tasks assigned to them.
+
+**Demo accounts** (`admin`, `recruiter`, `manager`) are **disabled in production** (`ATS_DEMO_ACCOUNTS_ENABLED=false`). They are seeded by `DemoUserInitializer` only in local development when explicitly enabled, and only with strong passwords supplied at runtime. Passwords are BCrypt-hashed at runtime — no pre-baked hashes in SQL.
+
+**Unauthenticated requests** hit `HttpStatusEntryPoint(401)` instead of redirecting, so the SPA can detect 401 and silently refresh once before bouncing the user to `/login`.
+
+**CORS** remains restricted to known origins (`app.cors.allowed-origins`).
+
+**CSRF** is disabled for the ATS — the SPA uses HTTP-only cookies and the auth interceptor sets `withCredentials: true` only for first-party `/api/*` requests; the CORS allowlist + `SameSite=Lax` cookies provide the equivalent guarantee without needing a CSRF token round-trip.
 
 ### 1.4 Frontend Route Guards
 
@@ -67,7 +82,7 @@ The Portfolio Assistant (`portfolio-chatbot-backend`) exposes three public endpo
 
 **Input validation:** `@NotBlank @Size(max=1000)` on `message`; `conversationId` truncated at 64 characters. Validated at the controller boundary before any AI processing.
 
-**API key isolation:** `OPENAI_API_KEY` is read exclusively from the Lambda environment variable. It is never logged, never returned in responses, and never accessible from the frontend.
+**API key isolation:** The OpenAI API key is fetched from AWS Secrets Manager at startup — the Lambda receives only the secret ARN via the `OPENAI_SECRET_ARN` environment variable, which `OpenAiKeyResolver` resolves to the key at boot. The plaintext key is never stored as a Lambda environment variable, never logged, never returned in responses, and never accessible from the frontend.
 
 **Output escaping:** The Angular frontend renders chatbot responses using `marked` with its default HTML-escaping behaviour, preventing any `<script>` injection in generated text.
 
@@ -85,10 +100,10 @@ All projects use Spring Security's `BCryptPasswordEncoder` (work factor 10). BCr
 
 | Environment | Mechanism |
 |-------------|-----------|
-| Production (AWS) | AWS Secrets Manager for database credentials (Aurora-managed rotation); JWT keys, admin credentials, and SMTP credentials are Terraform variables injected as Lambda environment variables |
+| Production (AWS) | App backends authenticate to Aurora with short-lived **RDS IAM tokens** (signed locally via SigV4 — no plaintext `DB_PASSWORD` in any Lambda environment); the chatbot fetches its OpenAI key from AWS Secrets Manager at startup; JWT keys, admin credentials, and SMTP credentials are Terraform variables injected as Lambda environment variables |
 | Local development | Environment variables via `docker-compose.yml` |
 
-Only database credentials remain in AWS Secrets Manager (managed automatically by Aurora). JWT signing keys, admin credentials, and SMTP credentials are defined as Terraform variables and injected directly into Lambda function environment variables at deployment time.
+App backends do not read database credentials from Secrets Manager at runtime — they connect to Aurora using locally-signed RDS IAM authentication tokens, so no plaintext database password exists in any Lambda environment. AWS Secrets Manager still stores the Aurora master credential, but only as a break-glass / one-time provisioning credential. JWT signing keys, admin credentials, and SMTP credentials are defined as Terraform variables and injected directly into Lambda function environment variables at deployment time.
 
 No secrets are committed to version control. The CI pipeline runs TruffleHog secret scanning on every push.
 
@@ -172,7 +187,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 | OWASP Top 10 (2021) | Mitigation |
 |----------------------|------------|
 | **A01 — Broken Access Control** | Role-based endpoint restrictions via Spring Security filter chains; Angular route guards enforce client-side access boundaries; `X-Frame-Options: DENY` prevents clickjacking; `frame-ancestors 'none'` in CSP |
-| **A02 — Cryptographic Failures** | BCrypt password hashing; TLS in transit via CloudFront (ACM + HSTS); secrets stored in AWS Secrets Manager, never in source; credit card numbers truncated before storage |
+| **A02 — Cryptographic Failures** | BCrypt password hashing; TLS in transit via CloudFront (ACM + HSTS); database access via short-lived RDS IAM tokens (no plaintext DB password in any Lambda environment); secrets never committed to source; credit card numbers truncated before storage |
 | **A03 — Injection** | All database access via Spring Data JPA with parameterized `@Query` methods — no string concatenation in SQL; Angular's built-in DOM sanitizer escapes template bindings |
 | **A04 — Insecure Design** | Refresh token rotation with session limits; short-lived access tokens (15 min); defense-in-depth with rate limiting at both application and proxy layers |
 | **A05 — Security Misconfiguration** | Infrastructure defined as code (Terraform); explicit CORS allowlists; restrictive CSP; security headers enforced at the CloudFront layer (production) and Nginx (local development only); no default credentials |
@@ -195,7 +210,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 ### 5.2 IAM & Deployment
 
 - **GitHub Actions OIDC** — CI/CD authenticates to AWS using short-lived OIDC tokens scoped to `refs/heads/main` and pull requests. No static access keys exist.
-- **Least-privilege function roles** — Lambda functions assume IAM roles limited to Secrets Manager read, Aurora database access (via Secrets Manager), and CloudWatch log write.
+- **Least-privilege function roles** — app backend Lambda roles are limited to `rds-db:connect` on their own database user (RDS IAM auth) and CloudWatch log write; the chatbot Lambda role additionally holds Secrets Manager read on the OpenAI key secret only.
 
 ### 5.3 Dependency & Artifact Security
 
@@ -204,7 +219,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 
 ### 5.4 Secrets Rotation
 
-Dedicated shell scripts (`rotate-all-secrets.sh`, `setup-jwt-secret.sh`) automate secret generation and rotation. Database credentials are managed by Aurora's built-in secret rotation via Secrets Manager. JWT signing keys and other application secrets are defined as Terraform variables and updated through Terraform apply.
+Dedicated shell scripts (`rotate-all-secrets.sh`, `setup-jwt-secret.sh`) automate secret generation and rotation. App backends authenticate to Aurora with short-lived RDS IAM tokens rather than a stored password, so there is no runtime database credential to rotate; the Aurora master credential in Secrets Manager is retained only as a break-glass / provisioning credential. JWT signing keys and other application secrets are defined as Terraform variables and updated through Terraform apply.
 
 ---
 
@@ -212,9 +227,9 @@ Dedicated shell scripts (`rotate-all-secrets.sh`, `setup-jwt-secret.sh`) automat
 
 | Concern | Portfolio | Portfolio Assistant | E-Commerce | ATS |
 |---------|-----------|---------------------|------------|-----|
-| Authentication | JWT + refresh token rotation | None (public, read-only) | JWT (1-hour, single token) | None (public demo) |
-| CSRF protection | Cookie-based XSRF token | Disabled (no session state) | Disabled (stateless API) | N/A |
+| Authentication | JWT + refresh token rotation | None (public, read-only) | JWT (1-hour, single token) | JWT (HTTP-only cookie) + role-based (ADMIN/RECRUITER/HIRING_MANAGER) |
+| CSRF protection | Cookie-based XSRF token | Disabled (no session state) | Disabled (stateless API) | Disabled (`SameSite=Lax` cookie) |
 | Rate limiting | Application + CloudFront WAF | Per-IP sliding window (20 req/min) + CloudFront WAF | CloudFront WAF only | CloudFront WAF only |
 | Input validation | Jakarta Bean Validation | `@NotBlank @Size(max=1000)` + 64-char conversationId cap | Jakarta Bean Validation | Jakarta Bean Validation |
-| Secrets management | AWS Secrets Manager | `OPENAI_API_KEY` via Lambda env var | AWS Secrets Manager | Environment variables |
+| Secrets management | RDS IAM tokens (DB); Terraform-injected env vars | OpenAI key via AWS Secrets Manager (`OPENAI_SECRET_ARN`) | RDS IAM tokens (DB); Terraform-injected env vars | RDS IAM tokens (DB); Terraform-injected env vars |
 | Security scanning | Trivy + TruffleHog + SonarCloud | Trivy + TruffleHog + SonarCloud | Trivy + TruffleHog + SonarCloud | Trivy + TruffleHog + SonarCloud |

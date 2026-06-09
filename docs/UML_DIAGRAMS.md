@@ -1108,13 +1108,13 @@ sequenceDiagram
     Note over Rag: 2. Embedding + retrieval
     Rag->>Embed: embed(expandedQuery)
     Embed-->>Rag: float[] queryVector [1536-dim]
-    Rag->>VS: similaritySearch(queryVector, topK=8)
-    VS-->>Rag: List~Document~ top8
+    Rag->>VS: similaritySearch(queryVector, topK=12)
+    VS-->>Rag: List~Document~ top12
 
     Note over Rag: 3. Reranking + dedup
     Rag->>Rag: deduplicate by (source, section)
     Rag->>Rag: apply category priority weights
-    Rag->>Rag: trim to CONTEXT_PASSAGES=4
+    Rag->>Rag: trim to CONTEXT_PASSAGES=6
 
     Note over Rag: 4. Memory load
     Rag->>Mem: getMessages(conversationId)

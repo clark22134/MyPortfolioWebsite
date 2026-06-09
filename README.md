@@ -40,7 +40,7 @@ A production-grade, multi-application platform comprising three full-stack web a
 | **E-Commerce** | Full shopping platform with product catalog, persistent cart, checkout, and order tracking | `shop.clarkfoster.com` |
 | **HireFlow ATS** | Applicant tracking system with Kanban pipeline, resume parsing, and candidate scoring | `ats.clarkfoster.com` |
 
-All three applications share a single serverless infrastructure layer with CloudFront global CDN, API Gateway regional endpoints, Lambda functions (Java 21 with SnapStart), a shared Aurora Serverless v2 cluster (3 databases), and a CloudFront WAF — running at **~$63/month** (~68% cost reduction from previous Fargate architecture).
+All three applications share a single serverless infrastructure layer with CloudFront global CDN, API Gateway regional endpoints, Lambda functions (Java 21 with SnapStart), a shared Aurora Serverless v2 cluster (3 databases), and a CloudFront WAF — running at **~$54/month** (~73% cost reduction from previous Fargate architecture).
 
 ---
 
@@ -124,11 +124,11 @@ All three applications share a single serverless infrastructure layer with Cloud
                      └────────────────────────────────────┘
 ```
 
-**Infrastructure-as-Code:** 8 Terraform modules (networking, ACM, S3, CloudFront, CloudFront WAF, API Gateway, Lambda, Aurora) with remote state in S3 + DynamoDB locking. ~2190 lines of modular infrastructure code.
+**Infrastructure-as-Code:** 8 Terraform modules (networking, ACM, S3, CloudFront, CloudFront WAF, API Gateway, Lambda, Aurora) with remote state in S3 + DynamoDB locking. ~2,900 lines of modular infrastructure code.
 
 **CI/CD:** GitHub Actions with OIDC-based AWS authentication (no long-lived credentials), parallel test jobs, Trivy/TruffleHog security scans, SonarCloud quality gates, Lambda deployment with versioning and aliases.
 
-**Cost Optimization:** Migrated from ECS Fargate (~$200/month) to serverless architecture (~$63/month) — ~68% cost reduction while upgrading databases to managed Aurora Serverless v2.
+**Cost Optimization:** Migrated from ECS Fargate (~$200/month) to serverless architecture (~$54/month) — ~73% cost reduction while upgrading databases to managed Aurora Serverless v2.
 
 ---
 
@@ -242,7 +242,7 @@ A purpose-built applicant tracking system with cookie-based JWT auth, role-aware
 - Auth interceptor with single-shot silent refresh on 401, then redirect to `/login`
 - Per-user session limits (max 5 active refresh tokens), token-rotation on refresh, secure logout that revokes the refresh token
 
-*Demo users (seeded on startup, override with `ATS_*_PASSWORD` env)*
+*Demo users — seeded on startup in **local development** (`app.demo-accounts.enabled=true`); **disabled in production** (`ATS_DEMO_ACCOUNTS_ENABLED=false`, and the initializer refuses to seed any account with a blank password). Override the local passwords with `ATS_*_PASSWORD` env.*
 
 | Username | Default password | Role |
 |----------|------------------|------|
@@ -266,6 +266,8 @@ A purpose-built applicant tracking system with cookie-based JWT auth, role-aware
   - `V1__initial_schema.sql` — jobs, candidates, talent pool, seed data
   - `V2__auth_users.sql` — users (`app_user`) + refresh tokens
   - `V3__notes_activities_tasks_tags.sql` — notes, activities, tasks, tags + candidate_tags join
+  - `V4__catchup_idempotent.sql` — idempotent catch-up for environments missing earlier objects
+  - `V5__ensure_activity_table_exists.sql` — guarantees the `activity` table is present
 - Tests use H2 with `MODE=PostgreSQL` and `ddl-auto=create-drop`; Flyway is disabled under the test profile
 
 **Structure:**
@@ -308,12 +310,12 @@ ats-frontend/
 | **API Gateway** | 3 REST APIs (regional), Lambda proxy integration | ~$1–2 |
 | **CloudFront WAF** | 5 rules (rate limit, OWASP, geo-block), shared WebACL | ~$5–6 |
 | **S3** | 3 buckets (static hosting), versioning + encryption | ~$1 |
-| **VPC + NAT** | Private subnets, NAT Gateway for Lambda VPC egress | ~$8–10 |
+| **VPC** | Private subnets, IGW, route tables — no NAT/VPC endpoints (in-VPC Lambdas authenticate to Aurora via RDS IAM, so no egress is needed) | ~$0 |
 | **CloudWatch** | 7-day log retention across all log groups | ~$1–2 |
 | **Route53 + ACM** | 1 hosted zone, wildcard TLS certificate | ~$1 |
-| **Total** | | **~$63** |
+| **Total** | | **~$54** |
 
-**Cost decisions:** Serverless Lambda instead of ECS Fargate (~$120/mo saved), CloudFront CDN instead of ALB (~$16/mo saved), 1 shared Aurora cluster instead of 3 (~$50/mo saved). Migrated from ~$200/month Fargate architecture to ~$63/month serverless.
+**Cost decisions:** Serverless Lambda instead of ECS Fargate (~$120/mo saved), CloudFront CDN instead of ALB (~$16/mo saved), 1 shared Aurora cluster instead of 3 (~$50/mo saved). Migrated from ~$200/month Fargate architecture to ~$54/month serverless.
 
 ---
 

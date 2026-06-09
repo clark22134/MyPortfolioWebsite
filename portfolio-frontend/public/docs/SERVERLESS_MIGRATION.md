@@ -345,7 +345,7 @@ aws lambda update-alias \
 1. **CloudFront + WAF**: Protection at edge, before traffic reaches origin
 2. **Shield Standard**: Automatic DDoS protection
 3. **Aurora Encryption**: Data encrypted at rest
-4. **Secrets Manager**: Database credentials rotated automatically
+4. **RDS IAM database auth**: Backends connect to Aurora with short-lived IAM tokens signed locally via SigV4 — no plaintext `DB_PASSWORD` in any Lambda environment (the Secrets Manager master credential is break-glass / provisioning only)
 5. **VPC Isolation**: Lambda and Aurora in private subnets
 6. **IAM Least Privilege**: Function-specific roles
 

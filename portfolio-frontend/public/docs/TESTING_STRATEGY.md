@@ -29,10 +29,18 @@ The platform consists of three independently tested applications—Portfolio, E-
 
 | Project | Backend Tests | Frontend Tests | A11y Tests | Total |
 |---------|:------------:|:--------------:|:----------:|:-----:|
-| **Portfolio** | 13 | 12 | 5 pages | 25 + a11y |
-| **E-Commerce** | 7 | 28 | — | 35 |
-| **ATS** | 10 | 9 | — | 19 |
-| **Total** | **30** | **49** | **5 pages** | **79 + a11y** |
+| **Portfolio** | 171 | 317 | 5 pages | 488 + a11y |
+| **E-Commerce** | 84 | 199 | — | 283 |
+| **ATS** | 222 | 148 | — | 370 |
+| **Total** | **477** | **664** | **5 pages** | **1,141 + a11y** |
+
+> The Portfolio backend total above counts the main `portfolio-backend` suite (171). The separate `portfolio-chatbot-backend` Lambda adds **20** more backend tests.
+
+> **ATS coverage** (after the V2/V3 migration to JWT-secured, role-aware ATS):
+>
+> - Backend: **94.5 % instructions, 94.3 % lines** (`mvn test` → `target/site/jacoco/jacoco.csv`)
+> - Frontend: **58 % statements / 66 % lines** (`npx ng test --watch=false --coverage` → `coverage/ats-frontend/lcov.info`)
+> - **Combined ≥ 80 % statements** across the ATS codebase.
 
 ---
 
@@ -66,7 +74,10 @@ Unit tests verify individual classes and functions in isolation. External depend
 
 All four backends use **JUnit 5** with **Mockito** for dependency injection mocking.
 
-#### Portfolio Backend (13 test classes)
+#### Portfolio Backend (~171 tests)
+
+Representative test classes:
+
 
 | Layer | Test Class | What It Verifies |
 |-------|-----------|------------------|
@@ -84,7 +95,10 @@ All four backends use **JUnit 5** with **Mockito** for dependency injection mock
 | Repository | `UserRepositoryTest` | JPA query methods, unique constraint enforcement |
 | Repository | `ProjectRepositoryTest` | Custom query methods, pagination |
 
-#### E-Commerce Backend (7 test classes)
+#### E-Commerce Backend (~84 tests)
+
+Representative test classes:
+
 
 | Layer | Test Class | What It Verifies |
 |-------|-----------|------------------|
@@ -96,7 +110,10 @@ All four backends use **JUnit 5** with **Mockito** for dependency injection mock
 | Service | `CheckoutServiceImplTest` | Order total calculation, inventory validation, transactional behavior |
 | Integration | `SpringBootEcommerceApplicationTests` | Application context loads without errors |
 
-#### ATS Backend (10 test classes)
+#### ATS Backend (~222 tests)
+
+Representative test classes:
+
 
 | Layer | Test Class | What It Verifies |
 |-------|-----------|------------------|
@@ -115,7 +132,7 @@ All four backends use **JUnit 5** with **Mockito** for dependency injection mock
 
 All three frontends run unit tests through Angular 21's `@angular/build:unit-test` builder with Vitest.
 
-#### Portfolio Frontend — Vitest (17 spec files)
+#### Portfolio Frontend — Vitest (~317 tests)
 
 | Scope | Examples | What It Verifies |
 |------|----------|------------------|
@@ -123,7 +140,7 @@ All three frontends run unit tests through Angular 21's `@angular/build:unit-tes
 | Services | `auth.service.spec.ts`, `contact.service.spec.ts`, `chatbot.service.spec.ts` | HTTP integration, token/session behavior, chatbot SSE client logic |
 | Guards/Utilities | `auth.guard.spec.ts`, helper specs | Route protection, shared frontend logic |
 
-#### E-Commerce Frontend — Vitest (28 spec files)
+#### E-Commerce Frontend — Vitest (~199 tests)
 
 | Type | Count | Examples |
 |------|:-----:|---------|
@@ -133,7 +150,7 @@ All three frontends run unit tests through Angular 21's `@angular/build:unit-tes
 | Guards | 1 | `auth.guard` — route protection logic |
 | Utilities | 2 | `auth.interceptor` — token attachment; `shop-validators` — custom form validators |
 
-#### ATS Frontend — Vitest (9 spec files)
+#### ATS Frontend — Vitest (~148 tests)
 
 | Type | Spec File | What It Verifies |
 |------|----------|------------------|
@@ -481,10 +498,10 @@ class ProductRepositoryTest {
 describe('ContactComponent', () => {
   let component: ContactComponent;
   let fixture: ComponentFixture<ContactComponent>;
-  let contactService: jasmine.SpyObj<ContactService>;
+  let contactService: { sendMessage: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
-    contactService = jasmine.createSpyObj('ContactService', ['sendMessage']);
+    contactService = { sendMessage: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [ContactComponent, ReactiveFormsModule],
@@ -501,11 +518,11 @@ describe('ContactComponent', () => {
   it('should disable submit button when form is invalid', () => {
     const submitButton = fixture.nativeElement
       .querySelector('button[type="submit"]');
-    expect(submitButton.disabled).toBeTrue();
+    expect(submitButton.disabled).toBe(true);
   });
 
   it('should call ContactService on valid submission', () => {
-    contactService.sendMessage.and.returnValue(of({ success: true }));
+    contactService.sendMessage.mockReturnValue(of({ success: true }));
 
     component.contactForm.setValue({
       name: 'Test User',
@@ -522,7 +539,7 @@ describe('ContactComponent', () => {
   });
 
   it('should display success message after submission', fakeAsync(() => {
-    contactService.sendMessage.and.returnValue(of({ success: true }));
+    contactService.sendMessage.mockReturnValue(of({ success: true }));
     component.contactForm.setValue({
       name: 'Test', email: 'a@b.com', message: 'msg'
     });
@@ -636,9 +653,9 @@ graph LR
         BT1["Portfolio Backend<br/>mvn clean test<br/>+ JaCoCo"]
         BT2["E-Commerce Backend<br/>mvn clean test<br/>+ JaCoCo"]
         BT3["ATS Backend<br/>mvn clean test<br/>+ JaCoCo"]
-        FT1["Portfolio Frontend<br/>ng test --no-watch<br/>--code-coverage<br/>--browsers=ChromeHeadless"]
-        FT2["E-Commerce Frontend<br/>npm test"]
-        FT3["ATS Frontend<br/>npm test"]
+        FT1["Portfolio Frontend<br/>npm run test:ci<br/>(ng test --watch=false<br/>--coverage · Vitest/jsdom)"]
+        FT2["E-Commerce Frontend<br/>npm run test:ci"]
+        FT3["ATS Frontend<br/>npm run test:ci"]
         SEC["Security Scan<br/>Trivy + TruffleHog"]
     end
 

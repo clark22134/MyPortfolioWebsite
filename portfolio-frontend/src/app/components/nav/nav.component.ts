@@ -28,10 +28,8 @@ export class NavComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Initialize with current auth state
     this.isAuthenticated = this.authService.isAuthenticated();
 
-    // Subscribe to auth changes
     this.authService.currentUser$.subscribe(user => {
       this.isAuthenticated = !!user;
     });

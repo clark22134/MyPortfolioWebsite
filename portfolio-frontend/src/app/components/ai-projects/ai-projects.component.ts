@@ -43,7 +43,7 @@ export class AiProjectsComponent {
         'background, projects, technologies, accessibility work, and documentation by retrieving ' +
         'from a curated knowledge base.',
       highlights: [
-        'Retrieval-Augmented Generation pipeline embedded in the existing Spring Boot backend',
+        'Retrieval-Augmented Generation pipeline in a dedicated Spring Boot Lambda (portfolio-chatbot-backend), deployed outside the VPC for OpenAI access',
         'Spring AI + SimpleVectorStore (file-backed) — no extra infrastructure to operate',
         'OpenAI text-embedding-3-small for retrieval, gpt-5.4-mini for streamed answers',
         'Query expansion, semantic top-k retrieval, reranking, and inline citations',

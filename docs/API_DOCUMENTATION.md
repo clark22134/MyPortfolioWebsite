@@ -26,7 +26,7 @@
 | **TLS** | ACM certificate — `clarkfoster.com`, `www.`, `shop.`, `ats.` SANs |
 | **DNS** | Route53 Alias records → CloudFront distributions |
 | **WAF** | AWS WAF v2 (CloudFront-attached) — rate limiting, AWS managed rulesets, geo-restriction |
-| **Secrets** | AWS Secrets Manager (database credentials, Aurora-managed); JWT/admin/SMTP credentials via Terraform variables → Lambda env vars |
+| **Database Auth** | RDS IAM authentication — backends connect to Aurora with short-lived IAM tokens (SigV4-signed locally, no network call); **no plaintext `DB_PASSWORD`** in any Lambda env. Secrets Manager holds the Aurora master credential only as break-glass / provisioning. JWT/admin/SMTP credentials via Terraform variables → Lambda env vars |
 | **Logging** | CloudWatch Logs (7-day retention) — Lambda function logs + API Gateway access logs |
 | **Database** | Aurora Serverless v2 (PostgreSQL 15.17, 0.5–4 ACU) — 1 shared cluster, 3 databases (portfolio, ecommerce, ats) |
 
@@ -46,7 +46,7 @@
 
 ## Global Rate Limiting & Security
 
-Rate limiting is applied across **three layers**:
+In the serverless production path, rate limiting is applied across **two layers**: AWS WAF (at the CloudFront edge) and the Spring Boot application. There is **no Nginx** in the production request path — the SPAs are served from S3 + CloudFront and the backends run as Lambda behind API Gateway. The Nginx rate-limiting zones below apply **only to local-dev** (the per-frontend Nginx containers in `docker-compose.yml`).
 
 ### Layer 1 — AWS WAF
 
@@ -59,7 +59,7 @@ Rate limiting is applied across **three layers**:
 | SQL Injection Rules | — | Headers, body, URI | Block |
 | Geo-Restriction | — | Non-US traffic | Block |
 
-### Layer 2 — Nginx (per frontend container)
+### Layer 2 — Nginx (local-dev only — per frontend container; not in the production path)
 
 | Zone | Rate | Burst | Behavior |
 |---|---|---|---|
