@@ -55,18 +55,23 @@
   Maven dependency-fetch/cache slowdown, unrelated to the change**; self-resolved). `clark-development`
   resynced to `main`. Details + test-env gotchas in the **"Frontend M4"** section below. Frontend
   **M3** (auth-guard "dedup") was investigated and is **NOT a real defect** — see that section.
-- 🔶 **Infra H2/M3 — CI deploy-role IAM scope-down — PR #277 OPEN (awaiting review/merge; NOT
-  merged yet because merging deploys the new policy).** Scoped the `github-actions-role` IAM
-  *write* actions from `Resource:"*"` to only the resources this stack manages (kills the
-  privilege-escalation vector: the CI role could previously create/modify/pass **any** role).
-  Done the **safe** way per CloudTrail evidence — no action removed, non-IAM wildcards untouched,
-  reads stay `*`. Verified the managed-resource set against AWS + Terraform source; `fmt`+`validate`
-  pass. Full design, evidence, no-lockout reasoning, and first-deploy watch-list in the **"Infra
-  H2/M3"** section below. **After #277 merges: resync** (`git fetch && git checkout clark-development
-  && git merge --ff-only origin/main && git push origin clark-development`) **and watch the deploy** —
-  the apply will show `aws_iam_role_policy.github_actions` changing; if any future infra change hits
-  an IAM `AccessDenied`, add the offending ARN to the relevant statement's `Resource` list.
-- ▶️ **NEXT WORK**: after #277 merges + verifies, remaining roadmap **#3** findings are lower-value:
+- ✅ **Infra H2/M3 — CI deploy-role IAM scope-down — PR #277 MERGED + DEPLOYED + VERIFIED.**
+  Scoped the `github-actions-role` IAM *write* actions from `Resource:"*"` to only the resources
+  this stack manages (kills the privilege-escalation vector: the CI role could previously
+  create/modify/pass **any** role). Done the **safe** way per CloudTrail evidence — no action
+  removed, non-IAM wildcards untouched, reads stay `*`. **Prod verification (deploy run
+  #27224283856):** ① the deploy applied cleanly with **no lockout** (apply rewrote the policy under
+  the old broad creds; app deploys + Post-Deployment Verification all green); ② `aws iam
+  get-role-policy github-actions-role/github-actions-policy` shows the 5 new scoped statements
+  (`IamReadOnly`, `IamManageProjectRoles`, `IamManageProjectPolicies`, `IamManageOidcProvider`,
+  `IamCreateServiceLinkedRoles`); ③ `IamManageProjectRoles` (CreateRole/PassRole/PutRolePolicy/…)
+  is scoped to `role/github-actions-role` + `role/prod-*` — **and zero IAM escalation actions
+  remain on `Resource:"*"`**. Full design/evidence/recipe in the **"Infra H2/M3"** section below.
+  ⚠️ **Not yet exercised:** a *future* `terraform apply` that modifies IAM under the new (scoped)
+  policy — if one ever hits IAM `AccessDenied`, a managed resource fell outside `prod-*`; add its
+  ARN to the relevant statement's `Resource` (one-line fix). Optional **phase 2**: scope the
+  non-IAM `ec2:*`/`rds:*`/… service wildcards too (needs CloudTrail-derived action lists).
+- ▶️ **NEXT WORK**: remaining roadmap **#3** findings are lower-value:
   **M1** (non-root containers) / **M2** (pin base tags) — Docker is **local-dev only** (prod is
   Lambda jars) + **Dependabot already tracks base-image bumps**, so low priority; **Backend M2**
   (security-config standardization) is locally testable but changes live auth on all 3 apps and is
@@ -347,7 +352,7 @@ restores auth **synchronously** from `localStorage` in its constructor (so its s
 shared Angular library across two separate npm apps — a disproportionate change for no behavioral
 win. **No change made.**
 
-## Infra H2/M3 — CI deploy-role IAM scope-down (🔶 PR #277 OPEN; awaiting review/merge)
+## Infra H2/M3 — CI deploy-role IAM scope-down (✅ PR #277 MERGED + DEPLOYED + VERIFIED)
 
 **Goal:** the `github-actions-role` inline policy (`terraform/main.tf`, `aws_iam_role_policy.github_actions`)
 granted `iam:CreateRole`/`PutRolePolicy`/`AttachRolePolicy`/`PassRole` (+ all IAM writes) on
@@ -426,10 +431,10 @@ can't run locally (CI-only secrets), so the **first post-merge deploy is the rea
      `StreamLambdaHandler`s.
    - ✅ **Backend L2** (DONE, PR #273): chatbot rate-limiter map bounded
      (`chatbot.rate-limit.max-tracked-ips`, default 10000) + test.
-   - 🔶 **Infra H2/M3** (PR #277, open): scoped the deploy-role IAM *write* actions from
-     `Resource:"*"` to the project's own role/policy/OIDC ARNs (kills privilege-escalation).
-     Resources scoped, actions kept, non-IAM wildcards untouched. See the **"Infra H2/M3"**
-     section above. **First post-merge deploy is the real test** (can't `plan` locally).
+   - ✅ **Infra H2/M3** (PR #277, MERGED + DEPLOYED + VERIFIED): scoped the deploy-role IAM
+     *write* actions from `Resource:"*"` to the project's own role/policy/OIDC ARNs (kills
+     privilege-escalation). Resources scoped, actions kept, non-IAM wildcards untouched. Live
+     policy confirmed via `aws iam get-role-policy`. See the **"Infra H2/M3"** section above.
      Optional phase 2: scope the `ec2:*`/`rds:*`/… service wildcards too (needs CloudTrail).
    - Infra **M1**: containers run as root (all Dockerfiles); **M2**: unpinned base tags.
      *(Low priority — Docker images are local-dev only [prod is Lambda jars], and Dependabot
@@ -523,4 +528,4 @@ can't run locally (CI-only secrets), so the **first post-merge deploy is the rea
   hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`), **#274** (Infra M4:
   chatbot OpenAI key → Secrets Manager at runtime), **#276** (Frontend M4: 14 portfolio-frontend
   unit specs, 246→317, test-only), **#277** (Infra H2/M3: scope CI deploy-role IAM write actions to
-  project ARNs — OPEN, awaiting review/merge). Going forward, always `clark-development`.
+  project ARNs — merged + deployed + verified). Going forward, always `clark-development`.
