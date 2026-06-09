@@ -31,10 +31,26 @@
              CVE-2026-34487 / CVE-2026-34483 fix. Literal version so Trivy resolves it. -->
         <tomcat.version>10.1.54</tomcat.version>
         <spring-ai.version>1.0.8</spring-ai.version>
+        <!-- Matches the AWS SDK v2 BOM used by the other backends. -->
+        <aws-sdk.version>2.34.0</aws-sdk.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!--
+                Import the AWS SDK BOM BEFORE spring-ai-bom: spring-ai-bom also
+                manages software.amazon.awssdk:* (for its optional Bedrock
+                support) and pins an older 2.20.x. The first-declared BOM wins,
+                so listing ours first keeps every awssdk submodule on a single,
+                consistent ${aws-sdk.version} matching the other backends.
+            -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws-sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
@@ -93,6 +109,36 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-vector-store</artifactId>
+        </dependency>
+
+        <!--
+            AWS Secrets Manager: the OpenAI API key is fetched at startup from
+            Secrets Manager (see OpenAiKeyResolver) instead of being injected as
+            a plaintext Lambda env var. We swap the default Apache sync client
+            for the dependency-free url-connection-client — one GetSecretValue
+            call at init needs nothing heavier, and it keeps the shaded Lambda
+            jar small.
+        -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>secretsmanager</artifactId>
+            <exclusions>
+                <!-- We use only the sync client via url-connection-client, so
+                     drop both default HTTP clients: the Apache sync client and
+                     the Netty async client (unused, and a frequent CVE source). -->
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
         </dependency>
 
         <!-- Tests -->

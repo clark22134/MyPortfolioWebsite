@@ -19,6 +19,10 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
 public class PortfolioChatbotApplication {
 
     public static void main(String[] args) {
+        // Mirror the Lambda path: resolve the OpenAI key from Secrets Manager
+        // before the context starts when OPENAI_SECRET_ARN is set; otherwise a
+        // no-op so local runs still honour an exported OPENAI_API_KEY.
+        OpenAiKeyResolver.loadFromSecretsManagerIfConfigured();
         SpringApplication.run(PortfolioChatbotApplication.class, args);
     }
 }

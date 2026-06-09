@@ -29,6 +29,10 @@ public class StreamLambdaHandler implements RequestStreamHandler {
     private static SpringBootLambdaContainerHandler<AwsProxyRequest, AwsProxyResponse> handler;
 
     static {
+        // Pull the OpenAI key from Secrets Manager BEFORE the Spring context is
+        // built, so it is visible to @ConditionalOnExpression on
+        // spring.ai.openai.api-key. No-op when OPENAI_SECRET_ARN is unset.
+        OpenAiKeyResolver.loadFromSecretsManagerIfConfigured();
         try {
             // Use the builder with .servletApplication() to force the servlet embedded-server
             // factory regardless of whether spring-webflux is on the classpath.
