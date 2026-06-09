@@ -407,10 +407,11 @@ Concurrency limits can be set per-function if linear cost scaling becomes a conc
 | **ACM Certificate** | 1 cert | Free | $0 |
 | **CloudWatch Logs** | 7 log groups (4 Lambda + 3 API Gateway), 7-day retention | $0.50/GB ingested | ~$1–2 |
 | **Secrets Manager** | Aurora master credential (break-glass) + chatbot OpenAI key | $0.40/secret/month | ~$1 |
+| **VPC Endpoint (SES SMTP)** | 1 interface endpoint (PrivateLink), 1 AZ | $0.01/hr + data | ~$7 |
 | **S3 + DynamoDB (Terraform State)** | <1MB | Negligible | <$1 |
-| | | **Estimated Total** | **~$30/month** |
+| | | **Estimated Total** | **~$37/month** |
 
-**Previous ECS Fargate architecture: ~$200/month. Cost reduction: ~85% (~$170/month saved).**
+**Previous ECS Fargate architecture: ~$200/month. Cost reduction: ~82% (~$163/month saved).**
 
 ### 7.2 Cost Optimization Decisions
 
@@ -444,9 +445,9 @@ Every architecture involves trade-offs. Here are the ones I made deliberately:
 
 ### 8.3 No NAT Gateway — Cost Over In-VPC Egress
 
-**Trade-off:** The backend Lambdas run in private subnets with **no NAT Gateway and no VPC endpoints**, avoiding what would be the single largest line item (~$33/month). The cost of that choice is that in-VPC components have no general outbound internet path, so anything needing egress must be designed around the constraint.
+**Trade-off:** The backend Lambdas run in private subnets with **no NAT Gateway** and only a single **SES SMTP interface VPC endpoint** (for outbound contact-form email) — avoiding what would be the single largest line item, a NAT Gateway (~$33/month). The cost of that choice is that in-VPC components have no *general* outbound internet path, so anything needing egress must be designed around the constraint.
 
-**Why it's acceptable:** Database authentication uses **RDS IAM tokens** signed locally via SigV4 — no Secrets Manager or other public-AWS call — so the backends need no egress to reach Aurora. The RAG chatbot, which must reach `api.openai.com`, runs as a **separate Lambda outside the VPC** instead of forcing a NAT Gateway on the whole stack for one function. Aurora and the backend Lambdas stay unreachable from the public internet, preserving private-subnet isolation without the NAT cost.
+**Why it's acceptable:** Database authentication uses **RDS IAM tokens** signed locally via SigV4 — no Secrets Manager or other public-AWS call — so the backends need no egress to reach Aurora. The RAG chatbot, which must reach `api.openai.com`, runs as a **separate Lambda outside the VPC** instead of forcing a NAT Gateway on the whole stack for one function. The contact form sends email through Amazon SES, which it reaches over a dedicated **interface VPC endpoint (AWS PrivateLink)** — restoring that one egress path for ~$7/month instead of a ~$33/month NAT gateway. Aurora and the backend Lambdas stay unreachable from the public internet, preserving private-subnet isolation without the NAT cost.
 
 ### 8.4 Shared Aurora Cluster — Cost Over Isolation
 

@@ -158,6 +158,67 @@ resource "aws_security_group" "portfolio_lambda" {
   }
 }
 
+# ---------------------------------------------------------------------------
+# SES SMTP VPC endpoint — contact-form email egress (no NAT)
+# ---------------------------------------------------------------------------
+# The backend Lambdas run in private subnets with no NAT and no general egress,
+# so the contact form's Spring JavaMailSender could not reach the public SES
+# SMTP endpoint (email-smtp.<region>.amazonaws.com:587) — submissions timed out
+# after 5s and returned HTTP 503. This interface VPC endpoint, with private DNS
+# enabled, makes that hostname resolve to a private ENI inside the VPC, giving
+# the form SMTP egress over AWS PrivateLink without a ~$33/mo NAT gateway. The
+# application code and SES SMTP credentials are unchanged.
+data "aws_vpc_endpoint_service" "ses_smtp" {
+  service_name = "com.amazonaws.${var.aws_region}.email-smtp"
+}
+
+locals {
+  # An interface endpoint can only be placed in AZs where the service is offered.
+  # SES SMTP is not available in every AZ (e.g. not us-east-1a), so restrict the
+  # endpoint to the private subnets whose AZ supports it. Lambdas in an
+  # unsupported AZ still reach the endpoint cross-AZ via its private DNS.
+  ses_smtp_endpoint_subnet_ids = [
+    for idx, subnet_id in module.networking.private_subnet_ids : subnet_id
+    if contains(
+      data.aws_vpc_endpoint_service.ses_smtp.availability_zones,
+      module.networking.private_subnet_azs[idx]
+    )
+  ]
+}
+
+resource "aws_security_group" "ses_smtp_endpoint" {
+  name        = "${var.environment}-ses-smtp-vpce-sg"
+  description = "Allow the portfolio backend Lambda to reach the SES SMTP VPC endpoint"
+  vpc_id      = module.networking.vpc_id
+
+  ingress {
+    description     = "SMTP submission (STARTTLS) from the portfolio Lambda"
+    from_port       = 587
+    to_port         = 587
+    protocol        = "tcp"
+    security_groups = [aws_security_group.portfolio_lambda.id]
+  }
+
+  tags = {
+    Name        = "${var.environment}-ses-smtp-vpce-sg"
+    Environment = var.environment
+  }
+}
+
+resource "aws_vpc_endpoint" "ses_smtp" {
+  vpc_id              = module.networking.vpc_id
+  service_name        = data.aws_vpc_endpoint_service.ses_smtp.service_name
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = local.ses_smtp_endpoint_subnet_ids
+  security_group_ids  = [aws_security_group.ses_smtp_endpoint.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name        = "${var.environment}-ses-smtp-endpoint"
+    Environment = var.environment
+  }
+}
+
 # Lambda function for Portfolio Backend
 module "portfolio_lambda" {
   source = "./modules/lambda"
