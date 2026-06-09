@@ -17,6 +17,9 @@
 
   <properties>
     <java.version>21</java.version>
+    <!-- Override Spring Boot 3.5.14's managed Tomcat 10.1.53 to the
+         CVE-2026-34487 / CVE-2026-34483 fix. Literal version so Trivy resolves it. -->
+    <tomcat.version>10.1.54</tomcat.version>
     <lombok.version>1.18.38</lombok.version>
     <!-- CVE-2026-42198 fix (also overrides the wrapper's transitive 42.7.10). -->
     <postgresql.version>42.7.11</postgresql.version>
@@ -101,20 +104,29 @@
     </dependency>
 
     <!-- Resume parsing: Tika (MIME detection) + PDFBox (PDF) + POI (DOCX) -->
+    <!-- tika-core 3.2.2: CVE-2025-66516 (critical XXE; flaw is in tika-core). -->
     <dependency>
       <groupId>org.apache.tika</groupId>
       <artifactId>tika-core</artifactId>
-      <version>3.0.0</version>
+      <version>3.2.2</version>
     </dependency>
     <dependency>
       <groupId>org.apache.pdfbox</groupId>
       <artifactId>pdfbox</artifactId>
       <version>3.0.3</version>
     </dependency>
+    <!-- poi-ooxml 5.4.0: CVE-2025-31672 (duplicate-zip-entry input validation). -->
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-ooxml</artifactId>
-      <version>5.3.0</version>
+      <version>5.4.0</version>
+    </dependency>
+    <!-- commons-lang3 3.18.0 (pulled transitively by POI): CVE-2025-48924
+         (ClassUtils.getClass uncontrolled recursion DoS). Explicit literal pin. -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.18.0</version>
     </dependency>
 
     <!-- Test -->

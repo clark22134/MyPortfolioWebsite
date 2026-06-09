@@ -114,21 +114,24 @@ short-lived IAM tokens. (Resolves audit finding "Infra H1".)
   (incl. `flyway_schema_history`) via `REASSIGN OWNED` so Flyway can run DDL as
   `ats_app`. No pending Flyway migrations (history v1-baseline..v5 all success).
   Data API enabled → used → re-disabled (confirmed off).
-- 🚧 **PR #270 (this session): ats cutover** — flips `TF_VAR_ats_db_iam_auth=true`.
-  **Not yet merged** → ats still in password mode until merge+deploy. After deploy,
-  verify: Lambda env has no `DB_PASSWORD`; CloudWatch shows **Flyway clean start as
-  `ats_app`** (history validate, no DDL/permission errors) + HikariCP wrapper
-  connection; a DB-backed ats endpoint returns 200.
+- ✅ **PR #270 (merged/deployed): ATS CUTOVER VERIFIED** — Lambda env in IAM mode
+  (`DB_USERNAME=ats_app`, wrapper URL + `software.amazon.jdbc.Driver`, `DB_PASSWORD`
+  removed); CloudWatch shows **Flyway ran cleanly as `ats_app`** post-deploy (no
+  permission/ownership/DDL errors) + HikariCP `Added connection
+  software.amazon.jdbc.wrapper.ConnectionWrapper` (plain `PgConnection` pre-deploy);
+  `POST https://ats.clarkfoster.com/api/auth/login` (bad creds) → **401** = live DB
+  read via IAM (would be 500 if broken), `/api/health` 200.
+- 🎉 **ALL THREE APPS MIGRATED** — portfolio + ecommerce + ats all use RDS IAM
+  tokens; **zero plaintext DB passwords** in any Lambda env. **Audit finding Infra
+  H1 fully resolved.**
 
 ### Remaining IAM work
-1. **Merge + verify ats cutover** (PR above). Extra care vs portfolio/ecommerce:
-   confirm **Flyway** starts cleanly as `ats_app` (validates history, no
-   permission-denied/DDL errors) in addition to the usual HikariCP wrapper check.
-2. **Soak portfolio + ecommerce** (cold starts / token refresh over real traffic).
+1. **Soak portfolio + ecommerce + ats** (cold starts / token refresh over real traffic).
    Benign log noise: HikariCP `connection has been closed` / `thread starvation` =
    normal Lambda freeze/thaw; wrapper mints a fresh token on the next connection.
-3. After all three migrate: consider rotating the Aurora master password (still used
-   as break-glass + by not-yet-migrated apps + Data API provisioning).
+2. **Optional: rotate the Aurora master password** — now safe; no app depends on it
+   at runtime. Still used as break-glass + for Data API provisioning. (`DB_PASSWORD`
+   plumbing remains in Terraform's password-mode branch for instant rollback.)
 
 ### Repeatable cutover procedure (per app)
 ```bash
@@ -153,19 +156,27 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 
 ## FULL ROADMAP (priority order)
 
-1. **Finish IAM migration**: portfolio ✅ + ecommerce ✅ done; **ats cutover PR open
-   (merge + verify)** → then optional master password rotation.
-2. **Dependency CVE remediation PR** (separate; Trivy-surfaced, mostly pre-existing
-   on main — NOT introduced by our work):
-   - `tomcat-embed-core` HIGH **CVE-2026-34487 / 34483** → override `tomcat.version`
-     to **10.1.54** (Spring Boot 3.5.14 ships 10.1.53) in the backends.
-   - ats `commons-lang3` **CVE-2025-48924** → 3.18.0; ats criticals **CVE-2025-66516**
-     (fix 3.2.2) and **CVE-2025-31672** (fix 5.4.0) — identify the libs.
-   - Frontends: ecommerce lockfile **CVE-2026-33671** (HIGH), portfolio `uuid` → 14,
-     ats-frontend base image → `npm audit fix` / base image bump.
-   - Note: a Trivy scan saw a **stale `app.jar` on Spring Boot 3.4.4 / Tomcat
-     10.1.39** (CRITICALs) — current source is 3.5.14; confirm what's actually
-     deployed vs source.
+1. **IAM migration — ✅ COMPLETE** (portfolio + ecommerce + ats all on IAM tokens;
+   Infra H1 resolved). Only optional follow-ups remain: soak + master password rotation.
+2. **Dependency CVE remediation — ✅ DONE (this session, PR pending)**. All verified
+   against NVD/advisories and locally built+tested before committing:
+   - **Backends — `<tomcat.version>10.1.54</tomcat.version>` in all 4 poms** (portfolio,
+     ecommerce [pulls Tomcat transitively via `starter-data-rest`], ats, chatbot):
+     CVE-2026-34487 / CVE-2026-34483 (Spring Boot 3.5.14 ships 10.1.53). `dependency:tree`
+     confirms 10.1.54; all backend test baselines hold (portfolio 171, ecommerce 84,
+     ats 222, chatbot 11).
+   - **ats-backend libs**: `tika-core` 3.0.0→**3.2.2** (CVE-2025-66516, critical XXE in
+     tika-core), `poi-ooxml` 5.3.0→**5.4.0** (CVE-2025-31672), pinned `commons-lang3`
+     **3.18.0** (CVE-2025-48924, transitive via POI). ResumeParserServiceTest green.
+   - **Frontends**: `npm audit fix` (non-force, lockfile-only — no `package.json` change)
+     cleared **all** vulns to **0** in all three. The real HIGHs were **fast-uri** ≤3.1.1
+     (path traversal / host confusion — the "CVE-2026-33671" in all 3) and **path-to-regexp**
+     ReDoS (ecommerce). `uuid`→14 was stale (not a direct dep; audit clean). Builds +
+     tests pass (portfolio 246, ecommerce 199, ats 148). ⚠️ Gotcha: sandboxed `npm audit`
+     silently reports "0 vulnerabilities" — must run with network to get real results.
+   - **Stale `app.jar` (SB 3.4.4 / Tomcat 10.1.39)** was a scan artifact, not source
+     (source is 3.5.14); the next deploy rebuilds from patched source → resolves itself.
+   - Docker base-image bumps deferred to roadmap #3 (Infra M1/M2), not CVE-scope.
 3. **Remaining audit findings** (from this session's audit; none yet done):
    - Infra **H2/M3**: CI deploy-role IAM wildcards (`terraform/main.tf` ~771-821) — scope down.
    - Infra **H3**: hardcoded dev creds in `ats-db` / `ecommerce-db` Dockerfiles.
