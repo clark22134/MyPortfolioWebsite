@@ -12,7 +12,7 @@
 # already runs non-root. Adding USER here would break that init chown.
 # Infra M2: base image pinned by digest for reproducible builds (tag kept for
 # clarity; Dependabot still bumps tag + digest).
-FROM mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+FROM mysql:9.7@sha256:c11782aa2a96624c1efc121768641d96954faa136d6aa82751b032d8c426ffbc
 COPY init/ /docker-entrypoint-initdb.d/
 ENV MYSQL_DATABASE=full-stack-ecommerce
 ENV MYSQL_USER=ecommerceapp
