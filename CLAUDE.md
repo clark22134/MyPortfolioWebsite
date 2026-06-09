@@ -5,6 +5,39 @@
 > explicitly asked** — though for this RDS IAM workflow the user has been
 > authorizing PR creation explicitly; re-confirm each time).
 
+## CURRENT STATE (read first)
+
+- ✅ **RDS IAM migration COMPLETE** — portfolio + ecommerce + ats all authenticate to
+  Aurora with short-lived IAM tokens (no plaintext `DB_PASSWORD`); deployed +
+  smoke-verified. Audit finding **Infra H1** resolved. (Mechanism/runbook below.)
+- ✅ **Dependency CVE remediation COMPLETE** — PR #271 merged + deployed + smoke-verified
+  (Tomcat 10.1.54 in all 4 backends; ats Tika 3.2.2 / POI 5.4.0 / commons-lang3 3.18.0;
+  frontends `npm audit` clean). Roadmap **#2** done.
+- ✅ **Security hardening + repo cleanup (PR #273) — built + tested locally** (awaiting
+  merge/deploy at time of writing). Cleared a first batch of roadmap **#3** findings plus
+  both loose ends:
+  - **Infra H3** — removed baked-in dev DB passwords from `ats-db`/`ecommerce-db`
+    Dockerfiles (compose already injects them via `${…:?}`, so it's fail-closed, not a
+    behavior change — no image ships a known default credential).
+  - **Backend L1** — `e.printStackTrace()` → SLF4J `log.error(…)` in all 4
+    `StreamLambdaHandler`s (chatbot handler gained a logger field).
+  - **Backend L2** — bounded the chatbot's per-IP rate-limiter `ConcurrentHashMap`
+    (`chatbot.rate-limit.max-tracked-ips`, default 10000): at the cap it evicts expired
+    windows, then fails closed for new IPs — closes the `X-Forwarded-For` memory-exhaustion
+    vector. New isolated test `PortfolioAssistantControllerRateLimitBoundTest` (chatbot
+    baseline **11 → 12**).
+  - **Loose end #2 (`.gitignore`)** — DONE: ignored `ats-frontend/coverage/` (+ a new
+    Chatbot section for `portfolio-chatbot-backend/target/`) and `git rm --cached`'d the
+    154 tracked artifacts (59 coverage + 95 target).
+  - **Loose end #1 (held docs commits)** — the 2 held docs-only commits (752d62a, 699691e)
+    land with this PR.
+- ▶️ **NEXT WORK**: remaining roadmap **#3** findings (H2/M3 IAM wildcards, M1 non-root,
+  M2 pin base tags, M4 OpenAI→Secrets-Manager, Backend M2 security-config standardization,
+  Frontend M3/M4 — see FULL ROADMAP). M1/M2 are lower priority: **Dependabot already
+  tracks base-image bumps** (many `dependabot/docker/*` branches open), and Docker images
+  are **local-dev only** (prod runs as Lambda jars), so they ship no prod attack surface.
+- Optional IAM follow-ups (not blocking): soak; rotate the Aurora master password.
+
 ## Branch & PR workflow (REQUIRED)
 
 **Do all development work and open all PRs from the `clark-development` branch.**
@@ -20,9 +53,10 @@ The goal is to keep `clark-development` always in sync with `main`.
   git merge --ff-only origin/main   # clark-development has no unique commits post-merge
   git push origin clark-development
   ```
-- If `clark-development` ever can't fast-forward (it shouldn't, since its commits
-  land in `main` via merge), reconcile before continuing — never work on a stale
-  branch.
+- If `clark-development` can't fast-forward, it has un-merged commits — reconcile
+  before continuing, never work on a stale branch. **(That's the case right now** —
+  held docs-only commits, see CURRENT STATE. Don't try to ff past them; just keep
+  working on `clark-development` and let them ride into the next functional PR.)
 - Deploys still trigger only on merge to `main` (see Deploy below). All the usual
   "explicitly ask before git" etiquette applies; the user has standing approval to
   commit/push/PR **on `clark-development`** for this workflow.
@@ -65,10 +99,12 @@ The goal is to keep `clark-development` always in sync with `main`.
   (`fmt`/`validate` work; `validate` needs `init -backend=false`). The user is
   authenticated for **read-only + targeted** AWS CLI use.
 
-## ACTIVE WORKFLOW: RDS IAM database authentication
+## RDS IAM database authentication (✅ COMPLETE — kept as reference)
 
-Goal: remove plaintext `DB_PASSWORD` from Lambda env; authenticate to Aurora with
-short-lived IAM tokens. (Resolves audit finding "Infra H1".)
+All three apps migrated, deployed, and verified this session (see CURRENT STATE).
+Below is the mechanism + runbook, retained for rollback/operations and as the
+template for any future DB-auth work. Goal was: remove plaintext `DB_PASSWORD` from
+Lambda env; authenticate to Aurora with short-lived IAM tokens. (Resolved Infra H1.)
 
 ### Design — env-driven dual mode (same artifact, zero-downtime cutover)
 - App deps: `software.amazon.jdbc:aws-advanced-jdbc-wrapper:2.6.0` +
@@ -158,7 +194,7 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 
 1. **IAM migration — ✅ COMPLETE** (portfolio + ecommerce + ats all on IAM tokens;
    Infra H1 resolved). Only optional follow-ups remain: soak + master password rotation.
-2. **Dependency CVE remediation — ✅ DONE (this session, PR pending)**. All verified
+2. **Dependency CVE remediation — ✅ DONE — PR #271 (merged + deployed + smoke-verified)**. All verified
    against NVD/advisories and locally built+tested before committing:
    - **Backends — `<tomcat.version>10.1.54</tomcat.version>` in all 4 poms** (portfolio,
      ecommerce [pulls Tomcat transitively via `starter-data-rest`], ats, chatbot):
@@ -177,16 +213,22 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
    - **Stale `app.jar` (SB 3.4.4 / Tomcat 10.1.39)** was a scan artifact, not source
      (source is 3.5.14); the next deploy rebuilds from patched source → resolves itself.
    - Docker base-image bumps deferred to roadmap #3 (Infra M1/M2), not CVE-scope.
-3. **Remaining audit findings** (from this session's audit; none yet done):
+3. **Remaining audit findings** (from this session's audit):
+   - ✅ **Infra H3** (DONE, PR #273): hardcoded dev creds removed from `ats-db` /
+     `ecommerce-db` Dockerfiles — now injected at runtime via compose `${…:?}` (fail-closed).
+   - ✅ **Backend L1** (DONE, PR #273): `printStackTrace` → `log.error` in all 4
+     `StreamLambdaHandler`s.
+   - ✅ **Backend L2** (DONE, PR #273): chatbot rate-limiter map bounded
+     (`chatbot.rate-limit.max-tracked-ips`, default 10000) + test.
    - Infra **H2/M3**: CI deploy-role IAM wildcards (`terraform/main.tf` ~771-821) — scope down.
-   - Infra **H3**: hardcoded dev creds in `ats-db` / `ecommerce-db` Dockerfiles.
+     *(Highest-value item left; risky — needs careful live-deploy testing.)*
    - Infra **M1**: containers run as root (all Dockerfiles); **M2**: unpinned base tags.
+     *(Low priority — Docker images are local-dev only [prod is Lambda jars], and Dependabot
+     already tracks base-image bumps via `dependabot/docker/*` branches.)*
    - Infra **M4**: OpenAI key plaintext in chatbot Lambda env — chatbot is *outside*
      the VPC, so Secrets-Manager-at-runtime IS feasible there.
    - Backend **M2**: inconsistent security config (CORS/CSRF, `JwtUtil` vs `JwtUtils`)
      across modules — standardize.
-   - Backend **L1**: `printStackTrace` in `StreamLambdaHandler`s; **L2**: unbounded
-     in-memory rate-limiter map in portfolio-chatbot-backend.
    - Frontend **M3**: duplicated auth guard (ecommerce/portfolio); **M4**: portfolio
      missing specs for ~12 components (interactive projects, a11y service).
 
@@ -204,7 +246,9 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
   in portfolio-chatbot-backend; dropped Spring AI + webflux → smaller/faster Lambda);
   `npm install → npm ci` (portfolio-frontend); removed obsolete compose `version`.
 - Local test baselines (JDK 26): portfolio-backend 171, ats-backend 222,
-  ecommerce-backend 84, portfolio-frontend 246, ecommerce-frontend 199 — all green.
+  ecommerce-backend 84, portfolio-chatbot-backend **12** (was 11; +1 rate-limiter
+  bound test in PR #273), portfolio-frontend 246, ecommerce-frontend 199,
+  ats-frontend 148 — all green.
 
 ## Gotchas / operational notes
 
@@ -234,11 +278,25 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 - Trivy (GitHub Advanced Security) parses `pom.xml` statically and does **not**
   resolve Spring-managed/property versions — use **literal** `<version>` to satisfy
   it (we pinned postgresql literally for this reason).
+- **Local build/test in the Claude Code sandbox**: the Bash sandbox blocks network,
+  so `curl`/`wget` report "command not found" and `npm audit`/`npm install`/`mvn`
+  (downloading) fail — notably `npm audit` **silently reports "0 vulnerabilities"**.
+  Run network-touching commands with the sandbox disabled. And macOS has **no
+  `timeout` command** (`timeout 300 mvn …` exits 127 and runs nothing) — use the
+  Bash tool's own timeout param, not a `timeout` prefix.
+- **Build/test commands**: backends `export JAVA_HOME=<jdk26>; mvn -f <mod>/pom.xml test`;
+  frontends `npm run build` + `npm run test:ci` (`ng test --watch=false`, Vitest — no Karma).
+- **Build artifacts are now all gitignored** (fixed in PR #273): `ats-frontend/coverage/`
+  and `portfolio-chatbot-backend/target/` were previously tracked and dirtied by builds;
+  they're now ignored like every other module's, so builds no longer leak into PRs.
 - The IAM token is generated by the wrapper via **local SigV4 signing** — no network
   call — which is the whole reason it works from the egress-less VPC.
 - Cost: the IAM-auth work adds **$0 recurring**; the Data API is the only public-path
   expansion and is gated off by default.
 - Branching: all work & PRs go on **`clark-development`** (see "Branch & PR
-  workflow" at top); fast-forward it to `main` after each merge. (History note:
-  PR #262 was `clark-development`; #266/#267 used a temporary
-  `clark-rds-iam-cutover-portfolio` branch — going forward, use `clark-development`.)
+  workflow" at top); fast-forward it to `main` after each merge — **except right now**
+  it holds un-merged docs-only commits (see CURRENT STATE). PR history:
+  #262 (scaffolding), #266/#267 (portfolio cutover, temp branch), **#269** (ecommerce
+  cutover), **#270** (ats cutover), **#271** (CVE remediation), **#273** (security
+  hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`). Going forward, always
+  `clark-development`.

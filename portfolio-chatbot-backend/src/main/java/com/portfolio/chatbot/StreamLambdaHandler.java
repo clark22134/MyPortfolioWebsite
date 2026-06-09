@@ -8,6 +8,8 @@ import com.amazonaws.serverless.proxy.spring.SpringBootLambdaContainerHandler;
 import com.amazonaws.serverless.proxy.spring.SpringBootProxyHandlerBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -21,6 +23,8 @@ import java.nio.charset.StandardCharsets;
  * SimpleVectorStore index hot between real chat requests.
  */
 public class StreamLambdaHandler implements RequestStreamHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(StreamLambdaHandler.class);
 
     private static SpringBootLambdaContainerHandler<AwsProxyRequest, AwsProxyResponse> handler;
 
@@ -39,7 +43,7 @@ public class StreamLambdaHandler implements RequestStreamHandler {
                     .springBootApplication(PortfolioChatbotApplication.class)
                     .buildAndInitialize();
         } catch (ContainerInitializationException e) {
-            e.printStackTrace();
+            log.error("Failed to initialize Spring Boot Lambda container", e);
             throw new RuntimeException("Could not initialize Spring Boot application", e);
         }
     }

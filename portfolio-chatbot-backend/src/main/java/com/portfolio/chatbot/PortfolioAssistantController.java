@@ -43,6 +43,7 @@ public class PortfolioAssistantController {
 
     private final ObjectProvider<RagService> ragServiceProvider;
     private final int requestsPerMinute;
+    private final int maxTrackedIps;
     private final boolean enabled;
     private final ObjectMapper objectMapper;
     private final Map<String, Window> ipWindows = new ConcurrentHashMap<>();
@@ -51,10 +52,12 @@ public class PortfolioAssistantController {
             ObjectProvider<RagService> ragServiceProvider,
             @Value("${chatbot.enabled:true}") boolean enabled,
             @Value("${chatbot.rate-limit.per-minute:20}") int requestsPerMinute,
+            @Value("${chatbot.rate-limit.max-tracked-ips:10000}") int maxTrackedIps,
             ObjectMapper objectMapper) {
         this.ragServiceProvider = ragServiceProvider;
         this.enabled = enabled;
         this.requestsPerMinute = requestsPerMinute;
+        this.maxTrackedIps = maxTrackedIps;
         this.objectMapper = objectMapper;
     }
 
@@ -180,6 +183,18 @@ public class PortfolioAssistantController {
 
     private boolean allow(String ip) {
         Instant now = Instant.now();
+        // Bound memory: ipWindows is an in-memory map that would otherwise grow
+        // without limit (a client can rotate X-Forwarded-For values to mint an
+        // unbounded number of entries). At the cap, evict windows whose 60s
+        // bucket has already elapsed; if the table is still full of live windows,
+        // refuse to track a new IP and shed load (fail closed) rather than grow
+        // past the cap. Already-tracked IPs are unaffected.
+        if (ipWindows.size() >= maxTrackedIps) {
+            ipWindows.values().removeIf(window -> window.windowStart.plusSeconds(60).isBefore(now));
+            if (ipWindows.size() >= maxTrackedIps && !ipWindows.containsKey(ip)) {
+                return false;
+            }
+        }
         Window w = ipWindows.compute(ip, (k, existing) -> {
             if (existing == null || existing.windowStart.plusSeconds(60).isBefore(now)) {
                 return new Window(now, 1);
