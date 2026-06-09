@@ -55,24 +55,43 @@
   Maven dependency-fetch/cache slowdown, unrelated to the change**; self-resolved). `clark-development`
   resynced to `main`. Details + test-env gotchas in the **"Frontend M4"** section below. Frontend
   **M3** (auth-guard "dedup") was investigated and is **NOT a real defect** — see that section.
-- 🔶 **Infra H2/M3 — CI deploy-role IAM scope-down — PR #277 OPEN (awaiting review/merge; NOT
-  merged yet because merging deploys the new policy).** Scoped the `github-actions-role` IAM
-  *write* actions from `Resource:"*"` to only the resources this stack manages (kills the
-  privilege-escalation vector: the CI role could previously create/modify/pass **any** role).
-  Done the **safe** way per CloudTrail evidence — no action removed, non-IAM wildcards untouched,
-  reads stay `*`. Verified the managed-resource set against AWS + Terraform source; `fmt`+`validate`
-  pass. Full design, evidence, no-lockout reasoning, and first-deploy watch-list in the **"Infra
-  H2/M3"** section below. **After #277 merges: resync** (`git fetch && git checkout clark-development
-  && git merge --ff-only origin/main && git push origin clark-development`) **and watch the deploy** —
-  the apply will show `aws_iam_role_policy.github_actions` changing; if any future infra change hits
-  an IAM `AccessDenied`, add the offending ARN to the relevant statement's `Resource` list.
-- ▶️ **NEXT WORK**: after #277 merges + verifies, remaining roadmap **#3** findings are lower-value:
-  **M1** (non-root containers) / **M2** (pin base tags) — Docker is **local-dev only** (prod is
-  Lambda jars) + **Dependabot already tracks base-image bumps**, so low priority; **Backend M2**
-  (security-config standardization) is locally testable but changes live auth on all 3 apps and is
-  largely cosmetic. Frontend **M3** is a non-issue (see Frontend M4 section). Optional H2/M3
-  **phase 2** (scope the non-IAM `ec2:*`/`rds:*`/… service wildcards too) needs CloudTrail-derived
-  action lists + 1-2 babysat deploy cycles — defer unless desired.
+- ✅ **Infra H2/M3 — CI deploy-role IAM scope-down — PR #277 MERGED + DEPLOYED + VERIFIED.**
+  Scoped the `github-actions-role` IAM *write* actions from `Resource:"*"` to only the resources
+  this stack manages (kills the privilege-escalation vector: the CI role could previously
+  create/modify/pass **any** role). Done the **safe** way per CloudTrail evidence — no action
+  removed, non-IAM wildcards untouched, reads stay `*`. **Prod verification (deploy run
+  #27224283856):** ① the deploy applied cleanly with **no lockout** (apply rewrote the policy under
+  the old broad creds; app deploys + Post-Deployment Verification all green); ② `aws iam
+  get-role-policy github-actions-role/github-actions-policy` shows the 5 new scoped statements
+  (`IamReadOnly`, `IamManageProjectRoles`, `IamManageProjectPolicies`, `IamManageOidcProvider`,
+  `IamCreateServiceLinkedRoles`); ③ `IamManageProjectRoles` (CreateRole/PassRole/PutRolePolicy/…)
+  is scoped to `role/github-actions-role` + `role/prod-*` — **and zero IAM escalation actions
+  remain on `Resource:"*"`**. Full design/evidence/recipe in the **"Infra H2/M3"** section below.
+  ⚠️ **Not yet exercised:** a *future* `terraform apply` that modifies IAM under the new (scoped)
+  policy — if one ever hits IAM `AccessDenied`, a managed resource fell outside `prod-*`; add its
+  ARN to the relevant statement's `Resource` (one-line fix). Optional **phase 2**: scope the
+  non-IAM `ec2:*`/`rds:*`/… service wildcards too (needs CloudTrail-derived action lists).
+- ✅ **Infra M1/M2 — Docker hardening — PR #278 OPEN; clark-development → main.** All 8
+  Dockerfiles: (**M2**) every base image is pinned by digest for reproducible builds — the
+  human-readable tag is kept and Dependabot still bumps tag+digest; (**M1**) the **3 backend**
+  images now run as a non-root `app` user (`addgroup -S app && adduser -S -G app -H app` +
+  `USER app`) — they bind 8080, no privileged port. **Local-dev-only change** (prod is Lambda
+  jars, the SPAs are served by CloudFront/S3 — these images never ship to prod), so **zero
+  prod/runtime risk**. The 3 **nginx frontends** and 2 **DB** images keep root **by design**
+  (documented inline): non-root nginx would force a `:80→:8080` listener move across compose +
+  nginx confs (disproportionate), and the postgres/mysql entrypoints already drop to their own
+  user after a root-only volume chown (adding `USER` breaks init). **Verified locally** (Docker
+  29.4.3): all 6 pinned `image@digest` refs resolve; a full `docker build` of portfolio-backend
+  pulled eclipse-temurin **by digest** and the container defaults to non-root `uid=100(app)`,
+  reads the `644 root:root` app.jar, and runs `java -version` as `app`. **Test-only/infra — no
+  app source changed.** Details in the **"Infra M1/M2"** section below. Closes the last
+  actionable roadmap **#3** Infra findings.
+- ▶️ **NEXT WORK**: only lower-value / deferred items remain:
+  **Backend M2** (security-config standardization — CORS/CSRF + `JwtUtil`/`JwtUtils` naming
+  across the 3 backends) is locally testable but changes live auth on all 3 apps and is largely
+  cosmetic; Frontend **M3** is a non-issue (see Frontend M4 section); optional H2/M3 **phase 2**
+  (scope the non-IAM `ec2:*`/`rds:*`/… service wildcards) needs CloudTrail-derived action lists +
+  1-2 babysat deploy cycles — defer unless desired.
 - Optional IAM follow-ups (not blocking): soak; rotate the Aurora master password.
 
 ## Branch & PR workflow (REQUIRED)
@@ -91,9 +110,12 @@ The goal is to keep `clark-development` always in sync with `main`.
   git push origin clark-development
   ```
 - If `clark-development` can't fast-forward, it has un-merged commits — reconcile
-  before continuing, never work on a stale branch. (As of the M4 PR, `clark-development`
-  **is** in sync with `main` — the previously-held docs commits all merged in #273. Next
-  session: after the M4 PR merges, `git fetch && git merge --ff-only origin/main` as above.)
+  before continuing, never work on a stale branch. (**Current state:** `clark-development`
+  is ahead of `main` by a few **carried docs-only commits** (CLAUDE.md updates this session
+  appended after the last feature merge — Infra H2/M3 verification + this sync note). This is
+  the normal carried-docs state, **not** a divergence to reconcile: keep committing on top,
+  and they fold into the next PR. After the next feature merge, `git fetch && git merge
+  --ff-only origin/main` as above.)
 - Deploys still trigger only on merge to `main` (see Deploy below). All the usual
   "explicitly ask before git" etiquette applies; the user has standing approval to
   commit/push/PR **on `clark-development`** for this workflow.
@@ -347,7 +369,7 @@ restores auth **synchronously** from `localStorage` in its constructor (so its s
 shared Angular library across two separate npm apps — a disproportionate change for no behavioral
 win. **No change made.**
 
-## Infra H2/M3 — CI deploy-role IAM scope-down (🔶 PR #277 OPEN; awaiting review/merge)
+## Infra H2/M3 — CI deploy-role IAM scope-down (✅ PR #277 MERGED + DEPLOYED + VERIFIED)
 
 **Goal:** the `github-actions-role` inline policy (`terraform/main.tf`, `aws_iam_role_policy.github_actions`)
 granted `iam:CreateRole`/`PutRolePolicy`/`AttachRolePolicy`/`PassRole` (+ all IAM writes) on
@@ -396,6 +418,63 @@ can't run locally (CI-only secrets), so the **first post-merge deploy is the rea
 - **Phase 2 (optional, deferred):** scope the non-IAM `ec2:*`/`rds:*`/… wildcards too — needs
   CloudTrail-derived action lists + 1-2 babysat deploy cycles to catch rarely-used write actions.
 
+## Infra M1/M2 — Docker hardening (✅ PR #278 OPEN; clark-development → main)
+
+**Goal:** close the last actionable roadmap **#3** Infra findings — **M1** (containers run as
+root) and **M2** (unpinned base tags) — across all 8 Dockerfiles. **Scope reminder:** these
+images are **local-dev only** (`docker-compose.yml`). Prod runs the backends as Lambda jars and
+serves the SPAs from CloudFront/S3, so **none of these images ship to prod** → zero prod/runtime
+risk; the value is local-dev supply-chain hygiene + defense-in-depth.
+
+### What changed (all 8 Dockerfiles)
+- **M2 — digest-pin every base image.** Each `FROM` now reads `image:tag@sha256:<digest>`. The
+  human-readable tag is **kept** (clarity + Dependabot still recognizes the image) and Dependabot
+  continues to bump **both** tag and digest (8 `docker` ecosystems are configured in
+  `.github/dependabot.yml`; live `dependabot/docker/*` branches confirm it). Digests are the
+  **multi-arch index** digests (from `docker buildx imagetools inspect <tag> --format
+  '{{.Manifest.Digest}}'`), so arm64 (local) + amd64 (CI) both still resolve. Digests pinned this
+  session (2026-06-09):
+  - `maven:3-eclipse-temurin-21` → `sha256:d7e7f57407437c014571f1ad5a9955f03fc3edcb1d964067ef351fa38e798665`
+  - `eclipse-temurin:21-jre-alpine` → `sha256:704db3c40204a44f471191446ddd9cda5d60dab40f0e15c6507b815ed897238b`
+  - `node:24-alpine` → `sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14`
+  - `nginx:alpine` → `sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a`
+  - `postgres:16-alpine` → `sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229`
+  - `mysql:8.0` → `sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b`
+- **M1 — non-root for the 3 backends** (`portfolio-backend`, `ats-backend`, `ecommerce-backend`):
+  added `RUN addgroup -S app && adduser -S -G app -H app` + `USER app` to the runtime stage. The
+  apps bind **8080** (unprivileged), and the jar is `COPY`'d as root at mode `644` (world-readable),
+  so the non-root user reads/runs it fine — **no chown needed**. Spring/Tomcat write only to
+  `/tmp` (world-writable), so non-root has no writable-path issue.
+
+### M1 deliberately NOT applied to nginx frontends + DB images (documented inline)
+- **nginx frontends (×3):** the stock `nginx:alpine` master runs as root to bind `:80`. Going
+  non-root means switching to `nginxinc/nginx-unprivileged` **and** moving the listener to `:8080`
+  — which also requires editing the `docker-compose.yml` port maps (`4200:80`/`8082:80`/`8084:80`)
+  **and** every `nginx.*.conf` `listen` directive. Disproportionate for a local-dev-only image.
+- **DB images (×2):** the official `postgres`/`mysql` entrypoints intentionally start as root only
+  to chown the data volume, then **drop to the `postgres`/`mysql` user** (gosu) before running the
+  server — so the daemon is already non-root. Adding `USER` would break that init chown.
+
+### Verified locally (Docker 29.4.3 + buildx; sandbox disabled for registry/network)
+- All **6** pinned `image@digest` refs resolve (`docker buildx imagetools inspect`).
+- The `addgroup`/`adduser` idiom works on the exact pinned `eclipse-temurin` base → `uid=100(app)
+  gid=101(app)`.
+- **Full `docker build ./portfolio-backend`** succeeded end-to-end (pulled eclipse-temurin **by
+  digest**, ran the `adduser` layer); `docker run --rm --entrypoint id <img>` → `uid=100(app)`;
+  the non-root user reads the `-rw-r--r-- root root` `/app/app.jar` (magic bytes `PK`) and runs
+  `java -version` (OpenJDK 21.0.11). The other 2 backends use a **byte-identical** runtime stanza.
+- Frontends/DBs weren't fully built (npm/db builds are slow + their only change is the verified
+  digest pin — no `USER` change), so the resolve-check is sufficient evidence for them.
+- **Rollback:** revert the PR — restores the floating tags / root `USER`. (No deploy impact either
+  way; these images are never built by `deploy-production.yml`.)
+- ⚠️ **Open Dependabot PRs conflict with this one** (they edit the same `FROM` lines, proposing
+  *major* bumps): node 24→26 (#237/#234/#229), postgres 16→18 (#232), mysql 8.0→9.7 (#239),
+  eclipse-temurin 21→25 (#223/#224/#228), maven →26 (#225/#227/#230), `all-docker` (#211). This PR
+  deliberately pins the **current, tested** versions (M2 = pin, *not* upgrade — major bumps are a
+  separate, higher-risk decision). After this merges, those Dependabot PRs need a rebase; they'll
+  re-target the new `tag@digest` format and can be taken individually if/when the major bumps are
+  vetted. Don't fold the major bumps into this PR.
+
 ## FULL ROADMAP (priority order)
 
 1. **IAM migration — ✅ COMPLETE** (portfolio + ecommerce + ats all on IAM tokens;
@@ -426,14 +505,16 @@ can't run locally (CI-only secrets), so the **first post-merge deploy is the rea
      `StreamLambdaHandler`s.
    - ✅ **Backend L2** (DONE, PR #273): chatbot rate-limiter map bounded
      (`chatbot.rate-limit.max-tracked-ips`, default 10000) + test.
-   - 🔶 **Infra H2/M3** (PR #277, open): scoped the deploy-role IAM *write* actions from
-     `Resource:"*"` to the project's own role/policy/OIDC ARNs (kills privilege-escalation).
-     Resources scoped, actions kept, non-IAM wildcards untouched. See the **"Infra H2/M3"**
-     section above. **First post-merge deploy is the real test** (can't `plan` locally).
+   - ✅ **Infra H2/M3** (PR #277, MERGED + DEPLOYED + VERIFIED): scoped the deploy-role IAM
+     *write* actions from `Resource:"*"` to the project's own role/policy/OIDC ARNs (kills
+     privilege-escalation). Resources scoped, actions kept, non-IAM wildcards untouched. Live
+     policy confirmed via `aws iam get-role-policy`. See the **"Infra H2/M3"** section above.
      Optional phase 2: scope the `ec2:*`/`rds:*`/… service wildcards too (needs CloudTrail).
-   - Infra **M1**: containers run as root (all Dockerfiles); **M2**: unpinned base tags.
-     *(Low priority — Docker images are local-dev only [prod is Lambda jars], and Dependabot
-     already tracks base-image bumps via `dependabot/docker/*` branches.)*
+   - ✅ **Infra M1/M2** (PR #278, open): **M2** — all 8 Dockerfiles' base images pinned by
+     digest (tag kept; Dependabot still bumps tag+digest); **M1** — the 3 backend images run as
+     a non-root `app` user. nginx frontends + DB images keep root by design (documented inline).
+     Local-dev-only, verified via `docker build` + non-root `docker run id`. See the **"Infra
+     M1/M2"** section above.
    - ✅ **Infra M4** (DONE, PR #274): chatbot OpenAI key fetched from Secrets Manager at
      runtime instead of a plaintext `OPENAI_API_KEY` Lambda env var. See the **"Infra M4"**
      section below.
@@ -516,11 +597,14 @@ can't run locally (CI-only secrets), so the **first post-merge deploy is the rea
 - Cost: the IAM-auth work adds **$0 recurring**; the Data API is the only public-path
   expansion and is gated off by default.
 - Branching: all work & PRs go on **`clark-development`** (see "Branch & PR
-  workflow" at top); fast-forward it to `main` after each merge. As of the M4 PR,
-  `clark-development` is in sync with `main` (the held docs commits merged in #273). PR
+  workflow" at top); fast-forward it to `main` after each merge. **Current state:**
+  `clark-development` is ahead of `main` by a few carried docs-only commits (this session's
+  CLAUDE.md updates) — normal carried-docs state, folds into the next PR. PR
   history: #262 (scaffolding), #266/#267 (portfolio cutover, temp branch), **#269**
   (ecommerce cutover), **#270** (ats cutover), **#271** (CVE remediation), **#273** (security
   hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`), **#274** (Infra M4:
   chatbot OpenAI key → Secrets Manager at runtime), **#276** (Frontend M4: 14 portfolio-frontend
   unit specs, 246→317, test-only), **#277** (Infra H2/M3: scope CI deploy-role IAM write actions to
-  project ARNs — OPEN, awaiting review/merge). Going forward, always `clark-development`.
+  project ARNs — merged + deployed + verified), **#278** (Infra M1/M2: Docker hardening — digest-pin
+  all 8 base images + non-root `app` user on the 3 backends; local-dev-only, OPEN). Going forward,
+  always `clark-development`.
