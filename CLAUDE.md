@@ -97,13 +97,24 @@ short-lived IAM tokens. (Resolves audit finding "Infra H1".)
 - ✅ **PORTFOLIO CUTOVER VERIFIED**: HikariCP opened a wrapper/IAM connection (logs),
   `DB_PASSWORD` removed, Data API off, `GET https://clarkfoster.com/api/projects`
   returns real DB JSON (200). Portfolio now uses IAM tokens, no password.
+- ✅ **`ecommerce_app` role provisioned (this session)** via Data API: LOGIN +
+  `rds_iam`, CONNECT on `ecommerce`, full DML on all **9** public tables
+  (product_category, product, country, state, address, customer, orders,
+  order_item, cart_item) + `ALTER DEFAULT PRIVILEGES`. Data API was enabled with
+  `aws rds enable-http-endpoint`, used, then **re-disabled** with
+  `aws rds disable-http-endpoint` (confirmed off).
+- 🚧 **ecommerce cutover PR opened (this session)**: flips
+  `TF_VAR_ecommerce_db_iam_auth=true` in `deploy-production.yml`. **Not yet
+  merged** → ecommerce still in password mode until merge+deploy. Verify after
+  deploy (Lambda env has no `DB_PASSWORD`; CloudWatch HikariCP wrapper connection;
+  a DB-backed `shop.clarkfoster.com` endpoint returns 200).
 
 ### Remaining IAM work
-1. **Soak portfolio** (cold starts / token refresh over real traffic). Benign log
+1. **Merge + verify ecommerce cutover** (PR above). Same verification as portfolio,
+   against `prod-ecommerce-backend` and a DB-backed `shop.clarkfoster.com` endpoint.
+2. **Soak portfolio** (cold starts / token refresh over real traffic). Benign log
    noise: HikariCP `connection has been closed` / `thread starvation` = normal
    Lambda freeze/thaw; wrapper mints a fresh token on the next connection.
-2. **ecommerce cutover** — DML-only (ddl-auto=validate). Procedure below with
-   `ecommerce_app` / db `ecommerce`.
 3. **ats cutover — DO LAST, carefully.** ats runs **Flyway as the datasource user**,
    so `ats_app.sql` does `REASSIGN OWNED BY postgres TO ats_app` + `CREATE` on schema.
    Review object ownership first.
@@ -112,18 +123,22 @@ short-lived IAM tokens. (Resolves audit finding "Infra H1".)
 
 ### Repeatable cutover procedure (per app)
 ```bash
-# 1) Transiently enable Data API: add TF_VAR_enable_data_api: "true" to
-#    deploy-production.yml terraform env, merge (or use an already-open window).
-# 2) Provision the role (Data API; public endpoint, no VPC needed):
 CLUSTER_ARN=arn:aws:rds:us-east-1:010438493245:cluster:prod-shared
 SECRET_ARN=arn:aws:secretsmanager:us-east-1:010438493245:secret:prod-shared-credentials-flwd0N
+# 1) Transiently enable the Data API DIRECTLY via CLI (no deploy needed). NOTE:
+#    `modify-db-cluster --enable-http-endpoint` is a SILENT NO-OP on Aurora
+#    Serverless v2/provisioned — use the dedicated endpoint commands instead:
+aws rds enable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
+#    (or, the GitOps way: set TF_VAR_enable_data_api=true and merge a deploy.)
+# 2) Provision the role (Data API; public endpoint, no VPC needed), one stmt/call:
 aws rds-data execute-statement --region us-east-1 --resource-arn "$CLUSTER_ARN" \
-  --secret-arn "$SECRET_ARN" --database <DB> --sql "<one statement>"   # one per call
-# 3) Cutover: add TF_VAR_<app>_db_iam_auth: "true" to deploy-production.yml env, merge.
-# 4) Verify: Lambda env has no DB_PASSWORD; CloudWatch shows
+  --secret-arn "$SECRET_ARN" --database <DB> --sql "<one statement>"
+# 3) Disable the Data API again (mirror of step 1) and confirm it's off:
+aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
+# 4) Cutover: add TF_VAR_<app>_db_iam_auth: "true" to deploy-production.yml env, merge.
+# 5) Verify: Lambda env has no DB_PASSWORD; CloudWatch shows
 #    "HikariPool-1 - Added connection software.amazon.jdbc.wrapper.ConnectionWrapper";
 #    hit a DB-backed endpoint (portfolio: /api/projects -> JSON 200).
-# 5) Remove TF_VAR_enable_data_api (back to false), merge -> Data API off.
 # Rollback: remove/false TF_VAR_<app>_db_iam_auth, merge -> password mode, same artifact.
 ```
 
@@ -176,6 +191,14 @@ aws rds-data execute-statement --region us-east-1 --resource-arn "$CLUSTER_ARN" 
 - Cluster setting changes go to `PendingModifiedValues` unless `apply_immediately =
   true` (now set on the cluster). Flush a stuck pending change with
   `aws rds modify-db-cluster … --apply-immediately`.
+- **Data API toggle gotcha**: on this Aurora **Serverless v2/provisioned** cluster,
+  `aws rds modify-db-cluster --enable-http-endpoint` is a **silent no-op** (returns
+  exit 0, `HttpEndpointEnabled` stays false, no error — that param is Serverless
+  **v1** only). Use the dedicated `aws rds enable-http-endpoint` /
+  `disable-http-endpoint --resource-arn <cluster-arn>` instead. (Terraform's
+  `enable_http_endpoint` works because the provider routes to the right API.) The
+  newer `VPCNetworkingEnabled: true` / `serverlessV2PlatformVersion: "4"` cluster
+  attributes are unrelated red herrings.
 - Trivy (GitHub Advanced Security) parses `pom.xml` statically and does **not**
   resolve Spring-managed/property versions — use **literal** `<version>` to satisfy
   it (we pinned postgresql literally for this reason).

@@ -186,6 +186,10 @@ jobs:
       # and removes its plaintext DB_PASSWORD. The portfolio_app role must already
       # exist (see terraform/RDS_IAM_AUTH_RUNBOOK.md). Plain literal, not a secret.
       TF_VAR_portfolio_db_iam_auth: "true"
+      # RDS IAM auth cutover for ecommerce-backend: same mechanism. The ecommerce_app
+      # role (LOGIN + rds_iam + DML on all public tables) is already provisioned.
+      # Plain literal, not a secret.
+      TF_VAR_ecommerce_db_iam_auth: "true"
     steps:
       - uses: actions/checkout@v6
 
