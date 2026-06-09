@@ -9,7 +9,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests -Pprod
 
 # Stage 2: Run
-FROM eclipse-temurin:21-jre-alpine@sha256:704db3c40204a44f471191446ddd9cda5d60dab40f0e15c6507b815ed897238b
+FROM eclipse-temurin:25-jre-alpine@sha256:c707c0d18cb9e8556380719f80d96a7529d0746fbb42143893949b98ed2f8943
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
