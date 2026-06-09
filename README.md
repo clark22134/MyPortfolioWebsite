@@ -40,7 +40,7 @@ A production-grade, multi-application platform comprising three full-stack web a
 | **E-Commerce** | Full shopping platform with product catalog, persistent cart, checkout, and order tracking | `shop.clarkfoster.com` |
 | **HireFlow ATS** | Applicant tracking system with Kanban pipeline, resume parsing, and candidate scoring | `ats.clarkfoster.com` |
 
-All three applications share a single serverless infrastructure layer with CloudFront global CDN, API Gateway regional endpoints, Lambda functions (Java 21 with SnapStart), a shared Aurora Serverless v2 cluster (3 databases), and a CloudFront WAF — running at **~$54/month** (~73% cost reduction from previous Fargate architecture).
+All three applications share a single serverless infrastructure layer with CloudFront global CDN, API Gateway regional endpoints, Lambda functions (Java 21 with SnapStart), a shared Aurora Serverless v2 cluster (3 databases), and a CloudFront WAF — running at **~$61/month** (~70% cost reduction from previous Fargate architecture).
 
 ---
 
@@ -128,7 +128,7 @@ All three applications share a single serverless infrastructure layer with Cloud
 
 **CI/CD:** GitHub Actions with OIDC-based AWS authentication (no long-lived credentials), parallel test jobs, Trivy/TruffleHog security scans, SonarCloud quality gates, Lambda deployment with versioning and aliases.
 
-**Cost Optimization:** Migrated from ECS Fargate (~$200/month) to serverless architecture (~$54/month) — ~73% cost reduction while upgrading databases to managed Aurora Serverless v2.
+**Cost Optimization:** Migrated from ECS Fargate (~$200/month) to serverless architecture (~$61/month) — ~70% cost reduction while upgrading databases to managed Aurora Serverless v2.
 
 ---
 
@@ -310,12 +310,12 @@ ats-frontend/
 | **API Gateway** | 3 REST APIs (regional), Lambda proxy integration | ~$1–2 |
 | **CloudFront WAF** | 5 rules (rate limit, OWASP, geo-block), shared WebACL | ~$5–6 |
 | **S3** | 3 buckets (static hosting), versioning + encryption | ~$1 |
-| **VPC** | Private subnets, IGW, route tables — no NAT/VPC endpoints (in-VPC Lambdas authenticate to Aurora via RDS IAM, so no egress is needed) | ~$0 |
+| **VPC** | Private subnets, IGW, route tables — no NAT. A single SES SMTP interface endpoint (PrivateLink) gives the contact form outbound email; backends reach Aurora via RDS IAM | ~$7 |
 | **CloudWatch** | 7-day log retention across all log groups | ~$1–2 |
 | **Route53 + ACM** | 1 hosted zone, wildcard TLS certificate | ~$1 |
-| **Total** | | **~$54** |
+| **Total** | | **~$61** |
 
-**Cost decisions:** Serverless Lambda instead of ECS Fargate (~$120/mo saved), CloudFront CDN instead of ALB (~$16/mo saved), 1 shared Aurora cluster instead of 3 (~$50/mo saved). Migrated from ~$200/month Fargate architecture to ~$54/month serverless.
+**Cost decisions:** Serverless Lambda instead of ECS Fargate (~$120/mo saved), CloudFront CDN instead of ALB (~$16/mo saved), 1 shared Aurora cluster instead of 3 (~$50/mo saved). Migrated from ~$200/month Fargate architecture to ~$61/month serverless.
 
 ---
 

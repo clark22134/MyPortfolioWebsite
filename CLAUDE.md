@@ -125,6 +125,20 @@
   removed the phantom **NAT cost line** + rewrote TECHNICAL_DESIGN §8.3, and **re-synced all 13
   `portfolio-frontend/public/docs/*` to canonical `/docs`** (3 had drifted). Verified: both touched
   frontends **build green**, the 3 touched backends **compile green**, no test asserts changed copy.
+- ✅ **Contact-form email FIXED (prod bug found during the doc audit; same PR as the hygiene pass)** —
+  the contact form was **broken in prod**: `portfolio-backend` (in private subnets, **no NAT/egress**)
+  sends via Spring `JavaMailSender` SMTP to the **public** `email-smtp.us-east-1.amazonaws.com:587`, so
+  every submission hit a 5s connect-timeout → `EmailSendException` → **HTTP 503** (no email delivered).
+  `application-prod.properties` even commented "AWS SES SMTP **via VPC endpoint**" — but **that endpoint
+  was never provisioned** (creds were fine; only the network path was missing). **Fix (Terraform only,
+  zero app/code change):** added `aws_vpc_endpoint.ses_smtp` (interface, **private DNS** → the existing
+  `email-smtp…` hostname resolves to a private ENI over **PrivateLink**) + a least-privilege SG (port
+  **587** ingress from the portfolio Lambda SG only) + a new `private_subnet_azs` networking output. The
+  endpoint's subnets are **selected dynamically** (`contains(data.aws_vpc_endpoint_service.ses_smtp.availability_zones, az)`)
+  because SES SMTP isn't offered in **us-east-1a**. ~$7/mo (1 ENI) vs a ~$33/mo NAT. `terraform fmt` +
+  `validate` clean (can't `plan` locally — **first CI deploy is the real test**; verify with a live POST
+  to `/api/contact` → expect **200** + an email, and CloudWatch `"Contact email sent successfully"`).
+  Docs/cost-tables updated to reflect the one endpoint (README total ~$54→~$61; TECHNICAL_DESIGN ~$30→~$37).
 - ▶️ **NEXT WORK**: **the roadmap's actionable findings are now all resolved.** Only optional /
   deferred items remain, none a clean unattended task:
   - **H2/M3 phase 2** (scope the non-IAM `ec2:*`/`rds:*`/… deploy-role service wildcards) — needs
@@ -186,9 +200,14 @@ The goal is to keep `clark-development` always in sync with `main`.
   ARN `arn:aws:secretsmanager:us-east-1:010438493245:secret:prod-shared-credentials-flwd0N`
 - Lambdas: `prod-portfolio-backend`, `prod-ecommerce-backend`, `prod-ats-backend`,
   `prod-portfolio-chatbot`. Backends run **in private subnets**.
-- **VPC has NO NAT and NO VPC endpoints** → in-VPC Lambdas cannot reach public AWS
-  APIs (Secrets Manager is unreachable from them). This is *why* DB auth uses RDS
-  IAM (token is signed locally, no API call) instead of Secrets-Manager-at-runtime.
+- **VPC has NO NAT**; the **only** VPC endpoint is an **SES SMTP interface endpoint**
+  (`aws_vpc_endpoint.ses_smtp`, added for the contact form — see below). In-VPC
+  Lambdas otherwise cannot reach public AWS APIs (Secrets Manager is unreachable
+  from them). This is *why* DB auth uses RDS IAM (token is signed locally, no API
+  call) instead of Secrets-Manager-at-runtime. ⚠️ The SES SMTP endpoint service is
+  only offered in **us-east-1b/c/d** (NOT us-east-1a), so the endpoint is placed
+  only in the supported private subnet (us-east-1b); us-east-1a Lambdas reach it
+  cross-AZ via private DNS.
 - GitHub Secrets present: `ADMIN_PASSWORD, ATS_JWT_SECRET, AWS_ACCOUNT_ID,
   AWS_ROLE_ARN, ECOMMERCE_JWT_SECRET, OPENAI_API_KEY, PORTFOLIO_JWT_SECRET,
   SES_SMTP_PASSWORD, SES_SMTP_USERNAME, SONAR_TOKEN`. (ats demo-account passwords
