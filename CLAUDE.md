@@ -103,22 +103,31 @@ short-lived IAM tokens. (Resolves audit finding "Infra H1".)
   order_item, cart_item) + `ALTER DEFAULT PRIVILEGES`. Data API was enabled with
   `aws rds enable-http-endpoint`, used, then **re-disabled** with
   `aws rds disable-http-endpoint` (confirmed off).
-- 🚧 **PR #269 (this session): ecommerce cutover** — flips
-  `TF_VAR_ecommerce_db_iam_auth=true` in `deploy-production.yml`. **Not yet
-  merged** → ecommerce still in password mode until merge+deploy. Verify after
-  deploy (Lambda env has no `DB_PASSWORD`; CloudWatch HikariCP wrapper connection;
-  a DB-backed `shop.clarkfoster.com` endpoint returns 200).
+- ✅ **PR #269 (merged/deployed): ECOMMERCE CUTOVER VERIFIED** — Lambda env in IAM
+  mode (`DB_USERNAME=ecommerce_app`, wrapper URL + `software.amazon.jdbc.Driver`,
+  `DB_PASSWORD` removed); CloudWatch shows HikariCP `Added connection
+  software.amazon.jdbc.wrapper.ConnectionWrapper` post-deploy (plain `PgConnection`
+  pre-deploy), no auth errors; `GET https://shop.clarkfoster.com/api/products`
+  returns real DB JSON (200). ecommerce now uses IAM tokens, no password.
+- ✅ **`ats_app` role provisioned (this session)** via Data API: LOGIN + `rds_iam`,
+  CONNECT on `ats`, USAGE+CREATE on `public`, and **OWNS all 10 tables + 8 sequences**
+  (incl. `flyway_schema_history`) via `REASSIGN OWNED` so Flyway can run DDL as
+  `ats_app`. No pending Flyway migrations (history v1-baseline..v5 all success).
+  Data API enabled → used → re-disabled (confirmed off).
+- 🚧 **ats cutover PR opened (this session)**: flips `TF_VAR_ats_db_iam_auth=true`.
+  **Not yet merged** → ats still in password mode until merge+deploy. After deploy,
+  verify: Lambda env has no `DB_PASSWORD`; CloudWatch shows **Flyway clean start as
+  `ats_app`** (history validate, no DDL/permission errors) + HikariCP wrapper
+  connection; a DB-backed ats endpoint returns 200.
 
 ### Remaining IAM work
-1. **Merge + verify ecommerce cutover** (PR above). Same verification as portfolio,
-   against `prod-ecommerce-backend` and a DB-backed `shop.clarkfoster.com` endpoint.
-2. **Soak portfolio** (cold starts / token refresh over real traffic). Benign log
-   noise: HikariCP `connection has been closed` / `thread starvation` = normal
-   Lambda freeze/thaw; wrapper mints a fresh token on the next connection.
-3. **ats cutover — DO LAST, carefully.** ats runs **Flyway as the datasource user**,
-   so `ats_app.sql` does `REASSIGN OWNED BY postgres TO ats_app` + `CREATE` on schema.
-   Review object ownership first.
-4. After all three migrate: consider rotating the Aurora master password (still used
+1. **Merge + verify ats cutover** (PR above). Extra care vs portfolio/ecommerce:
+   confirm **Flyway** starts cleanly as `ats_app` (validates history, no
+   permission-denied/DDL errors) in addition to the usual HikariCP wrapper check.
+2. **Soak portfolio + ecommerce** (cold starts / token refresh over real traffic).
+   Benign log noise: HikariCP `connection has been closed` / `thread starvation` =
+   normal Lambda freeze/thaw; wrapper mints a fresh token on the next connection.
+3. After all three migrate: consider rotating the Aurora master password (still used
    as break-glass + by not-yet-migrated apps + Data API provisioning).
 
 ### Repeatable cutover procedure (per app)
@@ -144,8 +153,8 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 
 ## FULL ROADMAP (priority order)
 
-1. **Finish IAM migration**: ecommerce cutover → ats cutover (last) → optional master
-   password rotation.
+1. **Finish IAM migration**: portfolio ✅ + ecommerce ✅ done; **ats cutover PR open
+   (merge + verify)** → then optional master password rotation.
 2. **Dependency CVE remediation PR** (separate; Trivy-surfaced, mostly pre-existing
    on main — NOT introduced by our work):
    - `tomcat-embed-core` HIGH **CVE-2026-34487 / 34483** → override `tomcat.version`
@@ -199,6 +208,18 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
   `enable_http_endpoint` works because the provider routes to the right API.) The
   newer `VPCNetworkingEnabled: true` / `serverlessV2PlatformVersion: "4"` cluster
   attributes are unrelated red herrings.
+- **Data API warm-up flakiness**: for ~60-90s after `enable-http-endpoint`,
+  `rds-data execute-statement` calls intermittently throw
+  `HttpEndpointNotEnabledException` even though the toggle is on. Wrap provisioning
+  calls in a retry-with-backoff loop (re-poll on that exception). Also: the Data API
+  can't serialize a bare `char` column (`relkind`) — cast it (`relkind::text`) or
+  avoid selecting it (`UnsupportedResultException: unsupported data type "CHAR"`).
+- **`REASSIGN OWNED` on Aurora**: the master user is `rds_superuser`, **not** a real
+  superuser, so `REASSIGN OWNED BY postgres TO <role>` fails with `permission denied
+  to reassign objects` (42501). Fix: `GRANT <role> TO postgres;` first (so postgres
+  holds both roles' privileges), run the REASSIGN, then `REVOKE <role> FROM postgres;`.
+  `ats_app.sql` now encodes this. The PG15 `public` schema is owned by
+  `pg_database_owner` (not postgres), so REASSIGN leaves the schema itself alone.
 - Trivy (GitHub Advanced Security) parses `pom.xml` statically and does **not**
   resolve Spring-managed/property versions — use **literal** `<version>` to satisfy
   it (we pinned postgresql literally for this reason).

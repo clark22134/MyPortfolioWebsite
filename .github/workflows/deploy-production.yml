@@ -190,6 +190,11 @@ jobs:
       # role (LOGIN + rds_iam + DML on all public tables) is already provisioned.
       # Plain literal, not a secret.
       TF_VAR_ecommerce_db_iam_auth: "true"
+      # RDS IAM auth cutover for ats-backend (last app). The ats_app role is
+      # provisioned: LOGIN + rds_iam, CONNECT, USAGE+CREATE on public, and it OWNS
+      # all app tables/sequences (REASSIGN OWNED) so Flyway can run DDL as ats_app.
+      # Plain literal, not a secret.
+      TF_VAR_ats_db_iam_auth: "true"
     steps:
       - uses: actions/checkout@v6
 
