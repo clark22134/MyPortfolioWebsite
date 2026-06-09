@@ -97,10 +97,11 @@ The goal is to keep `clark-development` always in sync with `main`.
   ```
 - If `clark-development` can't fast-forward, it has un-merged commits — reconcile
   before continuing, never work on a stale branch. (**Current state:** `clark-development`
-  is **1 commit ahead of `main`** — the carried docs-only commit `d47fece`
-  "Infra H2/M3 deployed + verified". This is the normal carried-docs state; it folds into
-  the next PR. Nothing to reconcile — just keep committing on top, and after the next merge
-  `git fetch && git merge --ff-only origin/main` as above.)
+  is ahead of `main` by a few **carried docs-only commits** (CLAUDE.md updates this session
+  appended after the last feature merge — Infra H2/M3 verification + this sync note). This is
+  the normal carried-docs state, **not** a divergence to reconcile: keep committing on top,
+  and they fold into the next PR. After the next feature merge, `git fetch && git merge
+  --ff-only origin/main` as above.)
 - Deploys still trigger only on merge to `main` (see Deploy below). All the usual
   "explicitly ask before git" etiquette applies; the user has standing approval to
   commit/push/PR **on `clark-development`** for this workflow.
@@ -524,8 +525,8 @@ can't run locally (CI-only secrets), so the **first post-merge deploy is the rea
   expansion and is gated off by default.
 - Branching: all work & PRs go on **`clark-development`** (see "Branch & PR
   workflow" at top); fast-forward it to `main` after each merge. **Current state:**
-  `clark-development` is 1 carried docs commit (`d47fece`) ahead of `main` (the H2/M3
-  verification note) — normal carried-docs state, folds into the next PR. PR
+  `clark-development` is ahead of `main` by a few carried docs-only commits (this session's
+  CLAUDE.md updates) — normal carried-docs state, folds into the next PR. PR
   history: #262 (scaffolding), #266/#267 (portfolio cutover, temp branch), **#269**
   (ecommerce cutover), **#270** (ats cutover), **#271** (CVE remediation), **#273** (security
   hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`), **#274** (Infra M4:
