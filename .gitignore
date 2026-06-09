@@ -121,6 +121,10 @@ yarn-error.log*
 /portfolio-backend/target/
 /portfolio-backend/.mvn/
 
+# Chatbot build artifacts
+/portfolio-chatbot-backend/target/
+/portfolio-chatbot-backend/.mvn/
+
 # E-Commerce build artifacts
 /ecommerce-backend/target/
 /ecommerce-backend/.mvn/
@@ -133,6 +137,7 @@ yarn-error.log*
 /ats-backend/.mvn/
 /ats-frontend/dist/
 /ats-frontend/.angular/
+/ats-frontend/coverage/
 /ats-frontend/node_modules/
 
 # Terraform - State files and local cache
