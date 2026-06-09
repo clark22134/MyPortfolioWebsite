@@ -114,21 +114,24 @@ short-lived IAM tokens. (Resolves audit finding "Infra H1".)
   (incl. `flyway_schema_history`) via `REASSIGN OWNED` so Flyway can run DDL as
   `ats_app`. No pending Flyway migrations (history v1-baseline..v5 all success).
   Data API enabled → used → re-disabled (confirmed off).
-- 🚧 **PR #270 (this session): ats cutover** — flips `TF_VAR_ats_db_iam_auth=true`.
-  **Not yet merged** → ats still in password mode until merge+deploy. After deploy,
-  verify: Lambda env has no `DB_PASSWORD`; CloudWatch shows **Flyway clean start as
-  `ats_app`** (history validate, no DDL/permission errors) + HikariCP wrapper
-  connection; a DB-backed ats endpoint returns 200.
+- ✅ **PR #270 (merged/deployed): ATS CUTOVER VERIFIED** — Lambda env in IAM mode
+  (`DB_USERNAME=ats_app`, wrapper URL + `software.amazon.jdbc.Driver`, `DB_PASSWORD`
+  removed); CloudWatch shows **Flyway ran cleanly as `ats_app`** post-deploy (no
+  permission/ownership/DDL errors) + HikariCP `Added connection
+  software.amazon.jdbc.wrapper.ConnectionWrapper` (plain `PgConnection` pre-deploy);
+  `POST https://ats.clarkfoster.com/api/auth/login` (bad creds) → **401** = live DB
+  read via IAM (would be 500 if broken), `/api/health` 200.
+- 🎉 **ALL THREE APPS MIGRATED** — portfolio + ecommerce + ats all use RDS IAM
+  tokens; **zero plaintext DB passwords** in any Lambda env. **Audit finding Infra
+  H1 fully resolved.**
 
 ### Remaining IAM work
-1. **Merge + verify ats cutover** (PR above). Extra care vs portfolio/ecommerce:
-   confirm **Flyway** starts cleanly as `ats_app` (validates history, no
-   permission-denied/DDL errors) in addition to the usual HikariCP wrapper check.
-2. **Soak portfolio + ecommerce** (cold starts / token refresh over real traffic).
+1. **Soak portfolio + ecommerce + ats** (cold starts / token refresh over real traffic).
    Benign log noise: HikariCP `connection has been closed` / `thread starvation` =
    normal Lambda freeze/thaw; wrapper mints a fresh token on the next connection.
-3. After all three migrate: consider rotating the Aurora master password (still used
-   as break-glass + by not-yet-migrated apps + Data API provisioning).
+2. **Optional: rotate the Aurora master password** — now safe; no app depends on it
+   at runtime. Still used as break-glass + for Data API provisioning. (`DB_PASSWORD`
+   plumbing remains in Terraform's password-mode branch for instant rollback.)
 
 ### Repeatable cutover procedure (per app)
 ```bash
@@ -153,8 +156,8 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 
 ## FULL ROADMAP (priority order)
 
-1. **Finish IAM migration**: portfolio ✅ + ecommerce ✅ done; **ats cutover PR open
-   (merge + verify)** → then optional master password rotation.
+1. **IAM migration — ✅ COMPLETE** (portfolio + ecommerce + ats all on IAM tokens;
+   Infra H1 resolved). Only optional follow-ups remain: soak + master password rotation.
 2. **Dependency CVE remediation PR** (separate; Trivy-surfaced, mostly pre-existing
    on main — NOT introduced by our work):
    - `tomcat-embed-core` HIGH **CVE-2026-34487 / 34483** → override `tomcat.version`
