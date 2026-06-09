@@ -257,14 +257,6 @@ resource "aws_secretsmanager_secret_version" "openai_api_key" {
   secret_string = var.openai_api_key
 }
 
-# Re-read the latest version so the Lambda env var always reflects the
-# current value, even if rotated outside this Terraform run.
-data "aws_secretsmanager_secret_version" "openai_api_key" {
-  count      = var.openai_api_key != "" ? 1 : 0
-  secret_id  = aws_secretsmanager_secret.openai_api_key[0].id
-  depends_on = [aws_secretsmanager_secret_version.openai_api_key]
-}
-
 # ---------------------------------------------------------------------------
 # Portfolio CHATBOT Lambda (separate function, no VPC)
 # ---------------------------------------------------------------------------
@@ -296,9 +288,12 @@ module "portfolio_chatbot_lambda" {
 
   environment_variables = {
     SPRING_PROFILES_ACTIVE = "prod"
-    OPENAI_API_KEY         = var.openai_api_key != "" ? data.aws_secretsmanager_secret_version.openai_api_key[0].secret_string : ""
-    OPENAI_SECRET_ARN      = var.openai_api_key != "" ? aws_secretsmanager_secret.openai_api_key[0].arn : ""
-    CHATBOT_ENABLED        = var.openai_api_key != "" ? "true" : "false"
+    # The OpenAI key is NOT injected as a plaintext env var. The Lambda fetches
+    # it from Secrets Manager at startup via OPENAI_SECRET_ARN (see
+    # OpenAiKeyResolver), using the GetSecretValue grant from extra_secret_arns
+    # above — so the key never appears in lambda:GetFunctionConfiguration output.
+    OPENAI_SECRET_ARN = var.openai_api_key != "" ? aws_secretsmanager_secret.openai_api_key[0].arn : ""
+    CHATBOT_ENABLED   = var.openai_api_key != "" ? "true" : "false"
     # Keep the Lambda bootable when OpenAI is intentionally unset. Spring AI's
     # OpenAI auto-config defaults to chat+embedding=openai and throws at startup
     # if api-key is blank unless these are pinned to `none`.

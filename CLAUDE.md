@@ -13,9 +13,10 @@
 - ✅ **Dependency CVE remediation COMPLETE** — PR #271 merged + deployed + smoke-verified
   (Tomcat 10.1.54 in all 4 backends; ats Tika 3.2.2 / POI 5.4.0 / commons-lang3 3.18.0;
   frontends `npm audit` clean). Roadmap **#2** done.
-- ✅ **Security hardening + repo cleanup (PR #273) — built + tested locally** (awaiting
-  merge/deploy at time of writing). Cleared a first batch of roadmap **#3** findings plus
-  both loose ends:
+- ✅ **Security hardening + repo cleanup (PR #273) — MERGED** (deploy triggers on merge
+  to `main`). `clark-development` has been fast-forwarded to `main` and pushed, so it is
+  back in sync (the held docs-only commits all landed in #273). Cleared a first batch of
+  roadmap **#3** findings plus both loose ends:
   - **Infra H3** — removed baked-in dev DB passwords from `ats-db`/`ecommerce-db`
     Dockerfiles (compose already injects them via `${…:?}`, so it's fail-closed, not a
     behavior change — no image ships a known default credential).
@@ -30,12 +31,23 @@
     Chatbot section for `portfolio-chatbot-backend/target/`) and `git rm --cached`'d the
     154 tracked artifacts (59 coverage + 95 target).
   - **Loose end #1 (held docs commits)** — the 2 held docs-only commits (752d62a, 699691e)
-    land with this PR.
+    landed in #273.
+- ✅ **Infra M4 — chatbot OpenAI key → Secrets Manager at runtime (PR #274) — built +
+  tested locally** (awaiting merge/deploy at time of writing). The chatbot Lambda now
+  fetches the OpenAI key from Secrets Manager **at startup** instead of receiving it as a
+  plaintext `OPENAI_API_KEY` env var, so the key no longer appears in
+  `lambda:GetFunctionConfiguration` output. Most of the infra already existed (secret
+  `prod/portfolio/openai-api-key`, the `GetSecretValue` grant via `extra_secret_arns`, and
+  the `OPENAI_SECRET_ARN` env var); the only gap was that Terraform *also* injected the
+  plaintext value. Details in the new **"Infra M4 — chatbot OpenAI key in Secrets Manager"**
+  section below. Chatbot test baseline **12 → 20**.
 - ▶️ **NEXT WORK**: remaining roadmap **#3** findings (H2/M3 IAM wildcards, M1 non-root,
-  M2 pin base tags, M4 OpenAI→Secrets-Manager, Backend M2 security-config standardization,
-  Frontend M3/M4 — see FULL ROADMAP). M1/M2 are lower priority: **Dependabot already
-  tracks base-image bumps** (many `dependabot/docker/*` branches open), and Docker images
-  are **local-dev only** (prod runs as Lambda jars), so they ship no prod attack surface.
+  M2 pin base tags, Backend M2 security-config standardization, Frontend M3/M4 — see FULL
+  ROADMAP). H2/M3 is the highest-value item left but is **risky to do blind** (a wrong IAM
+  scope breaks *all* future deploys and can't be deploy-tested locally). M1/M2 are lower
+  priority: **Dependabot already tracks base-image bumps** (many `dependabot/docker/*`
+  branches open), and Docker images are **local-dev only** (prod runs as Lambda jars), so
+  they ship no prod attack surface.
 - Optional IAM follow-ups (not blocking): soak; rotate the Aurora master password.
 
 ## Branch & PR workflow (REQUIRED)
@@ -54,9 +66,9 @@ The goal is to keep `clark-development` always in sync with `main`.
   git push origin clark-development
   ```
 - If `clark-development` can't fast-forward, it has un-merged commits — reconcile
-  before continuing, never work on a stale branch. **(That's the case right now** —
-  held docs-only commits, see CURRENT STATE. Don't try to ff past them; just keep
-  working on `clark-development` and let them ride into the next functional PR.)
+  before continuing, never work on a stale branch. (As of the M4 PR, `clark-development`
+  **is** in sync with `main` — the previously-held docs commits all merged in #273. Next
+  session: after the M4 PR merges, `git fetch && git merge --ff-only origin/main` as above.)
 - Deploys still trigger only on merge to `main` (see Deploy below). All the usual
   "explicitly ask before git" etiquette applies; the user has standing approval to
   commit/push/PR **on `clark-development`** for this workflow.
@@ -190,6 +202,73 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 # Rollback: remove/false TF_VAR_<app>_db_iam_auth, merge -> password mode, same artifact.
 ```
 
+## Infra M4 — chatbot OpenAI key in Secrets Manager (✅ built + tested locally; PR #274)
+
+**Goal:** stop shipping the OpenAI API key as a plaintext `OPENAI_API_KEY` Lambda env var
+(readable via `lambda:GetFunctionConfiguration`); have the chatbot fetch it from Secrets
+Manager at startup. The chatbot Lambda is **outside the VPC**, so Secrets Manager is
+reachable (unlike the in-VPC backends, which is why *those* use RDS IAM instead).
+
+### What already existed (so the change was small)
+- Secret `prod/portfolio/openai-api-key` (`aws_secretsmanager_secret.openai_api_key`,
+  populated from `var.openai_api_key` → GitHub secret `OPENAI_API_KEY`). **Unchanged.**
+- The chatbot Lambda role already had `secretsmanager:GetSecretValue`+`DescribeSecret`
+  on that ARN via the lambda module's `extra_secret_arns`. **Unchanged.**
+- The Lambda env already had `OPENAI_SECRET_ARN`. **Kept.**
+- The gap: Terraform *also* read the secret value at plan time and injected it as the
+  plaintext `OPENAI_API_KEY` env var, and the app read `spring.ai.openai.api-key=${OPENAI_API_KEY:}`
+  from it.
+
+### The change (files)
+- **`OpenAiKeyResolver`** (new, `portfolio-chatbot-backend`): reads `OPENAI_SECRET_ARN` from
+  the env; if set, fetches the secret (AWS SDK v2 `SecretsManagerClient` over the
+  dependency-light `url-connection-client`) and publishes it as the
+  **`spring.ai.openai.api-key` system property**. System properties out-rank
+  `application.properties`, so the existing `${OPENAI_API_KEY:}` line and the
+  `@ConditionalOnExpression` on `ChatbotConfig`/`KnowledgeIngestionService` keep working
+  unchanged. **Fail-soft**: no ARN → no-op/no AWS call (preserves local `export
+  OPENAI_API_KEY=…` and CI/test behaviour); fetch fails/empty → log + chatbot auto-disables
+  (Lambda still boots, `/api/chatbot/health` reports unavailable). Idempotent (won't
+  overwrite a pre-set property).
+- **Called from** `StreamLambdaHandler` static init (before `buildAndInitialize()`, so the
+  property is set before context refresh / conditional evaluation) **and** `main()`.
+- **`pom.xml`**: AWS SDK BOM `2.34.0` imported **before** `spring-ai-bom` (spring-ai-bom
+  also manages `software.amazon.awssdk:*` at an older 2.20.x and first-BOM-wins, so ours
+  must lead to keep every awssdk submodule on 2.34.0). Added `secretsmanager` (excluding
+  both default HTTP clients — `apache-client` sync + `netty-nio-client` async, unused and a
+  CVE source) + `url-connection-client`.
+- **`terraform/main.tf`**: dropped the plaintext `OPENAI_API_KEY` env var and the now-unused
+  `data "aws_secretsmanager_secret_version" "openai_api_key"`. Secret resource + version +
+  IAM grant + `OPENAI_SECRET_ARN` all remain.
+
+### Why this is SnapStart-safe
+The secret fetch runs once during init (snapshot time, in CI publish), not per-invocation →
+~$0, no cold-start hit. The key (shared, not per-instance) lives only in the snapshot, not
+in `GetFunctionConfiguration`. `url-connection-client` opens no pooled socket, so nothing
+stale is snapshotted (a pooled Apache/Netty client could be — another reason for url-connection).
+
+### Local verification done (JDK 26, sandbox off for network)
+- `mvn clean package` green; chatbot tests **20/0/0** (was 12; +8 `OpenAiKeyResolverTest`).
+- `dependency:tree` → all `software.amazon.awssdk:*` = **2.34.0**; spring-ai still 1.0.8.
+- Shaded jar: contains `SecretsManagerClient` + `UrlConnectionHttpClient` + the
+  url-connection `SdkHttpService` SPI file; **0** `io/netty/*`, **0** `org/apache/http/*`.
+- `terraform fmt` + `validate` clean.
+- NOTE: maven-shade-plugin 3.6.0 chokes on a `<ServicesResourceTransformer/>` block
+  (`Cannot find 'resource'`); **not needed here** because the client sets its HTTP client
+  explicitly (no SPI auto-discovery) and url-connection's SPI file is the only one of its
+  name. Don't re-add that transformer.
+
+### Post-deploy verification (do after merge → deploy)
+1. `aws lambda get-function-configuration --function-name prod-portfolio-chatbot --query
+   'Environment.Variables'` → **no `OPENAI_API_KEY`** key; `OPENAI_SECRET_ARN` present.
+2. Chatbot CloudWatch log at init: `Loaded OpenAI API key from Secrets Manager; not stored
+   in the Lambda environment.`
+3. `GET https://clarkfoster.com/api/chatbot/health` → chatbot reports available; a real
+   chat request returns a grounded answer (confirms the key resolved + Spring AI beans wired).
+- **Rollback** (if needed): restore the `OPENAI_API_KEY` env line (+ the data source) in
+  `terraform/main.tf` and merge — the app still honours `${OPENAI_API_KEY:}`, so it reverts
+  to env-var mode with the same artifact.
+
 ## FULL ROADMAP (priority order)
 
 1. **IAM migration — ✅ COMPLETE** (portfolio + ecommerce + ats all on IAM tokens;
@@ -225,10 +304,12 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
    - Infra **M1**: containers run as root (all Dockerfiles); **M2**: unpinned base tags.
      *(Low priority — Docker images are local-dev only [prod is Lambda jars], and Dependabot
      already tracks base-image bumps via `dependabot/docker/*` branches.)*
-   - Infra **M4**: OpenAI key plaintext in chatbot Lambda env — chatbot is *outside*
-     the VPC, so Secrets-Manager-at-runtime IS feasible there.
+   - ✅ **Infra M4** (DONE, PR #274): chatbot OpenAI key fetched from Secrets Manager at
+     runtime instead of a plaintext `OPENAI_API_KEY` Lambda env var. See the **"Infra M4"**
+     section below.
    - Backend **M2**: inconsistent security config (CORS/CSRF, `JwtUtil` vs `JwtUtils`)
-     across modules — standardize.
+     across modules — standardize. *(Locally testable, but it changes live auth behaviour
+     on all 3 apps and is largely cosmetic — modest security value.)*
    - Frontend **M3**: duplicated auth guard (ecommerce/portfolio); **M4**: portfolio
      missing specs for ~12 components (interactive projects, a11y service).
 
@@ -246,9 +327,9 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
   in portfolio-chatbot-backend; dropped Spring AI + webflux → smaller/faster Lambda);
   `npm install → npm ci` (portfolio-frontend); removed obsolete compose `version`.
 - Local test baselines (JDK 26): portfolio-backend 171, ats-backend 222,
-  ecommerce-backend 84, portfolio-chatbot-backend **12** (was 11; +1 rate-limiter
-  bound test in PR #273), portfolio-frontend 246, ecommerce-frontend 199,
-  ats-frontend 148 — all green.
+  ecommerce-backend 84, portfolio-chatbot-backend **20** (was 12; +8 `OpenAiKeyResolverTest`
+  in the M4 PR — 7 resolve-logic cases + 1 real-client-construction guard), portfolio-frontend
+  246, ecommerce-frontend 199, ats-frontend 148 — all green.
 
 ## Gotchas / operational notes
 
@@ -278,6 +359,11 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 - Trivy (GitHub Advanced Security) parses `pom.xml` statically and does **not**
   resolve Spring-managed/property versions — use **literal** `<version>` to satisfy
   it (we pinned postgresql literally for this reason).
+- **`spring-ai-bom` silently manages `software.amazon.awssdk:*`** at an older 2.20.x (for
+  its Bedrock support). If you add an AWS SDK dep to a spring-ai module, import the AWS SDK
+  BOM **before** `spring-ai-bom` (first-declared `<dependencyManagement>` BOM wins), or your
+  awssdk artifacts silently resolve to 2.20.x. Verify with `dependency:tree -Dincludes=software.amazon.awssdk`.
+  (Hit during Infra M4 — the chatbot's `secretsmanager` first resolved to 2.20.162.)
 - **Local build/test in the Claude Code sandbox**: the Bash sandbox blocks network,
   so `curl`/`wget` report "command not found" and `npm audit`/`npm install`/`mvn`
   (downloading) fail — notably `npm audit` **silently reports "0 vulnerabilities"**.
@@ -294,9 +380,9 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 - Cost: the IAM-auth work adds **$0 recurring**; the Data API is the only public-path
   expansion and is gated off by default.
 - Branching: all work & PRs go on **`clark-development`** (see "Branch & PR
-  workflow" at top); fast-forward it to `main` after each merge — **except right now**
-  it holds un-merged docs-only commits (see CURRENT STATE). PR history:
-  #262 (scaffolding), #266/#267 (portfolio cutover, temp branch), **#269** (ecommerce
-  cutover), **#270** (ats cutover), **#271** (CVE remediation), **#273** (security
-  hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`). Going forward, always
-  `clark-development`.
+  workflow" at top); fast-forward it to `main` after each merge. As of the M4 PR,
+  `clark-development` is in sync with `main` (the held docs commits merged in #273). PR
+  history: #262 (scaffolding), #266/#267 (portfolio cutover, temp branch), **#269**
+  (ecommerce cutover), **#270** (ats cutover), **#271** (CVE remediation), **#273** (security
+  hardening + repo cleanup: Infra H3, Backend L1/L2, `.gitignore`), **#274** (Infra M4:
+  chatbot OpenAI key → Secrets Manager at runtime). Going forward, always `clark-development`.
