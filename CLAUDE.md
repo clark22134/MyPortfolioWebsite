@@ -32,15 +32,19 @@
     154 tracked artifacts (59 coverage + 95 target).
   - **Loose end #1 (held docs commits)** — the 2 held docs-only commits (752d62a, 699691e)
     landed in #273.
-- ✅ **Infra M4 — chatbot OpenAI key → Secrets Manager at runtime (PR #274) — built +
-  tested locally** (awaiting merge/deploy at time of writing). The chatbot Lambda now
-  fetches the OpenAI key from Secrets Manager **at startup** instead of receiving it as a
-  plaintext `OPENAI_API_KEY` env var, so the key no longer appears in
-  `lambda:GetFunctionConfiguration` output. Most of the infra already existed (secret
-  `prod/portfolio/openai-api-key`, the `GetSecretValue` grant via `extra_secret_arns`, and
-  the `OPENAI_SECRET_ARN` env var); the only gap was that Terraform *also* injected the
-  plaintext value. Details in the new **"Infra M4 — chatbot OpenAI key in Secrets Manager"**
-  section below. Chatbot test baseline **12 → 20**.
+- ✅ **Infra M4 — chatbot OpenAI key → Secrets Manager at runtime — PR #274 MERGED +
+  DEPLOYED + VERIFIED.** The chatbot Lambda now fetches the OpenAI key from Secrets Manager
+  **at startup** instead of receiving it as a plaintext `OPENAI_API_KEY` env var, so the key
+  no longer appears in `lambda:GetFunctionConfiguration` output. Most of the infra already
+  existed (secret `prod/portfolio/openai-api-key`, the `GetSecretValue` grant via
+  `extra_secret_arns`, and the `OPENAI_SECRET_ARN` env var); the only gap was that Terraform
+  *also* injected the plaintext value. **Prod verification (post-deploy run #27211049710):**
+  ① `get-function-configuration` shows `OPENAI_SECRET_ARN` and **no** `OPENAI_API_KEY`;
+  ② CloudWatch init log `OpenAiKeyResolver -- Loaded OpenAI API key from Secrets Manager;
+  not stored in the Lambda environment.`; ③ `GET /api/chatbot/health` → `available:true`
+  and `POST /api/chatbot/message` returns a grounded RAG answer with citations. Details in
+  the **"Infra M4 — chatbot OpenAI key in Secrets Manager"** section below. Chatbot test
+  baseline **12 → 20**.
 - ▶️ **NEXT WORK**: remaining roadmap **#3** findings (H2/M3 IAM wildcards, M1 non-root,
   M2 pin base tags, Backend M2 security-config standardization, Frontend M3/M4 — see FULL
   ROADMAP). H2/M3 is the highest-value item left but is **risky to do blind** (a wrong IAM
@@ -202,7 +206,7 @@ aws rds disable-http-endpoint --region us-east-1 --resource-arn "$CLUSTER_ARN"
 # Rollback: remove/false TF_VAR_<app>_db_iam_auth, merge -> password mode, same artifact.
 ```
 
-## Infra M4 — chatbot OpenAI key in Secrets Manager (✅ built + tested locally; PR #274)
+## Infra M4 — chatbot OpenAI key in Secrets Manager (✅ MERGED + DEPLOYED + VERIFIED; PR #274)
 
 **Goal:** stop shipping the OpenAI API key as a plaintext `OPENAI_API_KEY` Lambda env var
 (readable via `lambda:GetFunctionConfiguration`); have the chatbot fetch it from Secrets
@@ -258,13 +262,14 @@ stale is snapshotted (a pooled Apache/Netty client could be — another reason f
   explicitly (no SPI auto-discovery) and url-connection's SPI file is the only one of its
   name. Don't re-add that transformer.
 
-### Post-deploy verification (do after merge → deploy)
-1. `aws lambda get-function-configuration --function-name prod-portfolio-chatbot --query
-   'Environment.Variables'` → **no `OPENAI_API_KEY`** key; `OPENAI_SECRET_ARN` present.
-2. Chatbot CloudWatch log at init: `Loaded OpenAI API key from Secrets Manager; not stored
-   in the Lambda environment.`
-3. `GET https://clarkfoster.com/api/chatbot/health` → chatbot reports available; a real
-   chat request returns a grounded answer (confirms the key resolved + Spring AI beans wired).
+### Post-deploy verification (✅ ALL DONE — deploy run #27211049710, 2026-06-09)
+1. ✅ `aws lambda get-function-configuration --function-name prod-portfolio-chatbot --query
+   'Environment.Variables'` → `OPENAI_SECRET_ARN` present, **no `OPENAI_API_KEY`** key.
+2. ✅ Chatbot CloudWatch init log: `OpenAiKeyResolver -- Loaded OpenAI API key from Secrets
+   Manager; not stored in the Lambda environment.`
+3. ✅ `GET https://clarkfoster.com/api/chatbot/health` → `{"available":true,"status":"UP"}`;
+   `POST /api/chatbot/message` returned a grounded RAG answer with citations (confirms the
+   key resolved from Secrets Manager + Spring AI beans wired).
 - **Rollback** (if needed): restore the `OPENAI_API_KEY` env line (+ the data source) in
   `terraform/main.tf` and merge — the app still honours `${OPENAI_API_KEY:}`, so it reverts
   to env-var mode with the same artifact.
