@@ -135,10 +135,31 @@
   `email-smtp…` hostname resolves to a private ENI over **PrivateLink**) + a least-privilege SG (port
   **587** ingress from the portfolio Lambda SG only) + a new `private_subnet_azs` networking output. The
   endpoint's subnets are **selected dynamically** (`contains(data.aws_vpc_endpoint_service.ses_smtp.availability_zones, az)`)
-  because SES SMTP isn't offered in **us-east-1a**. ~$7/mo (1 ENI) vs a ~$33/mo NAT. `terraform fmt` +
-  `validate` clean (can't `plan` locally — **first CI deploy is the real test**; verify with a live POST
-  to `/api/contact` → expect **200** + an email, and CloudWatch `"Contact email sent successfully"`).
+  because SES SMTP isn't offered in **us-east-1a**. ~$7/mo (1 ENI) vs a ~$33/mo NAT.
   Docs/cost-tables updated to reflect the one endpoint (README total ~$54→~$61; TECHNICAL_DESIGN ~$30→~$37).
+  ⚠️ **The fresh `aws_vpc_endpoint.ses_smtp` create FAILED on first deploy (PR #281, run 27239349898)** —
+  an **identical SES SMTP endpoint with private DNS already existed** (`vpce-00b0dd97892f35d02`), created
+  **out-of-band/manually on 2026-04-14 by IAM user `clarksdemo`** (CloudTrail-confirmed). AWS allows only
+  **one** private-DNS endpoint per domain per VPC, so Terraform's create collided (`private-dns-enabled
+  cannot be set because there is already a conflicting DNS domain for email-smtp.us-east-1.amazonaws.com`).
+  The failed apply **did** persist the new SG (`sg-0ab742e983533f776` = `prod-ses-smtp-vpce-sg`) to state,
+  but **not** the endpoint — so a plain re-run reproduces the collision. Fixed in PR #282 (below).
+- ✅ **Contact-form endpoint ADOPTION — PR #282 (MERGED + DEPLOYED + VERIFIED)** — fixes the #281 failure
+  by **adopting** the pre-existing manual endpoint via a Terraform `import` block (`import { to =
+  aws_vpc_endpoint.ses_smtp, id = "vpce-00b0dd97892f35d02" }`) instead of creating a duplicate — the
+  GitOps-correct fix since `apply` is CI-only (state in S3). **Verified against live AWS that adoption is
+  in-place & non-disruptive:** same subnet (`subnet-051c25eb1a55736ff`, us-east-1b — the only private subnet
+  in a SES-SMTP-supported AZ), same type/service/private-DNS → **no replacement, no subnet move**; Terraform
+  only swaps the endpoint onto the managed SG `sg-0ab742e983533f776` (which already allows :587 from the
+  portfolio Lambda SG `sg-03ee1afef0fd3d503` → **no email-egress gap**) and adds the `Name`/`Environment`
+  tags. `terraform fmt` + `validate` clean. **DEPLOY VERIFIED (run 27240349910):** Terraform Apply reported
+  `Plan: 1 to import, 0 to add, 1 to change, 0 to destroy` then `Apply complete! Resources: 1 imported, 0
+  added, 1 changed, 0 destroyed` — the endpoint was adopted **in-place** (imported, then SG/tags modified):
+  **no create, no replacement, no outage**; the run went green end-to-end. **Follow-ups:** ✅ the now-no-op
+  `import` block was **removed** in the next follow-up PR (this one) now that the endpoint is in state (the
+  next plan shows no change for it). ⚠️ The old manual SG `sg-06386deb4a35ebb4c` (`ses-smtp-vpce-sg`) is left
+  orphaned after the SG swap — harmless; delete by hand if desired (can't be removed via Terraform since it
+  was never TF-managed).
 - ▶️ **NEXT WORK**: **the roadmap's actionable findings are now all resolved.** Only optional /
   deferred items remain, none a clean unattended task:
   - **H2/M3 phase 2** (scope the non-IAM `ec2:*`/`rds:*`/… deploy-role service wildcards) — needs
@@ -201,7 +222,9 @@ The goal is to keep `clark-development` always in sync with `main`.
 - Lambdas: `prod-portfolio-backend`, `prod-ecommerce-backend`, `prod-ats-backend`,
   `prod-portfolio-chatbot`. Backends run **in private subnets**.
 - **VPC has NO NAT**; the **only** VPC endpoint is an **SES SMTP interface endpoint**
-  (`aws_vpc_endpoint.ses_smtp`, added for the contact form — see below). In-VPC
+  (`aws_vpc_endpoint.ses_smtp` = `vpce-00b0dd97892f35d02`, originally created **manually** on
+  2026-04-14 by `clarksdemo`, then **adopted into Terraform via an `import` block in PR #282** (deploy-verified;
+  the now-no-op block was removed in the follow-up PR once the endpoint was in state) — see below). In-VPC
   Lambdas otherwise cannot reach public AWS APIs (Secrets Manager is unreachable
   from them). This is *why* DB auth uses RDS IAM (token is signed locally, no API
   call) instead of Secrets-Manager-at-runtime. ⚠️ The SES SMTP endpoint service is
