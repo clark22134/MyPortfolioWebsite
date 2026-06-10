@@ -60,7 +60,14 @@ public class TalentPoolController {
             return ResponseEntity.badRequest().build();
         }
 
-        Path filePath = Paths.get(uploadDir).resolve(filename).normalize();
+        // SAFE_FILENAME already rejects traversal sequences, but resolve+normalize
+        // then assert containment within the upload dir as defense-in-depth (and the
+        // canonical path-traversal barrier static analyzers recognize).
+        Path baseDir = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Path filePath = baseDir.resolve(filename).normalize();
+        if (!filePath.startsWith(baseDir)) {
+            return ResponseEntity.badRequest().build();
+        }
         Resource resource = new UrlResource(filePath.toUri());
 
         if (!resource.exists() || !resource.isReadable()) {
