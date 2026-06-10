@@ -73,7 +73,16 @@ public class KnowledgeIngestionService {
             @Value("${chatbot.docs.path:docs}") String docsPath) {
         this.vectorStore = vectorStore;
         this.docsPath = docsPath;
-        this.splitter = new TokenTextSplitter(600, 100, 5, 10000, true);
+        // Spring AI 1.1 replaced the 5-arg constructor with a 6-arg one (adding
+        // punctuationMarks); the builder sets the same params with default
+        // punctuation, preserving the prior chunking behavior.
+        this.splitter = TokenTextSplitter.builder()
+                .withChunkSize(600)
+                .withMinChunkSizeChars(100)
+                .withMinChunkLengthToEmbed(5)
+                .withMaxNumChunks(10000)
+                .withKeepSeparator(true)
+                .build();
     }
 
     @PostConstruct
