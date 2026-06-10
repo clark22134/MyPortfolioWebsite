@@ -161,7 +161,8 @@
         <dependency>
             <groupId>software.amazon.jdbc</groupId>
             <artifactId>aws-advanced-jdbc-wrapper</artifactId>
-            <version>2.6.0</version>
+            <!-- 2.6.5: GHSA-7xw4-g7mm-r4hh (privilege escalation to rds_superuser); AWS-recommended floor. -->
+            <version>2.6.5</version>
         </dependency>
         <!-- Used by the wrapper's IAM plugin to generate RDS auth tokens (version via the AWS SDK v2 BOM). -->
         <dependency>
