@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Configuration;
 public class ChatbotConfig {
 
     @Bean
-    public VectorStore portfolioVectorStore(EmbeddingModel embeddingModel) {
+    public SimpleVectorStore portfolioVectorStore(EmbeddingModel embeddingModel) {
         return SimpleVectorStore.builder(embeddingModel).build();
     }
 
