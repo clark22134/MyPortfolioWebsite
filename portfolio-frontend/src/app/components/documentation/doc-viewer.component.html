@@ -9,20 +9,14 @@
     </h2>
     <nav aria-label="Documentation pages">
       <ul class="sidebar-links" role="list">
-        <li><a routerLink="/docs/SYSTEM_OVERVIEW" routerLinkActive="active-doc">System Overview</a></li>
-        <li><a routerLink="/docs/ARCHITECTURE" routerLinkActive="active-doc">Architecture</a></li>
-        <li><a routerLink="/docs/UNIFIED_ARCHITECTURE" routerLinkActive="active-doc">Unified Architecture</a></li>
-        <li><a routerLink="/docs/UML_DIAGRAMS" routerLinkActive="active-doc">UML Diagrams</a></li>
-        <li><a routerLink="/docs/TECHNICAL_DESIGN_DECISIONS" routerLinkActive="active-doc">Design Decisions</a></li>
-        <li class="sidebar-divider" role="separator" aria-hidden="true"></li>
-        <li><a routerLink="/docs/API_DOCUMENTATION" routerLinkActive="active-doc">API Documentation</a></li>
-        <li><a routerLink="/docs/TESTING_STRATEGY" routerLinkActive="active-doc">Testing Strategy</a></li>
-        <li><a routerLink="/docs/PROJECT_HIGHLIGHTS" routerLinkActive="active-doc">Project Highlights</a></li>
-        <li class="sidebar-divider" role="separator" aria-hidden="true"></li>
-        <li><a routerLink="/docs/DEVOPS_INFRASTRUCTURE" routerLinkActive="active-doc">DevOps &amp; Infra</a></li>
-        <li><a routerLink="/docs/SECURITY_CONSIDERATIONS" routerLinkActive="active-doc">Security</a></li>
-        <li><a routerLink="/docs/PERFORMANCE_SCALABILITY" routerLinkActive="active-doc">Performance</a></li>
-        <li><a routerLink="/docs/ACCESSIBILITY" routerLinkActive="active-doc">Accessibility</a></li>
+        @for (category of categories; track category.name; let last = $last) {
+          @for (doc of category.docs; track doc.slug) {
+            <li><a [routerLink]="['/docs', doc.slug]" routerLinkActive="active-doc">{{ doc.sidebarTitle ?? doc.title }}</a></li>
+          }
+          @if (!last) {
+            <li class="sidebar-divider" role="separator" aria-hidden="true"></li>
+          }
+        }
       </ul>
     </nav>
     <a routerLink="/docs" class="sidebar-back">

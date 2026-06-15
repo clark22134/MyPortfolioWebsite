@@ -67,10 +67,10 @@ describe('DocViewerComponent', () => {
   });
 
   it('maps a known slug to its friendly title', () => {
-    setup('API_DOCUMENTATION');
+    setup('SERVERLESS_MIGRATION');
     fixture.detectChanges();
-    httpMock.expectOne('docs/API_DOCUMENTATION.md').flush('# x');
-    expect(component.docTitle).toBe('API Documentation');
+    httpMock.expectOne('docs/SERVERLESS_MIGRATION.md').flush('# x');
+    expect(component.docTitle).toBe('Serverless Migration Guide');
   });
 
   it('falls back to a de-slugified title for unknown documents', () => {

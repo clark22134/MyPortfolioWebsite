@@ -238,13 +238,13 @@ graph LR
         Controller["PortfolioAssistantController<br/>/api/chatbot/health<br/>/api/chatbot/message<br/>/api/chatbot/stream"]
         RateLimiter["Per-IP sliding window<br/>60s window · 20 req/min default"]
         RagSvc["RagService<br/>retrieve · rerank · prompt · stream"]
-        Ingestion["KnowledgeIngestionService<br/>@PostConstruct ingestAll()"]
+        Ingestion["KnowledgeIngestionService<br/>@PostConstruct → SimpleVectorStore.load()"]
         Config["ChatbotConfig<br/>@ConditionalOnExpression<br/>SimpleVectorStore · ChatMemory · ChatClient"]
     end
 
-    subgraph KnowledgeBase["Knowledge Base (ingested at startup)"]
-        KBMarkdown["classpath:knowledge/*.md<br/>(about, projects, skills, credentials,<br/>ai-projects, accessibility, contact)"]
-        KBDocs["classpath:docs/*.md<br/>(repo documentation)"]
+    subgraph KnowledgeBase["Knowledge Base (embeddings precomputed at build time)"]
+        KBVectors["classpath:knowledge-vectors.json<br/>precomputed 1536-dim vectors<br/>(SimpleVectorStore.save format, ~288 chunks)"]
+        KBSource["Source markdown: knowledge/*.md + docs/*.md<br/>embedded once at build by KnowledgeVectorGenerator<br/>(scripts/generate-chatbot-kb.sh)"]
     end
 
     subgraph AI["Spring AI 1.0.8"]
@@ -266,9 +266,10 @@ graph LR
     RagSvc --> Memory
     RagSvc --> ChatModel
 
-    Ingestion --> KBMarkdown & KBDocs
-    Ingestion --> EmbedModel
+    KBSource -.->|build time: embed once| KBVectors
+    Ingestion -->|startup: load, no API calls| KBVectors
     Ingestion --> VectorStore
+    VectorStore -->|query-time embedding| EmbedModel
 ```
 
 ### 1.6.3 Per-Query Data Flow
@@ -313,13 +314,15 @@ sequenceDiagram
 
 ### 1.6.4 Knowledge Base & Ingestion
 
-Sources are loaded once at startup (`@PostConstruct`) and merged in this priority order:
+Embeddings are **precomputed at build time**, not at startup. A profile-gated generator (`KnowledgeVectorGenerator`, run via `scripts/generate-chatbot-kb.sh`) loads the source markdown, embeds every chunk once via the OpenAI Embeddings API, and writes a committed, JAR-bundled `knowledge-vectors.json` (a `SimpleVectorStore.save()` artifact, ~288 chunks). At runtime `KnowledgeIngestionService.@PostConstruct` simply calls `SimpleVectorStore.load()` on that file — **zero OpenAI calls on the Lambda init path** (see Technical Design §8.5 for the SnapStart init-timeout motivation). Live embedding at startup remains only as a local-dev fallback when the precomputed file is absent.
+
+The build-time sources are merged in this priority order:
 
 | Priority | Source | Location |
 |----------|--------|----------|
 | 1 | Curated markdown | `classpath:knowledge/*.md` — about, projects, skills, credentials, ai-projects, accessibility, contact |
 | 2 | Repo documentation | `classpath:docs/*.md` — all files from the `/docs` directory bundled into the JAR at build time |
-| 3 | Filesystem docs | Path from `chatbot.docs.path` env var (defaults to `../docs`) |
+| 3 | Filesystem docs | Path from `chatbot.docs.path` env var (local dev only) |
 
 Each document supports YAML front-matter for metadata:
 
@@ -331,7 +334,7 @@ source: ai-projects
 ---
 ```
 
-Documents are split by `#`/`##` headings, then chunked by `TokenTextSplitter(600, 100)` for embedding. Chunks are deduplicated by `(source, section)` key before insertion.
+Documents are split by `#`/`##` headings, then chunked by `TokenTextSplitter` (chunkSize 600) with deterministic, content-derived chunk ids, and deduplicated by `(source, section)` key. A keyless build-time test (`KnowledgeVectorsFreshnessTest`) recomputes the KB content hash and fails CI if the committed `knowledge-vectors.json` drifts from the markdown, so stale embeddings can never ship.
 
 ### 1.6.5 SimpleVectorStore vs. Managed Vector DB
 
