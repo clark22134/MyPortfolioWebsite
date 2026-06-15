@@ -1,9 +1,14 @@
-.talent-page { max-width: 1200px; }
+.talent-page {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: clamp(1rem, 2.5vw, 2rem);
+}
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 1rem;
   margin-bottom: 1.5rem;
 }
 h1 { font-size: 1.75rem; font-weight: 700; }
@@ -14,6 +19,9 @@ h1 { font-size: 1.75rem; font-weight: 700; }
   align-items: center;
 }
 .btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: 1px solid var(--border);
   color: var(--text-secondary);
@@ -38,6 +46,7 @@ h1 { font-size: 1.75rem; font-weight: 700; }
   border-radius: var(--radius);
   padding: 1rem 1.25rem;
   margin-bottom: 1rem;
+  box-shadow: var(--shadow-1);
 }
 
 .search-input-wrap {
@@ -87,6 +96,7 @@ h1 { font-size: 1.75rem; font-weight: 700; }
   font-size: 0.88rem;
   font-family: inherit;
   min-width: 150px;
+  max-width: 100%;
 }
 .filter-select:focus { outline: none; border-color: var(--accent); }
 
@@ -143,7 +153,7 @@ h1 { font-size: 1.75rem; font-weight: 700; }
 /* Grid */
 .candidates-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 1rem;
 }
 
@@ -295,6 +305,9 @@ h1 { font-size: 1.75rem; font-weight: 700; }
 
 /* Primary button */
 .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--accent);
   color: white;
   border: none;
@@ -510,11 +523,21 @@ textarea { resize: vertical; }
 .upload-error { color: var(--danger); font-size: 0.85rem; margin-top: 0.75rem; }
 
 @media (max-width: 768px) {
-  .page-header { flex-wrap: wrap; gap: 0.75rem; }
-  .header-actions { width: 100%; }
-  .search-bar-wrapper { flex-direction: column; }
+  .talent-page { padding: 1rem; }
+  .page-header { flex-direction: column; gap: 0.75rem; }
+  .header-actions { width: 100%; flex-wrap: wrap; }
+  .header-actions .btn-outline,
+  .header-actions .btn-primary { flex: 1 1 10rem; justify-content: center; }
+  .search-bar-wrapper { flex-direction: column; padding: 1rem; }
   .search-input-wrap { min-width: 100%; }
   .filter-select { width: 100%; }
+  .btn-reset { width: 100%; }
   .candidates-grid { grid-template-columns: 1fr; }
   .candidate-card { min-width: 0; }
+  .card-top { align-items: flex-start; flex-wrap: wrap; }
+  .stage-badge { order: 3; }
+  .card-actions { opacity: 1; margin-left: 0; }
+  .card-footer { align-items: flex-start; flex-direction: column; gap: 0.5rem; }
+  .modal-actions { flex-direction: column-reverse; }
+  .modal-actions button { width: 100%; }
 }

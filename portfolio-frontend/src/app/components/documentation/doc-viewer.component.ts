@@ -13,26 +13,7 @@ import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { marked } from 'marked';
 import mermaid from 'mermaid';
-
-interface DocMeta {
-  slug: string;
-  title: string;
-}
-
-const DOC_MAP: Record<string, string> = {
-  SYSTEM_OVERVIEW: 'System Overview',
-  ARCHITECTURE: 'Architecture',
-  UNIFIED_ARCHITECTURE: 'Unified Architecture',
-  UML_DIAGRAMS: 'UML Diagrams',
-  TECHNICAL_DESIGN_DECISIONS: 'Technical Design Decisions',
-  API_DOCUMENTATION: 'API Documentation',
-  TESTING_STRATEGY: 'Testing Strategy',
-  PROJECT_HIGHLIGHTS: 'Project Highlights',
-  DEVOPS_INFRASTRUCTURE: 'DevOps & Infrastructure',
-  SECURITY_CONSIDERATIONS: 'Security Considerations',
-  PERFORMANCE_SCALABILITY: 'Performance & Scalability',
-  ACCESSIBILITY: 'Accessibility'
-};
+import { DOC_CATEGORIES, DOC_TITLE_MAP } from './doc-catalog';
 
 @Component({
   selector: 'app-doc-viewer',
@@ -44,6 +25,10 @@ const DOC_MAP: Record<string, string> = {
 })
 export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('docContent') docContentRef!: ElementRef<HTMLDivElement>;
+
+  get categories() {
+    return DOC_CATEGORIES;
+  }
 
   renderedHtml = '';
   docTitle = '';
@@ -62,7 +47,7 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
   ngOnInit(): void {
     this.routeSub = this.route.paramMap.subscribe(params => {
       const slug = params.get('slug') ?? '';
-      this.docTitle = DOC_MAP[slug] ?? slug.replaceAll('_', ' ');
+      this.docTitle = DOC_TITLE_MAP[slug] ?? slug.replaceAll('_', ' ');
       this.loadDocument(slug);
     });
   }

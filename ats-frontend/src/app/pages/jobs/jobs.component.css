@@ -1,4 +1,8 @@
-.jobs-page { max-width: 900px; }
+.jobs-page {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  padding: clamp(1rem, 2.5vw, 2rem);
+}
 .page-header {
   display: flex;
   flex-direction: column;
@@ -9,6 +13,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
 }
 h1 { font-size: 1.75rem; font-weight: 700; }
 
@@ -70,6 +75,9 @@ h1 { font-size: 1.75rem; font-weight: 700; }
 }
 
 .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--accent);
   color: white;
   border: none;
@@ -82,6 +90,9 @@ h1 { font-size: 1.75rem; font-weight: 700; }
 .btn-primary:hover { background: var(--accent-hover); }
 
 .btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--accent);
   color: var(--accent);
   padding: 0.4rem 0.9rem;
@@ -202,8 +213,11 @@ textarea { resize: vertical; }
   transition: border-color 0.15s;
   margin-top: 0.5rem;
   cursor: pointer;
+  min-width: 0;
 }
 .job-card:hover { border-color: var(--accent); }
+
+.job-info { min-width: 0; }
 
 h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.35rem; }
 
@@ -215,6 +229,12 @@ h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.35rem; }
   font-size: 0.85rem;
   color: var(--text-secondary);
   margin-bottom: 0.35rem;
+}
+
+.job-meta span,
+.job-stats span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .badge {
@@ -250,7 +270,7 @@ h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.35rem; }
   vertical-align: middle;
 }
 
-.job-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.job-actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; flex-shrink: 0; }
 
 .btn-matches {
   border: 1px solid var(--accent);
@@ -274,6 +294,7 @@ h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.35rem; }
   border-radius: var(--radius);
   padding: 1rem 1.25rem;
   margin-top: 0.5rem;
+  overflow-x: hidden;
 }
 
 .matches-header {
@@ -528,14 +549,32 @@ h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.35rem; }
 
 @media (max-width: 640px) {
   .page-header { gap: 0.75rem; }
-  .header-top { flex-wrap: wrap; gap: 0.75rem; }
+  .jobs-page { padding: 1rem; }
+  .header-top { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+  .header-actions { align-items: stretch; }
+  .btn-primary { width: 100%; justify-content: center; }
   h1 { font-size: 1.4rem; }
+  .job-form { padding: 1rem; }
+  .form-grid,
+  .coords-grid { grid-template-columns: 1fr; }
+  .employer-header { align-items: flex-start; gap: 0.75rem; padding: 0.85rem 1rem; }
+  .employer-meta { gap: 0.5rem; }
+  .jobs-list { padding: 0 0.5rem 0.5rem; }
   .job-card { flex-direction: column; align-items: flex-start; gap: 1rem; }
-  .job-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
+  .job-actions { width: 100%; justify-content: stretch; flex-wrap: wrap; }
+  .job-actions .btn-matches,
+  .job-actions .btn-outline { flex: 1 1 9rem; text-align: center; }
+  .skills-preview { max-width: 100%; white-space: normal; }
+  .job-meta { align-items: flex-start; }
+  .job-meta span:not(.badge) { max-width: 100%; }
+  .top-matches-panel { padding: 0.9rem; }
   .match-row { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
   .match-info { width: 100%; }
   .match-scores { width: 100%; }
   .match-skills { width: 100%; }
   .score-label { min-width: 4rem; }
   .score-value { min-width: 3rem; }
+  .detail-actions { flex-direction: column; }
+  .detail-actions a,
+  .detail-actions button { width: 100%; text-align: center; }
 }

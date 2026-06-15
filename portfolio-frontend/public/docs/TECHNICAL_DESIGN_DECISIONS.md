@@ -94,7 +94,7 @@ Spring AI is pinned to **1.0.8**, the stable line currently used by both `portfo
 
 **Why text-embedding-3-small:**
 
-`text-embedding-3-small` costs approximately 1/5 the price of `text-embedding-3-large` while producing 1536-dimension vectors with comparable performance on factual retrieval benchmarks. The portfolio knowledge base is small (hundreds of chunks) — embedding quality differences between small and large models are negligible at this corpus size. Embeddings are generated only once at Lambda startup (`@PostConstruct`), so cost per query is $0; the pricing difference only matters if the knowledge base is rebuilt frequently.
+`text-embedding-3-small` costs approximately 1/5 the price of `text-embedding-3-large` while producing 1536-dimension vectors with comparable performance on factual retrieval benchmarks. The portfolio knowledge base is small (hundreds of chunks) — embedding quality differences between small and large models are negligible at this corpus size. Embeddings are **precomputed once at build time** (see §8.5) and committed as `knowledge-vectors.json`, so neither Lambda initialization nor per-query incurs embedding cost; the price difference only matters when the knowledge base is regenerated.
 
 **Why SimpleVectorStore over pgvector / ChromaDB / Pinecone:**
 
@@ -455,8 +455,10 @@ Every architecture involves trade-offs. Here are the ones I made deliberately:
 
 **Why it's acceptable:** At portfolio-level traffic, the three applications collectively use a fraction of the minimum 0.5 ACU capacity. Contention is not a realistic concern. If any application grew to production scale, splitting it to a dedicated cluster is a Terraform variable change and a connection string update.
 
-### 8.5 SimpleVectorStore Embedding Regeneration on Cold Start — Simplicity Over Persistence
+### 8.5 Precomputed Embeddings — Build-Time Generation Over Cold-Start Regeneration
 
-**Trade-off:** `SimpleVectorStore` is in-process and non-persistent. Every cold start re-embeds the entire knowledge base via the OpenAI Embeddings API. On a knowledge base of a few hundred chunks, this takes a few seconds and costs fractions of a cent — but it is an outbound API call on the critical path of Lambda initialization.
+**History:** Originally `SimpleVectorStore` re-embedded the entire knowledge base via the OpenAI Embeddings API in `KnowledgeIngestionService.@PostConstruct` — i.e. during the Lambda **SnapStart Init phase**, which runs when a new version is published. The Init phase is hard-capped at ~130 s, and ~288 sequential embedding calls ran 94–130 s+, so version publishes were a coin-flip on OpenAI latency: they intermittently exceeded the cap, the published version went `State=Failed`, and the deploy aborted at the `publish-version` waiter.
 
-**Why it's acceptable:** SnapStart snapshots the JVM state after `@PostConstruct` completes, which means the vector index is captured in the snapshot. Subsequent warm invocations (including those restored from SnapStart) skip re-embedding entirely. The embedding cost only applies when a new Lambda version is published and SnapStart creates a fresh snapshot. At portfolio traffic levels, this is an acceptable cold-start cost. If embedding latency became a concern, `PgVectorStore` backed by the existing Aurora cluster would persist embeddings across cold starts — a single bean swap in `ChatbotConfig`.
+**Resolution:** Embeddings are now **precomputed at build time**. `KnowledgeVectorGenerator` (a `@Profile("generate-kb")` dev tool run via `scripts/generate-chatbot-kb.sh`) embeds the knowledge base once and writes `knowledge-vectors.json`, a ~6.5 MB `SimpleVectorStore.save()` artifact committed to the repo and bundled into the Lambda JAR. At init, `SimpleVectorStore.load()` deserializes it in well under a second with **no outbound API calls**, making cold start / version publish deterministic. Live embedding remains only as a local-dev fallback when the file is absent.
+
+**Residual trade-off:** The committed artifact must be regenerated (`scripts/generate-chatbot-kb.sh`, needs an OpenAI key) whenever the KB markdown changes, and a ~6.5 MB generated file lives in git. A keyless build-time guard (`KnowledgeVectorsFreshnessTest`) recomputes the KB content hash and fails CI if the committed vectors drift from the markdown, so stale embeddings cannot ship. If the corpus ever outgrew an in-process store, `PgVectorStore` on the existing Aurora cluster is still a single bean swap in `ChatbotConfig`.
