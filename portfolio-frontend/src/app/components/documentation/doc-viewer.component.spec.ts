@@ -122,7 +122,11 @@ describe('DocViewerComponent', () => {
     component.onContentClick(event);
 
     expect(preventSpy).toHaveBeenCalled();
-    expect(scrollSpy).toHaveBeenCalled();
+    expect(scrollSpy).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'start',
+      inline: 'nearest',
+    });
     heading.remove();
   });
 
