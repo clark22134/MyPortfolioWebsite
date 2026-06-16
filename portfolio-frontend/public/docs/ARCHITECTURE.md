@@ -121,7 +121,7 @@ sequenceDiagram
     participant SMTP as SMTP (AWS SES / Gmail)
     participant SM as Secrets Manager
 
-    Note over SM,API: DB auth via locally-signed RDS IAM tokens (no DB creds from Secrets Manager); JWT/SMTP secrets injected as Lambda env vars
+    Note over SM,API: DB auth uses locally signed RDS IAM tokens. JWT and SMTP secrets are Lambda environment variables.
 
     rect rgb(240, 248, 255)
         Note over B,CF: Public Browsing
@@ -130,17 +130,17 @@ sequenceDiagram
         B->>CF: GET /api/projects/featured
         CF->>APIGW: Forward /api/* to API Gateway
         APIGW->>API: Lambda proxy invocation
-        API->>DB: SELECT * FROM projects WHERE featured=true
+        API->>DB: Query featured projects
         DB-->>API: Project list
         API-->>B: JSON response
     end
 
     rect rgb(255, 248, 240)
         Note over B,DB: Authentication
-        B->>API: POST /api/auth/login {username, password}
+        B->>API: POST /api/auth/login with credentials
         API->>DB: Lookup user, verify BCrypt hash
         API->>DB: Store refresh token (device, IP)
-        API-->>B: Set-Cookie: accessToken (HttpOnly, 15 min)<br/>Set-Cookie: refreshToken (HttpOnly, 7 days)
+        API-->>B: Set access and refresh HttpOnly cookies
     end
 
     rect rgb(240, 255, 240)
@@ -153,7 +153,7 @@ sequenceDiagram
 
     rect rgb(255, 240, 245)
         Note over B,SMTP: Contact Form
-        B->>API: POST /api/contact {name, email, subject, message}
+        B->>API: POST /api/contact with message details
         API->>SMTP: Send email (reply-to: sender)
         SMTP-->>API: Delivery confirmation
         API-->>B: 200 OK
@@ -852,7 +852,7 @@ sequenceDiagram
     rect rgb(240, 248, 255)
         Note over GHA,IAM: Authentication (No Stored Credentials)
         GHA->>IAM: Request OIDC token
-        IAM->>IAM: Validate: repo=clark22134/MyPortfolioWebsite<br/>branch=main | master | PR
+        IAM->>IAM: Validate: repo=clark22134/MyPortfolioWebsite<br/>branch=main, master, or PR
         IAM-->>GHA: Temporary AWS credentials (AssumeRoleWithWebIdentity)
     end
 

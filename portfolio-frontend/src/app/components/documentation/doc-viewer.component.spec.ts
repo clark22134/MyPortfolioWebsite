@@ -41,6 +41,12 @@ describe('DocViewerComponent', () => {
     httpMock = TestBed.inject(HttpTestingController);
   }
 
+  function expectMarkdownRequest(slug: string) {
+    return httpMock.expectOne(request =>
+      request.urlWithParams.startsWith(`docs/${slug}.md?v=`)
+    );
+  }
+
   afterEach(() => {
     httpMock.verify();
   });
@@ -54,7 +60,7 @@ describe('DocViewerComponent', () => {
     setup('ARCHITECTURE');
     fixture.detectChanges(); // ngOnInit subscribes to the route param map
 
-    const req = httpMock.expectOne('docs/ARCHITECTURE.md');
+    const req = expectMarkdownRequest('ARCHITECTURE');
     expect(req.request.method).toBe('GET');
     expect(req.request.responseType).toBe('text');
 
@@ -69,14 +75,14 @@ describe('DocViewerComponent', () => {
   it('maps a known slug to its friendly title', () => {
     setup('SERVERLESS_MIGRATION');
     fixture.detectChanges();
-    httpMock.expectOne('docs/SERVERLESS_MIGRATION.md').flush('# x');
+    expectMarkdownRequest('SERVERLESS_MIGRATION').flush('# x');
     expect(component.docTitle).toBe('Serverless Migration Guide');
   });
 
   it('falls back to a de-slugified title for unknown documents', () => {
     setup('SOME_UNLISTED_DOC');
     fixture.detectChanges();
-    httpMock.expectOne('docs/SOME_UNLISTED_DOC.md').flush('# x');
+    expectMarkdownRequest('SOME_UNLISTED_DOC').flush('# x');
     expect(component.docTitle).toBe('SOME UNLISTED DOC');
   });
 
@@ -84,7 +90,7 @@ describe('DocViewerComponent', () => {
     setup('ARCHITECTURE');
     fixture.detectChanges();
     httpMock
-      .expectOne('docs/ARCHITECTURE.md')
+      .expectOne(request => request.urlWithParams.startsWith('docs/ARCHITECTURE.md?v='))
       .flush('nope', { status: 404, statusText: 'Not Found' });
 
     expect(component.loading).toBe(false);
@@ -96,7 +102,7 @@ describe('DocViewerComponent', () => {
     setup('ARCHITECTURE');
     fixture.detectChanges();
     httpMock
-      .expectOne('docs/ARCHITECTURE.md')
+      .expectOne(request => request.urlWithParams.startsWith('docs/ARCHITECTURE.md?v='))
       .flush('```js\nconst x = 1 < 2;\n```');
 
     expect(component.renderedHtml).toContain('class="code-block"');
@@ -106,7 +112,7 @@ describe('DocViewerComponent', () => {
   it('intercepts in-page anchor clicks and scrolls to the target heading', () => {
     setup('ARCHITECTURE');
     fixture.detectChanges();
-    httpMock.expectOne('docs/ARCHITECTURE.md').flush('# Doc');
+    expectMarkdownRequest('ARCHITECTURE').flush('# Doc');
 
     const heading = document.createElement('h2');
     heading.id = 'section-1';
@@ -133,7 +139,7 @@ describe('DocViewerComponent', () => {
   it('ignores clicks that are not on an anchor', () => {
     setup('ARCHITECTURE');
     fixture.detectChanges();
-    httpMock.expectOne('docs/ARCHITECTURE.md').flush('# Doc');
+    expectMarkdownRequest('ARCHITECTURE').flush('# Doc');
 
     const span = document.createElement('span');
     const event = new MouseEvent('click');

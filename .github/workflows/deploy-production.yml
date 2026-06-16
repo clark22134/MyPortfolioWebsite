@@ -450,7 +450,11 @@ jobs:
             local src=$1 bucket=$2
             aws s3 sync "$src" "s3://${bucket}/" --delete \
               --cache-control "public,max-age=31536000,immutable" \
-              --exclude "index.html" --exclude "*.json" --only-show-errors
+              --exclude "index.html" --exclude "*.json" --exclude "docs/*" --only-show-errors
+            if [ -d "${src}/docs" ]; then
+              aws s3 sync "${src}/docs" "s3://${bucket}/docs/" \
+                --cache-control "public,max-age=0,must-revalidate" --only-show-errors
+            fi
             aws s3 cp "${src}/index.html" "s3://${bucket}/index.html" \
               --cache-control "public,max-age=0,must-revalidate" --only-show-errors
           }

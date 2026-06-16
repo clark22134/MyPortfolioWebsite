@@ -72,7 +72,7 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.error = false;
     this.renderedHtml = '';
 
-    const url = `docs/${slug}.md`;
+    const url = `docs/${slug}.md?v=${Date.now()}`;
 
     this.http.get(url, { responseType: 'text' }).subscribe({
       next: (markdown) => {

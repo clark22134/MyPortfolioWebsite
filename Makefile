@@ -131,10 +131,15 @@ deploy-frontends: build
 	@ACCOUNT_ID=$$(aws sts get-caller-identity --query Account --output text); \
 	for app in portfolio ecommerce ats; do \
 		BUCKET="prod-$${app}-frontend-$${ACCOUNT_ID}"; \
-		aws s3 sync $${app}-frontend/dist/$${app}-frontend/browser/ s3://$$BUCKET/ --delete \
+		SRC="$${app}-frontend/dist/$${app}-frontend/browser"; \
+		aws s3 sync $$SRC/ s3://$$BUCKET/ --delete \
 			--cache-control "public,max-age=31536000,immutable" \
-			--exclude "index.html" --exclude "*.json" --region us-east-1 --only-show-errors; \
-		aws s3 cp $${app}-frontend/dist/$${app}-frontend/browser/index.html s3://$$BUCKET/index.html \
+			--exclude "index.html" --exclude "*.json" --exclude "docs/*" --region us-east-1 --only-show-errors; \
+		if [ -d "$$SRC/docs" ]; then \
+			aws s3 sync $$SRC/docs/ s3://$$BUCKET/docs/ \
+				--cache-control "public,max-age=0,must-revalidate" --region us-east-1 --only-show-errors; \
+		fi; \
+		aws s3 cp $$SRC/index.html s3://$$BUCKET/index.html \
 			--cache-control "public,max-age=0,must-revalidate" --region us-east-1 --only-show-errors; \
 		echo "  $$app -> s3://$$BUCKET/"; \
 	done
