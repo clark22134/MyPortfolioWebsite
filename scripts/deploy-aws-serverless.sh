@@ -111,8 +111,13 @@ if [ "$DEPLOY_FRONTENDS" = true ]; then
     local src=$1 bucket=$2 name=$3
     aws s3 sync "$src" "s3://${bucket}/" --delete \
       --cache-control "public,max-age=31536000,immutable" \
-      --exclude "index.html" --exclude "*.json" \
+      --exclude "index.html" --exclude "*.json" --exclude "docs/*" \
       --region "$AWS_REGION" --only-show-errors
+    if [ -d "${src}/docs" ]; then
+      aws s3 sync "${src}/docs" "s3://${bucket}/docs/" \
+        --cache-control "public,max-age=0,must-revalidate" \
+        --region "$AWS_REGION" --only-show-errors
+    fi
     aws s3 cp "${src}/index.html" "s3://${bucket}/index.html" \
       --cache-control "public,max-age=0,must-revalidate" \
       --region "$AWS_REGION" --only-show-errors
