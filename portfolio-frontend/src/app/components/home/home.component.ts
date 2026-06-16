@@ -92,7 +92,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     {
       icon: '🤖',
       title: 'AI/ML',
-      skills: ['Python (HuggingFace & LangChain)', 'LLMs', 'RAG', 'Prompt Engineering', 'Pandas/NumPy/Scikit-Learn', 'GitHub Copilot', 'IDP']
+      skills: ['Python (HuggingFace & LangChain)', 'LLMs', 'RAG', 'Prompt Engineering', 'Pandas/NumPy/Scikit-Learn', 'GitHub Copilot', 'Claude Code CLI', 'Codex CLI', 'IDP']
     },
     {
       icon: '🔒',

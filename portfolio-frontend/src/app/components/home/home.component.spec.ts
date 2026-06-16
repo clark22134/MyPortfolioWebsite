@@ -101,6 +101,18 @@ describe('HomeComponent', () => {
     expect(skills).toBeTruthy();
   });
 
+  it('should reference Claude Code CLI and Codex CLI in AI/ML and About Me content', () => {
+    fixture.detectChanges();
+
+    const aiMlCategory = component.skillCategories.find(category => category.title === 'AI/ML');
+    expect(aiMlCategory?.skills).toContain('Claude Code CLI');
+    expect(aiMlCategory?.skills).toContain('Codex CLI');
+
+    const aboutMeText = fixture.nativeElement.querySelector('.about-me')?.textContent ?? '';
+    expect(aboutMeText).toContain('Claude Code CLI');
+    expect(aboutMeText).toContain('Codex CLI');
+  });
+
   it('should render about section', () => {
     fixture.detectChanges();
 
