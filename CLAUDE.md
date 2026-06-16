@@ -220,6 +220,10 @@ portfolio-backend **171** · ats-backend **222** · ecommerce-backend **84** · 
   no port binding) and the generator `System.exit(0)`s when done. The generator shares the vector-store
   bean with `KnowledgeIngestionService`'s `@PostConstruct`, so the KB embeds twice per run (harmless —
   deterministic ids overwrite by id; only the generator's vectors are saved).
+- **Claude Code sandbox blocks network**: `curl`/`wget` report "command not found" and
+  `npm audit`/`npm install`/`mvn` (downloading) fail — notably `npm audit` **silently reports "0
+  vulnerabilities"**. Run network-touching commands with the sandbox disabled. macOS has **no `timeout`
+  command** (`timeout 300 mvn …` exits 127) — use the Bash tool's own timeout param.
 - **zsh scripting**: `status` is a read-only builtin variable — don't use it as a variable name in
   `gh`/jq poll loops (use `run_status` etc.). And `echo "$json" | jq` mangles backslashes in some AWS
   JSON (e.g. CloudTrail) — write the payload to a file and `jq` the file.
