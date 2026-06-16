@@ -9,9 +9,9 @@
 - [Infrastructure Overview](#infrastructure-overview)
 - [Global Rate Limiting & Security](#global-rate-limiting--security)
 - [1 — Portfolio API](#1--portfolio-api)
+  - [1.7 — Portfolio Assistant (Chatbot)](#17-portfolio-assistant-chatbot)
 - [2 — E-Commerce API](#2--e-commerce-api)
 - [3 — ATS (Applicant Tracking System) API](#3--ats-applicant-tracking-system-api)
-- [4 — Portfolio Assistant API](#4--portfolio-assistant-api)
 - [Common Error Formats](#common-error-formats)
 
 ---

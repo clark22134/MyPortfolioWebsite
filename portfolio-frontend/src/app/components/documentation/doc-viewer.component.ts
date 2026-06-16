@@ -141,7 +141,7 @@ export class DocViewerComponent implements OnInit, OnDestroy, AfterViewChecked {
         const id = href.slice(1);
         const el = document.getElementById(id);
         if (el) {
-          el.scrollIntoView({ behavior: 'smooth' });
+          el.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
           // Update the URL fragment without triggering Angular's router
           history.pushState(null, '', href);
           // Move focus to the heading so screen readers announce the section
