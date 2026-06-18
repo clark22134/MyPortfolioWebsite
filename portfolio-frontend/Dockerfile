@@ -1,6 +1,6 @@
 # Base images are pinned by digest for reproducible builds (Infra M2). The
 # human-readable tag is kept for clarity; Dependabot still bumps tag + digest.
-FROM node:24-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14 AS build
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
