@@ -23,7 +23,7 @@
 		<lombok.version>1.18.46</lombok.version>
 		<jjwt.version>0.13.0</jjwt.version>
 		<!-- AWS SDK for Java v2 BOM: single source of truth for all aws-sdk module versions. -->
-		<aws-sdk.version>2.46.6</aws-sdk.version>
+		<aws-sdk.version>2.46.15</aws-sdk.version>
 	</properties>
 
 	<dependencyManagement>
