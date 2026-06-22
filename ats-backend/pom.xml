@@ -25,7 +25,7 @@
     <postgresql.version>42.7.11</postgresql.version>
     <jwt.version>0.13.0</jwt.version>
     <!-- AWS SDK for Java v2 BOM: single source of truth for all aws-sdk module versions. -->
-    <aws-sdk.version>2.46.6</aws-sdk.version>
+    <aws-sdk.version>2.46.15</aws-sdk.version>
   </properties>
 
   <dependencyManagement>
