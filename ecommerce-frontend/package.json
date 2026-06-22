@@ -32,9 +32,9 @@
     "@angular/cli": "^21.2.13",
     "@angular/compiler-cli": "^21.2.15",
     "@angular/localize": "^21.2.15",
-    "@vitest/coverage-v8": "^4.1.7",
+    "@vitest/coverage-v8": "^4.1.9",
     "jsdom": "^29.1.1",
-    "prettier": "^3.8.3",
+    "prettier": "^3.8.4",
     "typescript": "~5.9.3",
     "vitest": "^4.1.7"
   }
