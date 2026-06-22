@@ -32,7 +32,7 @@
         <tomcat.version>10.1.54</tomcat.version>
         <spring-ai.version>1.1.7</spring-ai.version>
         <!-- Matches the AWS SDK v2 BOM used by the other backends. -->
-        <aws-sdk.version>2.46.6</aws-sdk.version>
+        <aws-sdk.version>2.46.15</aws-sdk.version>
     </properties>
 
     <dependencyManagement>
