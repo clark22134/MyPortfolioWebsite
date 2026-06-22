@@ -29,7 +29,7 @@
              42.7.10) to the CVE-2026-42198 fix. -->
         <postgresql.version>42.7.11</postgresql.version>
         <!-- AWS SDK for Java v2 BOM: single source of truth for all aws-sdk module versions. -->
-        <aws-sdk.version>2.46.5</aws-sdk.version>
+        <aws-sdk.version>2.46.15</aws-sdk.version>
     </properties>
 
     <dependencyManagement>
