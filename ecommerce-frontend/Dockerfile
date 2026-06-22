@@ -14,7 +14,7 @@ RUN npm run build
 # and moving the listener off :80 (and the matching docker-compose port maps +
 # nginx .conf "listen" directives) — disproportionate for a local-dev-only image
 # (prod serves the SPA via CloudFront/S3, not this container).
-FROM nginx:alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a
+FROM nginx:alpine@sha256:20316569d8f81a160065d7d2a5eeffc7ca97d79022462ee255fd23fa103a6b5c
 COPY --from=build /app/dist/angular-ecommerce/browser /usr/share/nginx/html
 COPY 00-rate-limit.conf /etc/nginx/conf.d/00-rate-limit.conf
 COPY nginx.prod.conf /etc/nginx/conf.d/default.conf
