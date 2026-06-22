@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.14</version>
+        <version>4.1.0</version>
         <relativePath/>
     </parent>
 
@@ -30,7 +30,7 @@
         <!-- Override Spring Boot 3.5.14's managed Tomcat 10.1.53 to the
              CVE-2026-34487 / CVE-2026-34483 fix. Literal version so Trivy resolves it. -->
         <tomcat.version>10.1.54</tomcat.version>
-        <spring-ai.version>1.1.7</spring-ai.version>
+        <spring-ai.version>2.0.0</spring-ai.version>
         <!-- Matches the AWS SDK v2 BOM used by the other backends. -->
         <aws-sdk.version>2.46.6</aws-sdk.version>
     </properties>
