@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.14</version>
+		<version>4.1.0</version>
 		<relativePath/>
 	</parent>
 	<groupId>com.clarksprojects</groupId>
@@ -137,7 +137,7 @@
 			<groupId>software.amazon.jdbc</groupId>
 			<artifactId>aws-advanced-jdbc-wrapper</artifactId>
 			<!-- 2.6.5: GHSA-7xw4-g7mm-r4hh (privilege escalation to rds_superuser); AWS-recommended floor. -->
-			<version>2.6.5</version>
+			<version>4.1.0</version>
 		</dependency>
 		<!-- Used by the wrapper's IAM plugin to generate RDS auth tokens (version via the AWS SDK v2 BOM). -->
 		<dependency>
