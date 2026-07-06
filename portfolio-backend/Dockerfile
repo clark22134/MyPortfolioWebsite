@@ -1,6 +1,6 @@
 # Base images are pinned by digest for reproducible builds (Infra M2). The
 # human-readable tag is kept for clarity; Dependabot still bumps tag + digest.
-FROM maven:3-eclipse-temurin-21@sha256:d7e7f57407437c014571f1ad5a9955f03fc3edcb1d964067ef351fa38e798665 AS build
+FROM maven:3-eclipse-temurin-21@sha256:2b4496088e7b80ae10a8c9f74e574ea21380325a006ec684532ad6bad5bc7273 AS build
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
