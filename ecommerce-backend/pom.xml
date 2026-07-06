@@ -23,7 +23,7 @@
 		<lombok.version>1.18.46</lombok.version>
 		<jjwt.version>0.13.0</jjwt.version>
 		<!-- AWS SDK for Java v2 BOM: single source of truth for all aws-sdk module versions. -->
-		<aws-sdk.version>2.46.6</aws-sdk.version>
+		<aws-sdk.version>2.46.21</aws-sdk.version>
 	</properties>
 
 	<dependencyManagement>
@@ -61,7 +61,7 @@
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<!-- CVE-2026-42198 fix (also overrides the wrapper's transitive 42.7.10). -->
-			<version>42.7.11</version>
+			<version>42.7.12</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
