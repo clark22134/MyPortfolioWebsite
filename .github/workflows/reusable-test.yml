@@ -23,12 +23,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # ── Java setup ───────────────────────────────────────────────
       - name: Set up JDK 21
         if: inputs.type == 'java'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -49,7 +49,7 @@ jobs:
       # ── Node setup ──────────────────────────────────────────────
       - name: Set up Node.js
         if: inputs.type == 'node'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -109,7 +109,7 @@ jobs:
 
       - name: Upload Coverage
         if: always()
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: ${{ inputs.type == 'java' && format('{0}/target/site/jacoco/jacoco.xml', inputs.component) || format('{0}/coverage/lcov.info', inputs.component) }}
           flags: ${{ inputs.component }}
