@@ -20,12 +20,12 @@
     <!-- Override Spring Boot 3.5.14's managed Tomcat 10.1.53 to the
          CVE-2026-34487 / CVE-2026-34483 fix. Literal version so Trivy resolves it. -->
     <tomcat.version>10.1.54</tomcat.version>
-    <lombok.version>1.18.46</lombok.version>
+    <lombok.version>1.18.48</lombok.version>
     <!-- CVE-2026-42198 fix (also overrides the wrapper's transitive 42.7.10). -->
     <postgresql.version>42.7.11</postgresql.version>
     <jwt.version>0.13.0</jwt.version>
     <!-- AWS SDK for Java v2 BOM: single source of truth for all aws-sdk module versions. -->
-    <aws-sdk.version>2.46.6</aws-sdk.version>
+    <aws-sdk.version>2.54.12</aws-sdk.version>
   </properties>
 
   <dependencyManagement>
@@ -65,7 +65,7 @@
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <version>42.7.11</version>
+      <version>42.7.13</version>
       <scope>runtime</scope>
     </dependency>
     <dependency>
@@ -113,7 +113,7 @@
     <dependency>
       <groupId>org.apache.pdfbox</groupId>
       <artifactId>pdfbox</artifactId>
-      <version>3.0.7</version>
+      <version>3.0.8</version>
     </dependency>
     <!-- poi-ooxml 5.5.1 (>= 5.4.0 which fixed CVE-2025-31672, duplicate-zip-entry input validation). -->
     <dependency>
