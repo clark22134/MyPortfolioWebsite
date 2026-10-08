@@ -175,6 +175,13 @@ class Lifecycle:
         self.check_account()
         self.run("terraform", "-chdir=terraform", "init", "-reconfigure", "-input=false", "-no-color")
         state = json.loads(self.run("terraform", "-chdir=terraform", "state", "pull"))
+        if not any(resource["type"] == "aws_lambda_function" for resource in state.get("resources", [])):
+            manifest = self.latest()
+            if manifest["status"] != "suspended":
+                raise LifecycleError("Use make aws-suspend to finish the existing partial teardown.")
+            self.terraform_plan()
+            print(f"Suspension verified using existing archive: {self.archive}", flush=True)
+            return
         inputs = inputs_from_state(state)
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         self.archive = self.archive_root / timestamp

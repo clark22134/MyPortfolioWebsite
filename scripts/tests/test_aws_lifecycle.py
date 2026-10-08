@@ -186,6 +186,23 @@ def test_wrong_account_blocks_every_mutation(operation):
     assert len(runner.commands) == 1
 
 
+def test_suspension_preview_reuses_archive_after_runtime_removal(operation):
+    tool, runner = prepared(operation, "suspended")
+    existing = tool.archive
+    runner.state = {"resources": []}
+    runner.plan = {"resource_changes": []}
+    tool.prepare()
+    assert tool.archive == existing
+    assert json.loads((tool.archive / "suspend-summary.json").read_text()) == {}
+
+
+def test_suspension_preview_does_not_replace_a_partial_backup(operation):
+    tool, runner = prepared(operation, "backed-up")
+    runner.state = {"resources": []}
+    with pytest.raises(lifecycle.LifecycleError, match="partial teardown"):
+        tool.prepare()
+
+
 def test_missing_or_invalid_archive_stops_operation(operation):
     tool, _ = operation
     with pytest.raises(lifecycle.LifecycleError, match="first"):
