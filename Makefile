@@ -1,4 +1,4 @@
-.PHONY: help install build test clean docker-up docker-down docker-build preview-all preview-all-stop preview-all-status deploy-backends deploy-frontends deploy terraform-init terraform-plan terraform-apply
+.PHONY: help install build test clean docker-up docker-down docker-build preview-all preview-all-stop preview-all-status deploy-backends deploy-frontends deploy terraform-init terraform-plan terraform-apply aws-suspend-plan aws-suspend aws-restore-plan aws-resume test-aws-lifecycle
 
 BACKENDS  := portfolio-backend ats-backend ecommerce-backend
 FRONTENDS := portfolio-frontend ats-frontend ecommerce-frontend
@@ -31,6 +31,13 @@ help:
 	@echo "terraform-init   - Initialize Terraform"
 	@echo "terraform-plan   - Preview infrastructure changes"
 	@echo "terraform-apply  - Apply infrastructure changes"
+	@echo ""
+	@echo "AWS Suspension and Recovery:"
+	@echo "aws-suspend-plan - Prepare a private recovery archive and preview suspension"
+	@echo "aws-suspend      - Back up the database and remove running AWS resources"
+	@echo "aws-restore-plan - Preview restoring the retained database snapshot"
+	@echo "aws-resume       - Restore through the production GitHub Actions workflow"
+	@echo "test-aws-lifecycle - Run the AWS lifecycle safety tests"
 
 # Install dependencies
 install:
@@ -165,3 +172,18 @@ terraform-plan:
 
 terraform-apply:
 	cd terraform && source ../.env && terraform apply
+
+aws-suspend-plan:
+	uv run --no-project scripts/aws_lifecycle.py plan
+
+aws-suspend:
+	uv run --no-project scripts/aws_lifecycle.py suspend
+
+aws-restore-plan:
+	uv run --no-project scripts/aws_lifecycle.py restore-plan
+
+aws-resume:
+	uv run --no-project scripts/aws_lifecycle.py resume
+
+test-aws-lifecycle:
+	uv run --no-project --with pytest --with pytest-cov python -m pytest scripts/tests/test_aws_lifecycle.py --cov=scripts.aws_lifecycle --cov-report=term-missing --cov-fail-under=80

@@ -1,5 +1,7 @@
 # Performance & Scalability
 
+**Hosting status:** AWS application hosting is suspended. The architecture below describes the enabled deployment. Run `make preview-all` locally; see [AWS suspension and restoration](AWS_SUSPENSION.md) for retained resources, backups, costs, and reactivation.
+
 **Author:** Clark Foster
 **Last Updated:** March 2026
 

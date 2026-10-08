@@ -16,6 +16,7 @@ Operational guidance for Codex CLI and other AI assistants working in this repo.
   ```
 - In full-auto mode, run the narrowest meaningful verification for each change. If a command needs network, credentials, AWS access, or an unsafe action, surface that requirement and use the available approval/escalation flow.
 - Do not run local `terraform apply` for production. Production deploys are GitHub Actions driven on merge to `main`, with secrets supplied by CI.
+- AWS hosting is suspended. `website_enabled` defaults false; the production workflow is disabled and AWS jobs require repository variable `AWS_SITE_ENABLED=true`. Do not enable hosting unless requested. The explicitly authorized `make aws-suspend` is the local teardown exception; restoration remains CI-only. Read `docs/AWS_SUSPENSION.md` before any AWS lifecycle work. Never commit or print `.aws-recovery/` contents.
 - Keep changes production-ready: update docs with behavior changes, avoid placeholders, and do not leave TODO-driven partial implementations.
 
 ## Repository shape
@@ -73,6 +74,13 @@ docker compose up -d                       # containerized stack (uses prod prof
 # Build & deploy
 make build                                  # all apps
 ./scripts/deploy-aws-serverless.sh         # build + upload + invalidate CloudFront
+
+# AWS lifecycle (hosting currently suspended)
+make aws-suspend-plan                       # read-only plan + private recovery archive
+make aws-suspend                            # snapshot + archive + runtime teardown
+make aws-restore-plan                       # read-only restoration preview
+make aws-resume                             # dispatch CI restoration after explicit authorization
+make test-aws-lifecycle                     # safety tests with >= 80% coverage
 ```
 
 ## Conventions
