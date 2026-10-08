@@ -1,5 +1,7 @@
 # DevOps & Infrastructure
 
+**Hosting status:** AWS application hosting is suspended. The architecture below describes the enabled deployment. Run `make preview-all` locally; see [AWS suspension and restoration](AWS_SUSPENSION.md) for retained resources, backups, costs, and reactivation.
+
 **Author:** Clark Foster
 **Last Updated:** April 2026
 
@@ -61,6 +63,12 @@ Every pull request runs 10 parallel jobs before a merge is possible:
 **Concurrency:** `pr-${{ pull_request.number }}` — new pushes to the same PR cancel in-progress runs. Each PR gets one active validation at a time.
 
 ### 1.3 Production Deployment (`deploy-production.yml`)
+
+AWS infrastructure, artifact-build, and deployment jobs run only when repository
+variable `AWS_SITE_ENABLED=true`. The workflow supports manual dispatch for
+restoration and passes `AWS_RESTORE_SNAPSHOT` to Terraform. Suspension disables
+the workflow as an additional guard. PR validation includes the AWS lifecycle
+safety tests and mocked Terraform plans; these create no AWS resources.
 
 Triggered on every push to `main`. Deploys to production through a 5-stage pipeline:
 
@@ -256,7 +264,11 @@ The [`Makefile`](https://github.com/clark22134/MyPortfolioWebsite/blob/main/Make
 | `make docker-up` | Compose stack (local dev) | `docker compose up -d` for local development |
 | `make docker-down` | Compose stack | `docker compose down` |
 | `make terraform-plan` | Infrastructure | `cd terraform && terraform plan` |
-| `make terraform-apply` | Infrastructure | `cd terraform && terraform apply` |
+| `make terraform-apply` | Infrastructure | Existing raw apply helper; use CI for production provisioning |
+| `make aws-suspend-plan` | AWS lifecycle | Private archive and read-only suspension plan |
+| `make aws-suspend` | AWS lifecycle | Snapshot, archive, and runtime teardown |
+| `make aws-restore-plan` | AWS lifecycle | Read-only restore preview |
+| `make aws-resume` | AWS lifecycle | Dispatch production restoration through CI |
 
 **Note:** Docker commands are for local development only. Production uses serverless deployment (Lambda + S3 + CloudFront). The dedicated chatbot backend (`portfolio-chatbot-backend`) is not part of `make build/test` and is validated via its own Maven/CI jobs.
 

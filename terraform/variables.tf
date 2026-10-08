@@ -1,3 +1,15 @@
+variable "website_enabled" {
+  description = "Create the running website infrastructure. Defaults off while the website is suspended."
+  type        = bool
+  default     = false
+}
+
+variable "restore_snapshot_identifier" {
+  description = "Manual Aurora cluster snapshot used when reactivating. Keep this value unchanged after restoration."
+  type        = string
+  default     = ""
+}
+
 variable "aws_region" {
   description = "AWS region for resources"
   type        = string

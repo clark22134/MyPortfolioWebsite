@@ -11,33 +11,33 @@ output "private_subnet_ids" {
 # CloudFront Distribution URLs
 output "portfolio_cloudfront_domain" {
   description = "CloudFront domain for Portfolio application"
-  value       = module.portfolio_cloudfront.distribution_domain_name
+  value       = try(module.portfolio_cloudfront[0].distribution_domain_name, null)
 }
 
 output "ecommerce_cloudfront_domain" {
   description = "CloudFront domain for E-Commerce application"
-  value       = module.ecommerce_cloudfront.distribution_domain_name
+  value       = try(module.ecommerce_cloudfront[0].distribution_domain_name, null)
 }
 
 output "ats_cloudfront_domain" {
   description = "CloudFront domain for ATS application"
-  value       = module.ats_cloudfront.distribution_domain_name
+  value       = try(module.ats_cloudfront[0].distribution_domain_name, null)
 }
 
 # CloudFront Distribution IDs (for cache invalidation)
 output "portfolio_cloudfront_distribution_id" {
   description = "CloudFront distribution ID for Portfolio application"
-  value       = module.portfolio_cloudfront.distribution_id
+  value       = try(module.portfolio_cloudfront[0].distribution_id, null)
 }
 
 output "ecommerce_cloudfront_distribution_id" {
   description = "CloudFront distribution ID for E-Commerce application"
-  value       = module.ecommerce_cloudfront.distribution_id
+  value       = try(module.ecommerce_cloudfront[0].distribution_id, null)
 }
 
 output "ats_cloudfront_distribution_id" {
   description = "CloudFront distribution ID for ATS application"
-  value       = module.ats_cloudfront.distribution_id
+  value       = try(module.ats_cloudfront[0].distribution_id, null)
 }
 
 # S3 Bucket Names (for frontend deployments)
@@ -59,17 +59,17 @@ output "ats_s3_bucket_name" {
 # Lambda Function ARNs
 output "portfolio_lambda_arn" {
   description = "ARN of Portfolio Lambda function"
-  value       = module.portfolio_lambda.function_arn
+  value       = try(module.portfolio_lambda[0].function_arn, null)
 }
 
 output "ecommerce_lambda_arn" {
   description = "ARN of E-Commerce Lambda function"
-  value       = module.ecommerce_lambda.function_arn
+  value       = try(module.ecommerce_lambda[0].function_arn, null)
 }
 
 output "ats_lambda_arn" {
   description = "ARN of ATS Lambda function"
-  value       = module.ats_lambda.function_arn
+  value       = try(module.ats_lambda[0].function_arn, null)
 }
 
 # Shared Aurora Database Endpoint
@@ -91,15 +91,20 @@ output "certificate_arn" {
 
 output "waf_acl_arn" {
   description = "ARN of the CloudFront WAF ACL"
-  value       = module.cloudfront_waf.web_acl_arn
+  value       = try(module.cloudfront_waf[0].web_acl_arn, null)
 }
 
 output "website_url" {
   description = "URL of the deployed website"
-  value       = "https://${var.domain_name}"
+  value       = var.website_enabled ? "https://${var.domain_name}" : null
 }
 
 output "github_actions_role_arn" {
   description = "ARN of the IAM role for GitHub Actions OIDC"
   value       = aws_iam_role.github_actions.arn
+}
+
+output "website_enabled" {
+  description = "Whether the running application infrastructure exists."
+  value       = var.website_enabled
 }

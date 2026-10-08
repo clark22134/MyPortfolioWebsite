@@ -52,6 +52,7 @@ secrets.json
 creds.txt
 
 # Terraform sensitive files
+.aws-recovery/
 *.tfvars
 !example.tfvars
 terraform.tfvars
@@ -145,6 +146,7 @@ yarn-error.log*
 *.tfstate.*
 *.tfstate.backup
 .terraform/
+terraform/modules/*/.terraform.lock.hcl
 tfplan
 *.tfplan
 crash.log
@@ -195,6 +197,7 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+__pycache__/
 
 # Local development files
 local_settings.py

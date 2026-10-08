@@ -38,10 +38,10 @@ data "aws_caller_identity" "current" {}
 # rds-db:connect ARNs for each app's IAM database role. Empty unless that app's
 # *_db_iam_auth flag is enabled, which keeps the IAM grant off until cutover.
 locals {
-  rds_db_arn_prefix            = "arn:aws:rds-db:${var.aws_region}:${data.aws_caller_identity.current.account_id}:dbuser:${module.shared_aurora.cluster_resource_id}"
-  portfolio_db_iam_connect_arn = var.portfolio_db_iam_auth ? "${local.rds_db_arn_prefix}/${var.portfolio_db_iam_user}" : ""
-  ecommerce_db_iam_connect_arn = var.ecommerce_db_iam_auth ? "${local.rds_db_arn_prefix}/${var.ecommerce_db_iam_user}" : ""
-  ats_db_iam_connect_arn       = var.ats_db_iam_auth ? "${local.rds_db_arn_prefix}/${var.ats_db_iam_user}" : ""
+  rds_db_arn_prefix            = var.website_enabled ? "arn:aws:rds-db:${var.aws_region}:${data.aws_caller_identity.current.account_id}:dbuser:${module.shared_aurora.cluster_resource_id}" : ""
+  portfolio_db_iam_connect_arn = var.website_enabled && var.portfolio_db_iam_auth ? "${local.rds_db_arn_prefix}/${var.portfolio_db_iam_user}" : ""
+  ecommerce_db_iam_connect_arn = var.website_enabled && var.ecommerce_db_iam_auth ? "${local.rds_db_arn_prefix}/${var.ecommerce_db_iam_user}" : ""
+  ats_db_iam_connect_arn       = var.website_enabled && var.ats_db_iam_auth ? "${local.rds_db_arn_prefix}/${var.ats_db_iam_user}" : ""
 }
 
 # VPC and Networking
@@ -67,6 +67,7 @@ module "acm" {
 
 # CloudFront WAF (must be in us-east-1)
 module "cloudfront_waf" {
+  count  = var.website_enabled ? 1 : 0
   source = "./modules/cloudfront-waf"
   providers = {
     aws.us_east_1 = aws.us_east_1
@@ -114,7 +115,9 @@ resource "aws_api_gateway_account" "main" {
 #   - ecommerce (created post-apply via temp seeder Lambda)
 #   - ats       (created post-apply via temp seeder Lambda)
 module "shared_aurora" {
-  source = "./modules/aurora"
+  enabled             = var.website_enabled
+  snapshot_identifier = var.restore_snapshot_identifier
+  source              = "./modules/aurora"
 
   environment        = var.environment
   cluster_identifier = "shared"
@@ -211,6 +214,7 @@ resource "aws_security_group" "ses_smtp_endpoint" {
 # fresh create collided. The import block was removed once the deploy confirmed the
 # resource is in state; Terraform now manages it normally.
 resource "aws_vpc_endpoint" "ses_smtp" {
+  count               = var.website_enabled ? 1 : 0
   vpc_id              = module.networking.vpc_id
   service_name        = data.aws_vpc_endpoint_service.ses_smtp.service_name
   vpc_endpoint_type   = "Interface"
@@ -226,7 +230,11 @@ resource "aws_vpc_endpoint" "ses_smtp" {
 
 # Lambda function for Portfolio Backend
 module "portfolio_lambda" {
-  source = "./modules/lambda"
+  depends_on               = [module.shared_aurora]
+  enable_iam_database_auth = var.portfolio_db_iam_auth
+  deployment_bucket        = "prod-lambda-deployments-${data.aws_caller_identity.current.account_id}"
+  count                    = var.website_enabled ? 1 : 0
+  source                   = "./modules/lambda"
 
   environment      = var.environment
   function_name    = "portfolio-backend"
@@ -257,9 +265,9 @@ module "portfolio_lambda" {
   environment_variables = merge(
     {
       SPRING_PROFILES_ACTIVE = "prod"
-      SPRING_DATASOURCE_URL  = var.portfolio_db_iam_auth ? "jdbc:aws-wrapper:postgresql://${module.shared_aurora.cluster_endpoint}:5432/portfolio?wrapperPlugins=iam&sslmode=require" : "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/portfolio"
+      SPRING_DATASOURCE_URL  = var.website_enabled && var.portfolio_db_iam_auth ? "jdbc:aws-wrapper:postgresql://${module.shared_aurora.cluster_endpoint}:5432/portfolio?wrapperPlugins=iam&sslmode=require" : "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/portfolio"
       DATABASE_SECRET_ARN    = module.shared_aurora.secret_arn
-      DB_USERNAME            = var.portfolio_db_iam_auth ? var.portfolio_db_iam_user : module.shared_aurora.master_username
+      DB_USERNAME            = var.website_enabled && var.portfolio_db_iam_auth ? var.portfolio_db_iam_user : module.shared_aurora.master_username
       MAIL_HOST              = "email-smtp.us-east-1.amazonaws.com"
       MAIL_PORT              = "587"
       MAIL_USERNAME          = var.ses_smtp_username
@@ -333,7 +341,9 @@ resource "aws_secretsmanager_secret_version" "openai_api_key" {
 # is not required for security. API Gateway routes /api/chatbot/{proxy+} to
 # this function; everything else still flows to portfolio_lambda above.
 module "portfolio_chatbot_lambda" {
-  source = "./modules/lambda"
+  deployment_bucket = "prod-lambda-deployments-${data.aws_caller_identity.current.account_id}"
+  count             = var.website_enabled ? 1 : 0
+  source            = "./modules/lambda"
 
   environment      = var.environment
   function_name    = "portfolio-chatbot"
@@ -371,21 +381,22 @@ module "portfolio_chatbot_lambda" {
 # API Gateway for Portfolio Backend
 # Use the SnapStart alias invoke ARN so cold starts use the pre-initialized snapshot.
 module "portfolio_api_gateway" {
+  count  = var.website_enabled ? 1 : 0
   source = "./modules/api-gateway"
 
   environment          = var.environment
   api_name             = "portfolio-api"
-  lambda_invoke_arn    = module.portfolio_lambda.alias_invoke_arn
-  lambda_function_name = module.portfolio_lambda.function_name
-  lambda_alias         = module.portfolio_lambda.alias_name
+  lambda_invoke_arn    = module.portfolio_lambda[0].alias_invoke_arn
+  lambda_function_name = module.portfolio_lambda[0].function_name
+  lambda_alias         = module.portfolio_lambda[0].alias_name
 
   # Route /api/chatbot/{proxy+} to the dedicated, non-VPC chatbot Lambda.
   # All other paths still hit module.portfolio_lambda via the catch-all
   # {proxy+} integration.
   enable_chatbot               = true
-  chatbot_lambda_invoke_arn    = module.portfolio_chatbot_lambda.alias_invoke_arn
-  chatbot_lambda_function_name = module.portfolio_chatbot_lambda.function_name
-  chatbot_lambda_alias         = module.portfolio_chatbot_lambda.alias_name
+  chatbot_lambda_invoke_arn    = module.portfolio_chatbot_lambda[0].alias_invoke_arn
+  chatbot_lambda_function_name = module.portfolio_chatbot_lambda[0].function_name
+  chatbot_lambda_alias         = module.portfolio_chatbot_lambda[0].alias_name
 }
 
 # S3 bucket for Portfolio Frontend
@@ -398,6 +409,7 @@ module "portfolio_s3" {
 
 # CloudFront for Portfolio Frontend
 module "portfolio_cloudfront" {
+  count  = var.website_enabled ? 1 : 0
   source = "./modules/cloudfront"
 
   environment                    = var.environment
@@ -405,13 +417,14 @@ module "portfolio_cloudfront" {
   additional_aliases             = ["www.clarkfoster.com"]
   s3_bucket_regional_domain_name = module.portfolio_s3.bucket_regional_domain_name
   certificate_arn                = module.acm.certificate_arn
-  api_gateway_domain             = module.portfolio_api_gateway.api_domain
+  api_gateway_domain             = module.portfolio_api_gateway[0].api_domain
   enable_waf                     = true
-  waf_web_acl_id                 = module.cloudfront_waf.web_acl_arn
+  waf_web_acl_id                 = module.cloudfront_waf[0].web_acl_arn
 }
 
 # Update S3 bucket policy after CloudFront is created
 resource "aws_s3_bucket_policy" "portfolio_cloudfront" {
+  count  = var.website_enabled ? 1 : 0
   bucket = module.portfolio_s3.bucket_id
 
   policy = jsonencode({
@@ -427,7 +440,7 @@ resource "aws_s3_bucket_policy" "portfolio_cloudfront" {
         Resource = "${module.portfolio_s3.bucket_arn}/*"
         Condition = {
           StringEquals = {
-            "AWS:SourceArn" = module.portfolio_cloudfront.distribution_arn
+            "AWS:SourceArn" = module.portfolio_cloudfront[0].distribution_arn
           }
         }
       }
@@ -461,7 +474,11 @@ resource "aws_security_group" "ecommerce_lambda" {
 
 # Lambda function for E-Commerce Backend
 module "ecommerce_lambda" {
-  source = "./modules/lambda"
+  depends_on               = [module.shared_aurora]
+  enable_iam_database_auth = var.ecommerce_db_iam_auth
+  deployment_bucket        = "prod-lambda-deployments-${data.aws_caller_identity.current.account_id}"
+  count                    = var.website_enabled ? 1 : 0
+  source                   = "./modules/lambda"
 
   environment      = var.environment
   function_name    = "ecommerce-backend"
@@ -484,9 +501,9 @@ module "ecommerce_lambda" {
   environment_variables = merge(
     {
       SPRING_PROFILES_ACTIVE = "prod"
-      SPRING_DATASOURCE_URL  = var.ecommerce_db_iam_auth ? "jdbc:aws-wrapper:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ecommerce?wrapperPlugins=iam&sslmode=require" : "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ecommerce"
+      SPRING_DATASOURCE_URL  = var.website_enabled && var.ecommerce_db_iam_auth ? "jdbc:aws-wrapper:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ecommerce?wrapperPlugins=iam&sslmode=require" : "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ecommerce"
       DATABASE_SECRET_ARN    = module.shared_aurora.secret_arn
-      DB_USERNAME            = var.ecommerce_db_iam_auth ? var.ecommerce_db_iam_user : module.shared_aurora.master_username
+      DB_USERNAME            = var.website_enabled && var.ecommerce_db_iam_auth ? var.ecommerce_db_iam_user : module.shared_aurora.master_username
       ECOMMERCE_JWT_SECRET   = var.ecommerce_jwt_secret
     },
     var.ecommerce_db_iam_auth
@@ -498,13 +515,14 @@ module "ecommerce_lambda" {
 # API Gateway for E-Commerce Backend
 # Use the SnapStart alias invoke ARN so cold starts use the pre-initialized snapshot.
 module "ecommerce_api_gateway" {
+  count  = var.website_enabled ? 1 : 0
   source = "./modules/api-gateway"
 
   environment          = var.environment
   api_name             = "ecommerce-api"
-  lambda_invoke_arn    = module.ecommerce_lambda.alias_invoke_arn
-  lambda_function_name = module.ecommerce_lambda.function_name
-  lambda_alias         = module.ecommerce_lambda.alias_name
+  lambda_invoke_arn    = module.ecommerce_lambda[0].alias_invoke_arn
+  lambda_function_name = module.ecommerce_lambda[0].function_name
+  lambda_alias         = module.ecommerce_lambda[0].alias_name
 }
 
 # S3 bucket for E-Commerce Frontend
@@ -517,19 +535,21 @@ module "ecommerce_s3" {
 
 # CloudFront for E-Commerce Frontend
 module "ecommerce_cloudfront" {
+  count  = var.website_enabled ? 1 : 0
   source = "./modules/cloudfront"
 
   environment                    = var.environment
   domain_name                    = "shop.clarkfoster.com"
   s3_bucket_regional_domain_name = module.ecommerce_s3.bucket_regional_domain_name
   certificate_arn                = module.acm.certificate_arn
-  api_gateway_domain             = module.ecommerce_api_gateway.api_domain
+  api_gateway_domain             = module.ecommerce_api_gateway[0].api_domain
   enable_waf                     = true
-  waf_web_acl_id                 = module.cloudfront_waf.web_acl_arn
+  waf_web_acl_id                 = module.cloudfront_waf[0].web_acl_arn
 }
 
 # Update S3 bucket policy after CloudFront is created
 resource "aws_s3_bucket_policy" "ecommerce_cloudfront" {
+  count  = var.website_enabled ? 1 : 0
   bucket = module.ecommerce_s3.bucket_id
 
   policy = jsonencode({
@@ -545,7 +565,7 @@ resource "aws_s3_bucket_policy" "ecommerce_cloudfront" {
         Resource = "${module.ecommerce_s3.bucket_arn}/*"
         Condition = {
           StringEquals = {
-            "AWS:SourceArn" = module.ecommerce_cloudfront.distribution_arn
+            "AWS:SourceArn" = module.ecommerce_cloudfront[0].distribution_arn
           }
         }
       }
@@ -579,7 +599,11 @@ resource "aws_security_group" "ats_lambda" {
 
 # Lambda function for ATS Backend
 module "ats_lambda" {
-  source = "./modules/lambda"
+  depends_on               = [module.shared_aurora]
+  enable_iam_database_auth = var.ats_db_iam_auth
+  deployment_bucket        = "prod-lambda-deployments-${data.aws_caller_identity.current.account_id}"
+  count                    = var.website_enabled ? 1 : 0
+  source                   = "./modules/lambda"
 
   environment      = var.environment
   function_name    = "ats-backend"
@@ -603,9 +627,9 @@ module "ats_lambda" {
   environment_variables = merge(
     {
       SPRING_PROFILES_ACTIVE = "prod"
-      SPRING_DATASOURCE_URL  = var.ats_db_iam_auth ? "jdbc:aws-wrapper:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ats?wrapperPlugins=iam&sslmode=require" : "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ats"
+      SPRING_DATASOURCE_URL  = var.website_enabled && var.ats_db_iam_auth ? "jdbc:aws-wrapper:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ats?wrapperPlugins=iam&sslmode=require" : "jdbc:postgresql://${module.shared_aurora.cluster_endpoint}:5432/ats"
       DATABASE_SECRET_ARN    = module.shared_aurora.secret_arn
-      DB_USERNAME            = var.ats_db_iam_auth ? var.ats_db_iam_user : module.shared_aurora.master_username
+      DB_USERNAME            = var.website_enabled && var.ats_db_iam_auth ? var.ats_db_iam_user : module.shared_aurora.master_username
       # Required: JwtUtil @PostConstruct fails fast without this, which kills
       # SnapStart pre-init and the Lambda waiter reports "Failed".
       JWT_SECRET    = var.ats_jwt_secret
@@ -632,13 +656,14 @@ module "ats_lambda" {
 # API Gateway for ATS Backend
 # Use the SnapStart alias invoke ARN so cold starts use the pre-initialized snapshot.
 module "ats_api_gateway" {
+  count  = var.website_enabled ? 1 : 0
   source = "./modules/api-gateway"
 
   environment          = var.environment
   api_name             = "ats-api"
-  lambda_invoke_arn    = module.ats_lambda.alias_invoke_arn
-  lambda_function_name = module.ats_lambda.function_name
-  lambda_alias         = module.ats_lambda.alias_name
+  lambda_invoke_arn    = module.ats_lambda[0].alias_invoke_arn
+  lambda_function_name = module.ats_lambda[0].function_name
+  lambda_alias         = module.ats_lambda[0].alias_name
 }
 
 # S3 bucket for ATS Frontend
@@ -651,19 +676,21 @@ module "ats_s3" {
 
 # CloudFront for ATS Frontend
 module "ats_cloudfront" {
+  count  = var.website_enabled ? 1 : 0
   source = "./modules/cloudfront"
 
   environment                    = var.environment
   domain_name                    = "ats.clarkfoster.com"
   s3_bucket_regional_domain_name = module.ats_s3.bucket_regional_domain_name
   certificate_arn                = module.acm.certificate_arn
-  api_gateway_domain             = module.ats_api_gateway.api_domain
+  api_gateway_domain             = module.ats_api_gateway[0].api_domain
   enable_waf                     = true
-  waf_web_acl_id                 = module.cloudfront_waf.web_acl_arn
+  waf_web_acl_id                 = module.cloudfront_waf[0].web_acl_arn
 }
 
 # Update S3 bucket policy after CloudFront is created
 resource "aws_s3_bucket_policy" "ats_cloudfront" {
+  count  = var.website_enabled ? 1 : 0
   bucket = module.ats_s3.bucket_id
 
   policy = jsonencode({
@@ -679,7 +706,7 @@ resource "aws_s3_bucket_policy" "ats_cloudfront" {
         Resource = "${module.ats_s3.bucket_arn}/*"
         Condition = {
           StringEquals = {
-            "AWS:SourceArn" = module.ats_cloudfront.distribution_arn
+            "AWS:SourceArn" = module.ats_cloudfront[0].distribution_arn
           }
         }
       }
@@ -693,49 +720,53 @@ resource "aws_s3_bucket_policy" "ats_cloudfront" {
 
 # Route53 DNS records for all applications
 resource "aws_route53_record" "portfolio" {
+  count   = var.website_enabled ? 1 : 0
   zone_id = data.aws_route53_zone.main.zone_id
   name    = "clarkfoster.com"
   type    = "A"
 
   alias {
-    name                   = module.portfolio_cloudfront.distribution_domain_name
-    zone_id                = module.portfolio_cloudfront.distribution_hosted_zone_id
+    name                   = module.portfolio_cloudfront[0].distribution_domain_name
+    zone_id                = module.portfolio_cloudfront[0].distribution_hosted_zone_id
     evaluate_target_health = false
   }
 }
 
 resource "aws_route53_record" "portfolio_www" {
+  count   = var.website_enabled ? 1 : 0
   zone_id = data.aws_route53_zone.main.zone_id
   name    = "www.clarkfoster.com"
   type    = "A"
 
   alias {
-    name                   = module.portfolio_cloudfront.distribution_domain_name
-    zone_id                = module.portfolio_cloudfront.distribution_hosted_zone_id
+    name                   = module.portfolio_cloudfront[0].distribution_domain_name
+    zone_id                = module.portfolio_cloudfront[0].distribution_hosted_zone_id
     evaluate_target_health = false
   }
 }
 
 resource "aws_route53_record" "ecommerce" {
+  count   = var.website_enabled ? 1 : 0
   zone_id = data.aws_route53_zone.main.zone_id
   name    = "shop.clarkfoster.com"
   type    = "A"
 
   alias {
-    name                   = module.ecommerce_cloudfront.distribution_domain_name
-    zone_id                = module.ecommerce_cloudfront.distribution_hosted_zone_id
+    name                   = module.ecommerce_cloudfront[0].distribution_domain_name
+    zone_id                = module.ecommerce_cloudfront[0].distribution_hosted_zone_id
     evaluate_target_health = false
   }
 }
 
 resource "aws_route53_record" "ats" {
+  count   = var.website_enabled ? 1 : 0
   zone_id = data.aws_route53_zone.main.zone_id
   name    = "ats.clarkfoster.com"
   type    = "A"
 
   alias {
-    name                   = module.ats_cloudfront.distribution_domain_name
-    zone_id                = module.ats_cloudfront.distribution_hosted_zone_id
+    name                   = module.ats_cloudfront[0].distribution_domain_name
+    zone_id                = module.ats_cloudfront[0].distribution_hosted_zone_id
     evaluate_target_health = false
   }
 }
@@ -813,19 +844,6 @@ resource "aws_iam_role_policy" "github_actions" {
         ]
       },
       {
-        Sid    = "CloudFrontInvalidation"
-        Effect = "Allow"
-        Action = [
-          "cloudfront:CreateInvalidation",
-          "cloudfront:GetInvalidation"
-        ]
-        Resource = [
-          module.portfolio_cloudfront.distribution_arn,
-          module.ecommerce_cloudfront.distribution_arn,
-          module.ats_cloudfront.distribution_arn
-        ]
-      },
-      {
         Sid    = "LambdaDeployment"
         Effect = "Allow"
         Action = [
@@ -835,10 +853,10 @@ resource "aws_iam_role_policy" "github_actions" {
           "lambda:PublishVersion"
         ]
         Resource = [
-          module.portfolio_lambda.function_arn,
-          module.portfolio_chatbot_lambda.function_arn,
-          module.ecommerce_lambda.function_arn,
-          module.ats_lambda.function_arn
+          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.environment}-portfolio-backend",
+          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.environment}-portfolio-chatbot",
+          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.environment}-ecommerce-backend",
+          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.environment}-ats-backend"
         ]
       },
       {

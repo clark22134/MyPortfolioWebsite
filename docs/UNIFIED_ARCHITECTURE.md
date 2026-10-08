@@ -1,5 +1,7 @@
 # Unified Architecture — Engineering Portfolio
 
+**Hosting status:** AWS application hosting is suspended. The architecture below describes the enabled deployment. Run `make preview-all` locally; see [AWS suspension and restoration](AWS_SUSPENSION.md) for retained resources, backups, costs, and reactivation.
+
 ## Architecture Overview
 
 This monorepo houses three production-grade web applications — a **Portfolio site**, an **E-Commerce platform**, and an **Applicant Tracking System** — running on shared serverless cloud infrastructure. Each application is a full-stack vertical slice (Angular SPA → CloudFront CDN → API Gateway → Lambda → Aurora database), deployed as independent serverless services with global edge distribution.

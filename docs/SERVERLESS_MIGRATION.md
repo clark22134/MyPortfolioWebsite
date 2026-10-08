@@ -1,5 +1,7 @@
 # Serverless Migration Guide
 
+**Historical migration reference.** AWS hosting is now suspended. The original migration commands and estimates below are historical; use [AWS suspension and restoration](AWS_SUSPENSION.md) for current operations and observed costs.
+
 ## Overview
 
 This guide documents the migration from ECS Fargate to a serverless architecture using Lambda, API Gateway, CloudFront, and Aurora Serverless v2.

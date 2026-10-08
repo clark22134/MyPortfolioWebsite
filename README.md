@@ -2,7 +2,11 @@
 
 A production-grade, multi-application platform comprising three full-stack web applications — a **Portfolio**, an **E-Commerce store**, and an **Applicant Tracking System (ATS)** — deployed on AWS behind a shared infrastructure layer.
 
-**Live:**
+**AWS hosting is suspended.** Run `make preview-all` to use the project locally.
+See [AWS suspension and restoration](docs/AWS_SUSPENSION.md) for backups, retained
+resources, costs, and reactivation commands. The production URLs are currently offline:
+
+**Production URLs:**
 [clarkfoster.com](https://clarkfoster.com) ·
 [shop.clarkfoster.com](https://shop.clarkfoster.com) ·
 [ats.clarkfoster.com](https://ats.clarkfoster.com)
@@ -411,34 +415,27 @@ See `make help` for the full list of available commands.
 
 ### AWS Deployment
 
-1. **Bootstrap Terraform state:**
-   ```bash
-   cd terraform/bootstrap
-   terraform init && terraform apply
-   cd ../..
-   ```
+Production is currently suspended. Terraform defaults to `website_enabled=false`;
+the production workflow is disabled and its AWS jobs require repository variable
+`AWS_SITE_ENABLED=true`. Local Docker and preview commands do not affect AWS.
 
-2. **Provision infrastructure:**
-   ```bash
-   make terraform-init
-   make terraform-plan
-   make terraform-apply
-   ```
+```bash
+make aws-suspend-plan   # Private recovery archive and read-only shutdown preview
+make aws-suspend        # Snapshot, archive, and remove running AWS resources
+make aws-restore-plan   # Read-only snapshot restoration preview
+make aws-resume         # Restore through GitHub Actions after merging lifecycle changes
+```
 
-3. **Set up secrets in `.env`:**
-   ```bash
-   # Add TF_VAR exports for JWT secrets, admin password, and SMTP credentials
-   # These are injected as Lambda environment variables via Terraform
-   source .env
-   ```
+Follow [the complete recovery runbook](docs/AWS_SUSPENSION.md). The existing
+Terraform bootstrap, domain/email DNS, secrets, artifact buckets, and deployment
+role are retained. Do not rerun bootstrap or perform a blanket destroy.
 
-4. **Deploy to production:**
-   ```bash
-   ./scripts/deploy-aws-serverless.sh
-   ```
-   This builds backend JARs and frontend bundles, uploads JARs to Lambda via S3, syncs frontend assets to S3, publishes SnapStart versions, and invalidates CloudFront caches.
-
-> **Note:** CI/CD via GitHub Actions handles production deployments automatically on pushes to `main`. Manual deployment is only needed for initial setup or out-of-band changes.
+When explicitly enabled, pushes to `main` and manual workflow dispatches run
+production deployment. CI supplies the saved snapshot identifier through
+`AWS_RESTORE_SNAPSHOT`; keep that variable unchanged after restoration. Direct
+deployment scripts only update an existing running stack and cannot restore a
+deleted database. The production workflow builds and deploys all four backends,
+including the chatbot.
 
 ---
 

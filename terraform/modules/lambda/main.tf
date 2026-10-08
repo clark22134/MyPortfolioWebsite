@@ -85,6 +85,17 @@ variable "enable_snapstart" {
   default     = true
 }
 
+variable "enable_iam_database_auth" {
+  description = "Create the IAM database policy using a boolean known before a new database is provisioned."
+  type        = bool
+  default     = false
+}
+
+variable "deployment_bucket" {
+  description = "S3 bucket containing the real application JARs for initial creation and restoration."
+  type        = string
+}
+
 # Security group for Lambda (if VPC is configured)
 resource "aws_security_group" "lambda" {
   count       = length(var.vpc_subnet_ids) > 0 && var.vpc_id != "" && length(var.vpc_security_group_ids) == 0 ? 1 : 0
@@ -187,7 +198,7 @@ resource "aws_iam_role_policy" "lambda_extra_secrets" {
 # RDS IAM database authentication: allow the function to obtain a DB auth token
 # for exactly one dbuser ARN. Created only when db_iam_connect_arn is supplied.
 resource "aws_iam_role_policy" "lambda_rds_connect" {
-  count = var.db_iam_connect_arn != "" ? 1 : 0
+  count = var.enable_iam_database_auth ? 1 : 0
   name  = "${var.environment}-${var.function_name}-rds-connect-policy"
   role  = aws_iam_role.lambda.id
 
@@ -212,9 +223,10 @@ resource "aws_lambda_function" "main" {
   memory_size   = var.memory_size
   timeout       = var.timeout
 
-  # Placeholder - will be updated by CI/CD
-  filename         = "${path.module}/placeholder.zip"
-  source_code_hash = filebase64sha256("${path.module}/placeholder.zip")
+  # Use the retained deployment artifact so a new SnapStart alias is bootable.
+  s3_bucket = var.deployment_bucket
+  s3_key    = "${var.function_name}.jar"
+  publish   = var.enable_snapstart
 
   dynamic "vpc_config" {
     for_each = length(var.vpc_subnet_ids) > 0 ? [1] : []
@@ -250,7 +262,8 @@ resource "aws_lambda_function" "main" {
 
   lifecycle {
     ignore_changes = [
-      filename,
+      s3_bucket,
+      s3_key,
       source_code_hash
     ]
   }

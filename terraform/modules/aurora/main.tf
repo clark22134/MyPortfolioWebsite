@@ -1,3 +1,15 @@
+variable "enabled" {
+  description = "Keep the database running; credentials and free networking remain when disabled."
+  type        = bool
+  default     = true
+}
+
+variable "snapshot_identifier" {
+  description = "Aurora snapshot to restore when creating the cluster."
+  type        = string
+  default     = ""
+}
+
 variable "environment" {
   description = "Environment name"
   type        = string
@@ -76,7 +88,7 @@ resource "aws_secretsmanager_secret_version" "db_credentials" {
     username = var.master_username
     password = random_password.master.result
     engine   = "postgres"
-    host     = aws_rds_cluster.aurora.endpoint
+    host     = var.enabled ? aws_rds_cluster.aurora[0].endpoint : ""
     port     = 5432
     dbname   = var.database_name
   })
@@ -122,6 +134,8 @@ resource "aws_security_group" "aurora" {
 
 # Aurora Serverless v2 cluster
 resource "aws_rds_cluster" "aurora" {
+  count                  = var.enabled ? 1 : 0
+  snapshot_identifier    = var.snapshot_identifier != "" ? var.snapshot_identifier : null
   cluster_identifier     = "${var.environment}-${var.cluster_identifier}"
   engine                 = "aurora-postgresql"
   engine_mode            = "provisioned"
@@ -168,11 +182,12 @@ resource "aws_rds_cluster" "aurora" {
 
 # Aurora Serverless v2 instance
 resource "aws_rds_cluster_instance" "aurora" {
+  count              = var.enabled ? 1 : 0
   identifier         = "${var.environment}-${var.cluster_identifier}-instance-1"
-  cluster_identifier = aws_rds_cluster.aurora.id
+  cluster_identifier = aws_rds_cluster.aurora[0].id
   instance_class     = "db.serverless"
-  engine             = aws_rds_cluster.aurora.engine
-  engine_version     = aws_rds_cluster.aurora.engine_version
+  engine             = aws_rds_cluster.aurora[0].engine
+  engine_version     = aws_rds_cluster.aurora[0].engine_version
 
   tags = {
     Name        = "${var.environment}-${var.cluster_identifier}-instance-1"
@@ -182,32 +197,32 @@ resource "aws_rds_cluster_instance" "aurora" {
 
 output "cluster_endpoint" {
   description = "Aurora cluster endpoint"
-  value       = aws_rds_cluster.aurora.endpoint
+  value       = try(aws_rds_cluster.aurora[0].endpoint, null)
 }
 
 output "cluster_reader_endpoint" {
   description = "Aurora cluster reader endpoint"
-  value       = aws_rds_cluster.aurora.reader_endpoint
+  value       = try(aws_rds_cluster.aurora[0].reader_endpoint, null)
 }
 
 output "cluster_id" {
   description = "Aurora cluster ID"
-  value       = aws_rds_cluster.aurora.id
+  value       = try(aws_rds_cluster.aurora[0].id, null)
 }
 
 output "cluster_arn" {
   description = "Aurora cluster ARN"
-  value       = aws_rds_cluster.aurora.arn
+  value       = try(aws_rds_cluster.aurora[0].arn, null)
 }
 
 output "cluster_resource_id" {
   description = "Aurora cluster resource ID (used in rds-db:connect IAM ARNs)"
-  value       = aws_rds_cluster.aurora.cluster_resource_id
+  value       = try(aws_rds_cluster.aurora[0].cluster_resource_id, null)
 }
 
 output "database_name" {
   description = "Database name"
-  value       = aws_rds_cluster.aurora.database_name
+  value       = var.database_name
 }
 
 output "secret_arn" {
