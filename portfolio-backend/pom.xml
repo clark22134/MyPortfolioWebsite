@@ -24,12 +24,12 @@
              CVE-2026-34487 / CVE-2026-34483 fix. Literal version so Trivy resolves it. -->
         <tomcat.version>10.1.54</tomcat.version>
         <jwt.version>0.13.0</jwt.version>
-        <lombok.version>1.18.46</lombok.version>
+        <lombok.version>1.18.48</lombok.version>
         <!-- Override Spring Boot's managed pgjdbc (and the wrapper's transitive
              42.7.10) to the CVE-2026-42198 fix. -->
         <postgresql.version>42.7.11</postgresql.version>
         <!-- AWS SDK for Java v2 BOM: single source of truth for all aws-sdk module versions. -->
-        <aws-sdk.version>2.46.5</aws-sdk.version>
+        <aws-sdk.version>2.54.12</aws-sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -80,7 +80,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.11</version>
+            <version>42.7.13</version>
             <scope>runtime</scope>
         </dependency>
         
@@ -205,7 +205,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.15.0</version>
+                <version>3.16.0</version>
                 <configuration>
                     <release>21</release>
                     <annotationProcessorPaths>
